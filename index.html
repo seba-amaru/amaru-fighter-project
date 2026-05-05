@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amarufighter | Artes Marciales Premium</title>
+    <meta name="description"
+        content="Amarufighter: Dojo de Kick Boxing, Jiu Jitsu y MMA. Entrenamiento personalizado y grupal en un ambiente premium.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">    <!-- PWA Setup -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" type="image/png" href="/images/icon-192.png">
+    <link rel="apple-touch-icon" href="/images/icon-192.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="#" class="logo">
+                <img src="images/amarunegro.png" alt="Amarufighter Logo" class="nav-logo">
+            </a>
+            <div class="nav-links">
+                <a href="#services" class="nav-link">Disciplinas</a>
+                <a href="#about" class="nav-link">Sobre Nosotros</a>
+                <a href="#memberships" class="nav-link">Planes</a>
+                <a href="#schedule" class="nav-link">Horario</a>
+                <a href="#contact" class="nav-link">Contacto</a>
+            </div>
+            <a href="./app/index.html" class="btn-primary desktop-only">>Mi cuenta</a>
+            <button class="mobile-menu-toggle" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu">
+        <a href="#services" class="mobile-link">Disciplinas</a>
+        <a href="#about" class="mobile-link">Sobre Nosotros</a>
+        <a href="#memberships" class="mobile-link">Planes de Membresía</a>
+        <a href="#schedule" class="mobile-link">Horario</a>
+        <a href="#contact" class="mobile-link">Contacto</a>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-container">
+            <div class="hero-content">
+                <div class="hero-label">La Familia Nunca Muere ⛩️</div>
+                <h1 class="hero-title">Domina tu <span class="gradient-text">Cuerpo y Mente</span></h1>
+                <p class="hero-subtitle">Entrenamiento de Kick Boxing, Jiu Jitsu y MMA de alto nivel. Clases grupales y
+                    personalizadas para sacar tu mejor versión.</p>
+                <div class="hero-buttons">
+                    <a href="./app/index.html" class="btn-primary glow-primary">Únete a la Familia</a>
+                    <a href="#services" class="btn-outline">Ver Disciplinas</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" data-target="400">0</span><span>+</span>
+                        <span class="stat-label">Alumnos</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" data-target="15">0</span><span>+</span>
+                        <span class="stat-label">Años Exp.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="sphere"></div> <!-- Background effect -->
+                <img src="images/1.jpg" alt="Amarufighter Team" class="hero-image float-animation">
+            </div>
+        </div>
+        <div class="scroll-indicator">
+            <span></span>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="services">
+        <div class="container">
+            <h2 class="section-title">Nuestras <span class="gradient-text">Disciplinas</span></h2>
+            <div class="services-grid">
+                <!-- Kick Boxing -->
+                <div class="service-flip-card">
+                    <div class="service-card-inner">
+                        <div class="service-card-front">
+                            <img src="images/striking.jpg" alt="Kick Boxing">
+                            <div class="service-overlay">
+                                <h3>Kick Boxing</h3>
+                            </div>
+                        </div>
+                        <div class="service-card-back glass-card">
+                            <h3>Kick Boxing</h3>
+                            <p>Mejora tu resistencia y técnica de golpeo con entrenamientos dinámicos e intensos.</p>
+                            <div class="tags">
+                                <span>Striking</span><span>Cardio</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Jiu Jitsu -->
+                <div class="service-flip-card">
+                    <div class="service-card-inner">
+                        <div class="service-card-front">
+                            <img src="images/grappling.jpg" alt="Jiu Jitsu">
+                            <div class="service-overlay">
+                                <h3>Jiu Jitsu</h3>
+                            </div>
+                        </div>
+                        <div class="service-card-back glass-card">
+                            <h3>Jiu Jitsu</h3>
+                            <p>Domina el arte suave. Control, sumisiones y defensa personal en un ambiente técnico.</p>
+                            <div class="tags">
+                                <span>Grappling</span><span>Defensa</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MMA -->
+                <div class="service-flip-card">
+                    <div class="service-card-inner">
+                        <div class="service-card-front">
+                            <img src="images/mma.jpg" alt="MMA">
+                            <div class="service-overlay">
+                                <h3>MMA</h3>
+                            </div>
+                        </div>
+                        <div class="service-card-back glass-card">
+                            <h3>MMA</h3>
+                            <p>Combina lo mejor de todas las artes marciales para convertirte en un luchador completo.
+                            </p>
+                            <div class="tags">
+                                <span>Completo</span><span>Combaten</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Memberships Section - moved after about gallery -->
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container about-container">
+            <div class="about-image-wrapper">
+                <!-- Using logo as fallback for personal photo for now, user can replace -->
+                <img src="images/AMARU-LFNM.png" alt="Sensei Amaru" class="about-image">
+                <div class="about-glow"></div>
+            </div>
+            <div class="about-content">
+                <h2 class="section-title">Sobre <span class="gradient-text">Nosotros</span></h2>
+                <p>En <strong>Amarufighter</strong>, creemos que las artes marciales son un camino de autodescubrimiento
+                    y superación. Fundado con la pasión de compartir el conocimiento técnico y los valores del combate.
+                </p>
+                <p>Nuestro enfoque combina la disciplina tradicional con métodos de entrenamiento modernos, asegurando
+                    que cada alumno, desde principiante hasta avanzado, alcance su máximo potencial.</p>
+                <div class="signature"><b>Amarufighter</b> | La Familia Nunca Muere</div>
+            </div>
+        </div>
+
+        <!-- Carousel Gallery -->
+        <div class="gallery-slider">
+            <div class="gallery-track">
+                <img src="images/1_.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/2.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/3.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/4.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/5.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/6.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/7.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/9.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/10.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/11.jpg" alt="Amarufighter" class="gallery-img">
+                <img src="images/12.jpg" alt="Amarufighter" class="gallery-img">
+            </div>
+        </div>
+        
+        <!-- Memberships Section (Positioned after gallery as requested) -->
+        <section id="memberships" class="memberships" style="padding: 100px 0 60px;">
+            <div class="container">
+                <div class="section-header" style="text-align: center; margin-bottom: 50px;">
+                    <h2 class="section-title">Elige tu <span class="gradient-text">Plan</span></h2>
+                    <p class="section-subtitle">Visualiza nuestros precios y beneficios.</p>
+                    <div class="info-notice glass-card" style="display: inline-block; padding: 16px 28px; margin-top: 25px; border-radius: 16px; font-size: 0.95rem; border: 1px solid rgba(255, 184, 0, 0.4); background: rgba(255, 184, 0, 0.08); max-width: 800px; line-height: 1.6; color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+                        <div style="display: flex; align-items: flex-start; gap: 12px; text-align: left;">
+                            <i data-lucide="info" style="width: 20px; height: 20px; min-width: 20px; color: #ffb800; margin-top: 2px;"></i>
+                            <span>Para contratar un plan, primero debes <b>crear tu cuenta</b> en nuestra plataforma de gestión. Al elegirlo, tendrás acceso a todas las <b>clases</b> y será válido por el mes en curso desde su activación.</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="plans-container" class="plans-grid">
+                    <!-- Se cargará dinámicamente -->
+                    <div class="loading-plans">
+                        <p>Cargando planes del dojo...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Schedule Section -->
+        <section id="schedule" class="schedule" style="padding: 60px 0; text-align: center;">
+            <div class="container">
+                <h2 class="section-title">Nuestro <span class="gradient-text">Horario</span></h2>
+                <p class="section-subtitle" style="margin-bottom: 40px;">Descubre nuestras disciplinas y encuentra el horario perfecto para ti.</p>
+                <div class="schedule-container glass-card" style="padding: 20px; border-radius: 16px; display: inline-block; max-width: 100%;">
+                    <!-- Se mostrará en formato PNG (Óptimo para visualizar en web) -->
+                    <img src="images/horario.png" alt="Horario de Clases" style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
+                </div>
+                <div style="margin-top: 32px;">
+                    <!-- Botón para descargar o visualizar el horario en formato PDF -->
+                    <a href="images/horario.pdf" target="_blank" class="btn-outline glow-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
+                            <path d="M4.603 14.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.482-.645 19.697 19.697 0 0 0 1.062-2.227 7.269 7.269 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a10.954 10.954 0 0 0 .98 1.686 5.753 5.753 0 0 1 1.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 0 1-.354.416.856.856 0 0 1-.51.138c-.331-.014-.654-.196-.933-.417a5.712 5.712 0 0 1-.911-.95 11.651 11.651 0 0 0-1.997.406 11.307 11.307 0 0 1-1.02 1.51c-.292.35-.609.656-.927.787a.793.793 0 0 1-.58.029zm1.379-1.901c-.166.076-.32.156-.459.238-.328.194-.541.383-.647.547-.094.145-.096.25-.04.361.01.022.02.036.026.044a.266.266 0 0 0 .023-.012c.152-.086.305-.23.448-.377.308-.316.635-.783.91-1.353a13.344 13.344 0 0 1-1.261-.448zM10.15 10.16a7.1 7.1 0 0 0-1.084-.693c-.424.23-.847.461-1.248.694.394.343.83.69 1.314.991.13.082.257.162.379.239.027-.145.056-.29.088-.435a11.166 11.166 0 0 1 .551-1.196zm.26.173a4.706 4.706 0 0 0 .425.43c.125.109.245.203.345.26.11.062.204.091.259.084.095-.013.19-.104.228-.215.038-.112.022-.24-.047-.36-.08-.14-.23-.213-.41-.284-.18-.071-.39-.12-.6-.115zM8.13 6.91a2.6 2.6 0 0 0-.158-.916c-.053-.175-.11-.295-.157-.33-.047-.035-.112-.055-.175-.055-.07 0-.14.026-.182.049-.041.023-.061.056-.07.094-.017.067-.002.162.036.29.037.129.087.276.151.444.116.306.267.65.459 1.018.12-.13.238-.266.357-.406z"/>
+                        </svg>
+                        Descargar Horario en PDF
+                    </a>
+                </div>
+            </div>
+        </section>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="contact" class="cta">
+        <div class="container cta-container glass-card">
+            <h2>Agenda tu Clase de Prueba</h2>
+            <p>Haz clic en el botón para contactarnos directamente por WhatsApp y coordinar tu primera sesión.</p>
+
+            <a href="https://wa.me/56958754584?text=Hola!%20Me%20gustaría%20solicitar%20información%20sobre%20las%20disciplinas%20de%20Amarufighter%20y%20agendar%20una%20clase%20de%20prueba."
+                class="btn-primary glow-primary"
+                style="margin-top: 32px; display: inline-flex; align-items: center; gap: 12px; padding: 16px 40px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                    <path
+                        d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z" />
+                </svg>
+                Agendar Clase por WhatsApp
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-container">
+            <div class="footer-brand">
+                <img src="images/AMARU-LFNM.png" alt="Logo" class="footer-logo">
+                <p>© 2024 Amarufighter. Todos los derechos reservados.</p>
+            </div>
+            <div class="footer-links">
+                <a href="https://www.instagram.com/amarufighter_eda/">Instagram</a>
+                <a href="#">WhatsApp</a>
+                <a href="#">Ubicación</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating WhatsApp Button -->
+    <a href="https://wa.me/56958754584?text=Hola!%20Me%20gustaría%20solicitar%20información." class="floating-whatsapp"
+        target="_blank" rel="noopener noreferrer">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+            <path
+                d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z" />
+        </svg>
+    </a>
+
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>

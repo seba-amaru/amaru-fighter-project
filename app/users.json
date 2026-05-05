@@ -1,0 +1,242 @@
+{"users": [
+{
+  "localId": "2rw081qfo6el1GmejAqHkSi6Nth2",
+  "email": "hernanmarca@gmail.com",
+  "emailVerified": true,
+  "displayName": "Hernan Marca",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJmBmLmH0vc25yKe_07m5T5tQU-bGomW3zTUTQamlKWsFaYEt-x=s96-c",
+  "lastSignedInAt": "1772217113551",
+  "createdAt": "1772217113550",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "114871242105484968905",
+      "email": "hernanmarca@gmail.com",
+      "displayName": "Hernan Marca",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJmBmLmH0vc25yKe_07m5T5tQU-bGomW3zTUTQamlKWsFaYEt-x=s96-c"
+    }
+  ]
+},
+{
+  "localId": "3ftoUdwoboNsd5doK7qnA0ihQ3y2",
+  "email": "benjamintapiavega39@gmail.com",
+  "emailVerified": true,
+  "displayName": "Benjamin Tapia",
+  "photoUrl": "",
+  "lastSignedInAt": "1772210818724",
+  "createdAt": "1772210818722",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "104112333071600632827",
+      "email": "benjamintapiavega39@gmail.com",
+      "displayName": "Benjamin Tapia",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLq-Muhhfq0WXYE603Y6g1hIJVCdQNV3yDNv1ruJhdB9jYHiQ=s96-c"
+    }
+  ]
+},
+{
+  "localId": "5AGMyZ0YpMdoGFFhuwU1MWRHr4B3",
+  "email": "villanuevapedro231@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "GfnTfYxxjh5W63j4AhfrdRgqe2Q0hWfPyGrHSuuLpbT/8T8ic9Z8j7m5gKXe+kz8dGB9a41G+gyULRr5LFnilQ==",
+  "salt": "ot/E7Rx4YwxdFQ==",
+  "displayName": "Pedro criminal",
+  "photoUrl": "",
+  "lastSignedInAt": "1772158164107",
+  "createdAt": "1772158164107",
+  "providerUserInfo": []
+},
+{
+  "localId": "5Gv5UGWjGVd3nA3EK5ffKrQqHDG2",
+  "email": "angelo.tognarelli.moreno@gmail.com",
+  "emailVerified": true,
+  "displayName": "Angelo Tognarelli",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL1JZ_K8QlcJRpmWt9ThRoPy9W8Ug4KboFU4zp9kU9xZg1Nuw=s96-c",
+  "lastSignedInAt": "1772214747012",
+  "createdAt": "1772214747011",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "107412463631178687937",
+      "email": "angelo.tognarelli.moreno@gmail.com",
+      "displayName": "Angelo Tognarelli",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL1JZ_K8QlcJRpmWt9ThRoPy9W8Ug4KboFU4zp9kU9xZg1Nuw=s96-c"
+    }
+  ]
+},
+{
+  "localId": "Bm8IuhBbA0hhFIwLyHkrEtFEiUB2",
+  "email": "copelia14@gmail.com",
+  "emailVerified": true,
+  "displayName": "Christopher Codelia",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLhXFo3N5WDKdmFIocWv6Gylqagk08c7kyXFpb4muKkaThnGPc=s96-c",
+  "lastSignedInAt": "1772216790458",
+  "createdAt": "1772216790457",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "106089888590684812479",
+      "email": "copelia14@gmail.com",
+      "displayName": "Christopher Codelia",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLhXFo3N5WDKdmFIocWv6Gylqagk08c7kyXFpb4muKkaThnGPc=s96-c"
+    }
+  ]
+},
+{
+  "localId": "Fy1AbdKoMcRQKhyf7GisrzZhfh12",
+  "email": "gonzalo.romero01@gmail.com",
+  "emailVerified": true,
+  "displayName": "Gonzalo Romero",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL7ZKOdgFyDPsFt3ONDa1OQGYjNsMvSt-AowbpjXoljTK_xXNdj=s96-c",
+  "lastSignedInAt": "1772217350961",
+  "createdAt": "1772217350960",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "113264195453096123060",
+      "email": "gonzalo.romero01@gmail.com",
+      "displayName": "Gonzalo Romero",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL7ZKOdgFyDPsFt3ONDa1OQGYjNsMvSt-AowbpjXoljTK_xXNdj=s96-c"
+    }
+  ]
+},
+{
+  "localId": "PAZyOrYgrBTGOwMgcMVs2RG2mEy1",
+  "email": "h.santelices.ramirez@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "oqemlsjF91XA99nHCfLqrbq/Da7GxCysFn1ncJFAuBMJkjaFLOFaeBYpTb9hr9cWuUTa8OIQf7ZWNd+/07Bj9w==",
+  "salt": "cAf1kFjp3mrShg==",
+  "displayName": "Hernán Santelices",
+  "lastSignedInAt": "1772059461978",
+  "createdAt": "1772059461978",
+  "providerUserInfo": []
+},
+{
+  "localId": "RvGk2NlX0HZuTXHS3jaeGJuX03E2",
+  "email": "maximus.espinoza.c@gmail.com",
+  "emailVerified": true,
+  "displayName": "assansspider 0.0",
+  "photoUrl": "",
+  "lastSignedInAt": "1772216060775",
+  "createdAt": "1772216060774",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "104660331140269124288",
+      "email": "maximus.espinoza.c@gmail.com",
+      "displayName": "assansspider 0.0",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLGAIqcrTxRtvqsko3IoCa6zGZeO1nYOvqUIdMi5Lkt3RssSJWv=s96-c"
+    }
+  ]
+},
+{
+  "localId": "UiLbb3aQEpacwSZXq09dlI1PkkO2",
+  "email": "admin@amaru.app",
+  "emailVerified": false,
+  "passwordHash": "rtcvdQ6PaWMXWjQ14Q3hCnQWUY/nG95Y6wL9MrVCCuvWpn1DJGRyyfFA9ZmGHkAMLi+VtIrHGanmJlIog0145g==",
+  "salt": "wLE3bb0n/r9zaQ==",
+  "photoUrl": "",
+  "lastSignedInAt": "1772213966942",
+  "createdAt": "1771148309167",
+  "customAttributes": "{\"admin\":true}",
+  "providerUserInfo": []
+},
+{
+  "localId": "VX9N3Nw83rfzd3T3kFUkoFt7gpN2",
+  "email": "rarhb22@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "muggumWul76pJxWQs6IRJqOt0s+MJov9ZIrX58t1iMTmsYnqulMpLmERGjC1xz4NMVlCU6Yh/pB3R9qFPVsQ0A==",
+  "salt": "lftWT7thlzKYyQ==",
+  "displayName": "Ricardo Hernández",
+  "lastSignedInAt": "1772212106042",
+  "createdAt": "1772212106042",
+  "providerUserInfo": []
+},
+{
+  "localId": "Y0G2VxoYJdYgBfqUMJ3cJ8JuQ4L2",
+  "email": "prueba@prueba.cl",
+  "emailVerified": false,
+  "passwordHash": "sVddoIlFF14mecUZpNyhqj7C5U6v9tfzB25xMT2ietW7rbPup3scFGCPwXgYI4VKUPw9HFTUbwCBQbg5e+R2YQ==",
+  "salt": "yyVvXWlrsYeqZA==",
+  "displayName": "prueba 1000",
+  "lastSignedInAt": "1772170440697",
+  "createdAt": "1772170440697",
+  "providerUserInfo": []
+},
+{
+  "localId": "ZM7DoYp0n5MshCz3kOIki1KKQSo2",
+  "email": "pepegol7@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "Pr4MasLYPa5AHCYWR5/VyDTkGydIfVM2tROsy7JlWM3s6v4NpreyhAmfCXIvDMV0OUbD5l0AtAC8SOLmk46ZJw==",
+  "salt": "Gwf5Cc3MixuexA==",
+  "displayName": "José Javier Guerra meneses",
+  "lastSignedInAt": "1772134177773",
+  "createdAt": "1772134177773",
+  "providerUserInfo": []
+},
+{
+  "localId": "e9owsapJsHSHScn2NMUvGLQYGFH3",
+  "email": "juanedo.ville@gmail.com",
+  "emailVerified": true,
+  "displayName": "Juan Villarroel Ll.",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocKG9gDIL0Sl0sy_-oAp2y0gc7yzxCzYxqTeZ1_ydpYcKOb6uakb=s96-c",
+  "lastSignedInAt": "1772216989033",
+  "createdAt": "1772216989031",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "115178244503757150743",
+      "email": "juanedo.ville@gmail.com",
+      "displayName": "Juan Villarroel Ll.",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocKG9gDIL0Sl0sy_-oAp2y0gc7yzxCzYxqTeZ1_ydpYcKOb6uakb=s96-c"
+    }
+  ]
+},
+{
+  "localId": "eNEfL9BuTzLVP8X8ME0ScsO4Jvt2",
+  "email": "bizaruss@gmail.com",
+  "emailVerified": true,
+  "displayName": "Sebastian Ayala",
+  "photoUrl": "",
+  "lastSignedInAt": "1772210569685",
+  "createdAt": "1771143449793",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "117635678582747638336",
+      "email": "bizaruss@gmail.com",
+      "displayName": "Sebastian Ayala",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocKskuO6CaJmlxuo2fRraJtFpzJM_H0A8n4bp1YiHXsc9BEARODb=s96-c"
+    }
+  ]
+},
+{
+  "localId": "jARJcS85I5hXBqKOuKApv8uMgeI3",
+  "email": "dieguitofor48@gmail.com",
+  "emailVerified": true,
+  "displayName": "CODE DIEGO ツ",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ-d7qjWF6T7QmHLql9xUTl2znHdUqcRJBYf-1zMCc7HMY1zC-Q=s96-c",
+  "lastSignedInAt": "1772217544272",
+  "createdAt": "1772217544271",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "108466897868669240213",
+      "email": "dieguitofor48@gmail.com",
+      "displayName": "CODE DIEGO ツ",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ-d7qjWF6T7QmHLql9xUTl2znHdUqcRJBYf-1zMCc7HMY1zC-Q=s96-c"
+    }
+  ]
+},
+{
+  "localId": "k2c0eDiK8ebrqcdZMON7DzgIEu12",
+  "email": "marcialsanmartin23@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "yu7COxgttgjNMvvA/J5ib+AJJYSAaHPB+3oxvmOQWjGk1Wvk/9j0maG+u/e3ua5hE0gIA9l5jQ+eanTBf7Ac+g==",
+  "salt": "WNWx39DNfJfYnA==",
+  "displayName": "Marcial San Martín",
+  "lastSignedInAt": "1772071309226",
+  "createdAt": "1772071309226",
+  "providerUserInfo": []
+}]}
