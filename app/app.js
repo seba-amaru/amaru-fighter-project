@@ -643,38 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 try {
-                    db.collection('system').doc('global_notifications').onSnapshot(docSnapshot => {
-                        if (docSnapshot.exists) {
-                            const noticesData = docSnapshot.data().notices;
-                            if (noticesData && Array.isArray(noticesData)) {
-                                let changed = false;
-                                noticesData.forEach(notice => {
-                                    if (!appState.notifications.find(n => n.id === notice.id)) {
-                                        appState.notifications.push({
-                                            ...notice,
-                                            type: notice.type || 'info'
-                                        });
-                                        changed = true;
-                                    }
-                                });
-
-                                // Clean up deleted notices
-                                const activeIds = noticesData.map(n => n.id);
-                                const originalLength = appState.notifications.length;
-                                appState.notifications = appState.notifications.filter(n => n.type === 'push' || activeIds.includes(n.id));
-
-                                if (appState.notifications.length !== originalLength) {
-                                    changed = true;
-                                }
-
-                                if (changed) {
-                                    appState.notifications.sort((a, b) => new Date(b.date || b.time || Date.now()) - new Date(a.date || a.time || Date.now()));
-                                    if (typeof renderNotifications === 'function') renderNotifications();
-                                    if (typeof renderDashboardNotifications === 'function') renderDashboardNotifications();
-                                }
-                            }
-                        }
-                    });
+                    console.log("Global notifications listener (Firebase) disabled.");
                 } catch (gErr) {
                     console.error("Error setting up global notifications listener:", gErr);
                 }
@@ -1789,65 +1758,7 @@ let messagingRetryCount = 0;
 const MAX_MESSAGING_RETRIES = 3;
 const initMessaging = async (uid) => {
     try {
-        // const messaging = firebase.messaging();
-
-        // Request Permission
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            debugMsg("Notification permission granted.");
-
-            // Ensure Service Worker is active (Skip if localhost since we disabled it)
-            if (window.location.hostname !== 'localhost') {
-                const registration = await navigator.serviceWorker.getRegistration('/app/');
-                if (!registration || !registration.active) {
-                    messagingRetryCount++;
-                    if (messagingRetryCount <= MAX_MESSAGING_RETRIES) {
-                        console.warn(`Messaging: SW not active, retrying in 2s... (attempt ${messagingRetryCount}/${MAX_MESSAGING_RETRIES})`);
-                        setTimeout(() => initMessaging(uid), 2000);
-                    } else {
-                        console.warn("Messaging: SW still not active after max retries. Push notifications will be unavailable this session.");
-                        messagingRetryCount = 0;
-                    }
-                    return;
-                }
-
-                messagingRetryCount = 0; // Reset on success
-
-                // Get Token
-                const token = await messaging.getToken({
-                    serviceWorkerRegistration: registration,
-                    vapidKey: 'BM5dzX7IPkbPuz7-34NV9cACx6pJfOrMf2KIm1PQxNCTSQNxrpkIqiJ7MTUV2vl9nynk1idK9_Sn7cfG-t_6qyw'
-                });
-
-                if (token) {
-                    debugMsg("FCM Token retrieved.");
-                    await SupabaseService.saveFCMToken(uid, token);
-                } else {
-                    console.warn("No registration token available. Request permission to generate one.");
-                }
-            } else {
-                debugMsg("FCM disabled on localhost (SW disabled)");
-            }
-        } else {
-            console.warn("Permission to notify was denied.");
-        }
-
-        // Handle Foreground Messages
-        messaging.onMessage((payload) => {
-            console.log('Mensaje recibido en primer plano: ', payload);
-            showToast(`🔔 ${payload.notification.title}: ${payload.notification.body}`, "#8b5cf6");
-
-            // Also add to app state notifications
-            appState.notifications.unshift({
-                id: Date.now(),
-                title: payload.notification.title,
-                message: payload.notification.body,
-                time: 'Recién ahora',
-                type: 'push'
-            });
-            renderNotifications();
-        });
-
+        console.log("Firebase Messaging removed. Push notifications require Supabase/OneSignal setup.");
     } catch (err) {
         console.error("Error initializing Firebase Messaging:", err);
     }
