@@ -1,33 +1,7 @@
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
-
-firebase.initializeApp({
-    projectId: "amaru-app-gym",
-    appId: "1:19152982385:web:ac0116e361c9d97b41a6d0",
-    storageBucket: "amaru-app-gym.firebasestorage.app",
-    apiKey: "AIzaSyDI4-vgRMs3dKAvrQnSXTA0O3DYLaCTW_Q",
-    authDomain: "amaru-app-gym.firebaseapp.com",
-    messagingSenderId: "19152982385"
-});
-
-const messaging = firebase.messaging();
-
-messaging.onBackgroundMessage((payload) => {
-    console.log('[sw.js] Recibido mensaje en segundo plano:', payload);
-    const notificationTitle = payload.notification.title;
-    const notificationOptions = {
-        body: payload.notification.body,
-        icon: payload.notification.icon || './images/icon-192.png'
-    };
-    self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-const CACHE_NAME = 'amaru-app-v5';
+const CACHE_NAME = 'amaru-app-v8';
 
 self.addEventListener('install', event => {
     console.log('[SW] Installed - skipping wait');
-    // Skip waiting so this SW activates immediately without caching
-    // (Vite hashes all filenames so pre-caching is not reliable)
     self.skipWaiting();
 });
 
@@ -48,19 +22,38 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
     if (event.request.method !== 'GET') return;
+    
+    // Check if it's an API request (Supabase) or dynamic data
+    const isApiRequest = event.request.url.includes('supabase.co/rest/v1');
 
-    event.respondWith(
-        fetch(event.request)
-            .then(response => {
-                if (response && response.status === 200 && response.type === 'basic') {
+    if (isApiRequest) {
+        // Network-first for API to ensure fresh data, but fallback to cache
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
                     const responseToCache = response.clone();
-                    caches.open(CACHE_NAME)
-                        .then(cache => cache.put(event.request, responseToCache));
-                }
-                return response;
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+                    return response;
+                })
+                .catch(() => caches.match(event.request))
+        );
+    } else {
+        // Stale-while-revalidate for static assets
+        event.respondWith(
+            caches.match(event.request).then(cachedResponse => {
+                const fetchPromise = fetch(event.request).then(networkResponse => {
+                    if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+                    }
+                    return networkResponse;
+                }).catch(() => {
+                    console.log('[SW] Fetch failed for', event.request.url);
+                });
+
+                // Return cached response immediately if available, otherwise wait for network
+                return cachedResponse || fetchPromise;
             })
-            .catch(() => {
-                return caches.match(event.request);
-            })
-    );
+        );
+    }
 });

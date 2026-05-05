@@ -11,7 +11,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
         rel="stylesheet">
-    <link rel="manifest" href="/assets/manifest-CPlbni3Y.json">
+    <link rel="manifest" href="/assets/manifest-DgdJiDuS.json">
     <link rel="icon" type="image/png" href="/images/icon-192.png">
     <link rel="apple-touch-icon" href="/images/icon-192.png">
     <meta name="theme-color" content="#000000">
@@ -20,15 +20,18 @@
     <!-- Third-party SDKs -->
     <script src="https://sdk.mercadopago.com/js/v2"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- SweetAlert2 for modern alerts and loading states -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- App Config & Logic (Vite modules) -->
+    <!-- App Config & Logic (Vite modules) -->
+    <!-- Firebase Config Removed -->
     <!-- Scripts para exportar a Excel y PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
-  <script type="module" crossorigin src="/assets/app-BmcMO0uv.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/dist-CjHKDZna.js">
+  <script type="module" crossorigin src="/assets/app-DHqn1-Z-.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/dist-CjQljHnc.js">
   <link rel="stylesheet" crossorigin href="/assets/app-Bl0E8pH_.css">
 </head>
 
@@ -429,7 +432,7 @@
                     <div style="margin-top: 40px; text-align: center; opacity: 0.6; font-size: 0.75rem;">
                         <a href="/privacy.html" target="_blank"
                             style="color: var(--text-gray); text-decoration: none;">Política de Privacidad</a>
-                        <p style="margin-top: 5px;">Amaru App v1.2.0</p>
+                        <p style="margin-top: 5px;">Amaru App v1.4.6</p>
                     </div>
                 </div>
 
@@ -637,6 +640,7 @@
             </div>
             <p>AmaruApp ID: AM-9923</p>
             <button class="btn-close">Cerrar</button>
+        </div>
     </div>
 
     <!-- Upsell Modal -->
@@ -751,13 +755,8 @@
                 </div>
                 <div class="form-group">
                     <label>Disciplina / Plan</label>
-                    <div class="discipline-selector-tabs" id="pay-discipline-tabs">
-                        <button type="button" class="pay-tab active" data-price="25000"
-                            data-name="Primer Asalto">ASALTO</button>
-                        <button type="button" class="pay-tab" data-price="38000"
-                            data-name="Guerrero Constante">GUERRERO</button>
-                        <button type="button" class="pay-tab" data-price="55000"
-                            data-name="Elite Amarufighter">ELITE</button>
+                    <div class="discipline-selector-tabs" id="pay-discipline-tabs" style="display:flex; flex-wrap:wrap; gap:5px;">
+                        <!-- Dynamically populated from appState.plans -->
                     </div>
                     <input type="hidden" id="pay-concept" value="Primer Asalto">
                 </div>
@@ -898,7 +897,7 @@
                     <div class="grid-2">
                         <div class="form-group">
                             <label>Nivel</label>
-                            <input type="number" id="mem-level" placeholder="1" required min="0">
+                            <input type="number" id="mem-level" placeholder="1" min="0">
                         </div>
                         <div class="form-group">
                             <label>XP</label>

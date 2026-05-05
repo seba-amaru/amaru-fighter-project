@@ -26,7 +26,7 @@ serve(async (req) => {
           title: plan.name,
           description: `Membresía ${plan.name} en AmaruApp`,
           quantity: 1,
-          currency_id: 'CLP',
+          currency_id: 'COP',
           unit_price: Number(plan.price)
         }
       ],

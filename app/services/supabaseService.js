@@ -1,6 +1,12 @@
 // app/services/supabaseService.js
 
 export const SupabaseService = {
+    /**
+     * Creates or updates a user profile.
+     * @param {Object} user - The authenticated user object (from Supabase Auth).
+     * @param {string} name - The user's full name.
+     * @returns {Promise<Object>} The created or updated profile data.
+     */
     async createProfile(user, name) {
         const { data: existing } = await window.supabase
             .from('profiles')
@@ -34,17 +40,19 @@ export const SupabaseService = {
         return data;
     },
 
+    /**
+     * Fetches a profile by User ID, including their current membership plan.
+     * @param {string} uid - The unique user identifier.
+     * @returns {Promise<Object|null>} The profile data or null if not found.
+     */
     async getProfile(uid) {
         try {
-            console.log(`[DEBUG] getProfile called for UID: ${uid}`);
             
-            console.log(`[DEBUG] Executing Supabase query for profile...`);
             const { data, error } = await window.supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', uid)
                 .maybeSingle();
-            console.log(`[DEBUG] Supabase query returned:`, { data, error });
             
             if (error) {
                 if (error.code !== 'PGRST116') {
@@ -54,20 +62,17 @@ export const SupabaseService = {
             }
 
             if (data && data.membership_plan_id) {
-                console.log(`[DEBUG] Executing Supabase query for membership_plan...`);
                 const { data: plan, error: planError } = await window.supabase
                     .from('membership_plans')
                     .select('name')
                     .eq('id', data.membership_plan_id)
                     .maybeSingle();
-                console.log(`[DEBUG] Supabase plan query returned:`, { plan, planError });
                 
                 if (!planError && plan) {
                     data.membership_plans = plan;
                 }
             }
 
-            console.log(`[DEBUG] getProfile returning data`);
             return data;
         } catch (err) {
             console.error("[Supabase] getProfile exception:", err);
@@ -169,6 +174,10 @@ export const SupabaseService = {
         return data;
     },
 
+    /**
+     * Fetches all scheduled classes ordered by time.
+     * @returns {Promise<Array>} List of classes.
+     */
     async getClasses() {
         const { data, error } = await window.supabase
             .from('classes')
@@ -191,6 +200,10 @@ export const SupabaseService = {
         return data;
     },
 
+    /**
+     * Fetches all active membership plans.
+     * @returns {Promise<Array>} List of membership plans.
+     */
     async getPlans() {
         const { data, error } = await window.supabase
             .from('membership_plans')
@@ -238,6 +251,26 @@ export const SupabaseService = {
         return data;
     },
 
+    async getPayment(id) {
+        const { data, error } = await window.supabase
+            .from('payments')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    async deletePendingPayments(uid) {
+        const { data, error } = await window.supabase
+            .from('payments')
+            .delete()
+            .eq('user_id', uid)
+            .eq('status', 'pending');
+        if (error) throw error;
+        return data;
+    },
+
     async deletePlan(id) {
         const { error } = await window.supabase
             .from('membership_plans')
@@ -279,6 +312,14 @@ export const SupabaseService = {
         return data;
     },
 
+    /**
+     * Creates a new class reservation for a user.
+     * @param {string} uid - The user's ID.
+     * @param {string} classId - The class identifier.
+     * @param {string} className - The name of the class.
+     * @param {string} date - The date of the reservation (YYYY-MM-DD).
+     * @returns {Promise<Object>} The reservation result.
+     */
     async createReservation(uid, classId, className, date) {
         const { data, error } = await window.supabase
             .from('reservations')
@@ -359,5 +400,24 @@ export const SupabaseService = {
             .getPublicUrl(fileName);
             
         return data.publicUrl;
+    },
+
+    // --- NOTIFICATIONS ---
+    async getNotifications() {
+        const { data, error } = await window.supabase.from('global_notifications').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+    },
+
+    async addNotification(title, message, type) {
+        const { data, error } = await window.supabase.from('global_notifications').insert([{ title, message, type }]).select();
+        if (error) throw error;
+        return data;
+    },
+
+    async deleteNotification(id) {
+        const { error } = await window.supabase.from('global_notifications').delete().eq('id', id);
+        if (error) throw error;
+        return true;
     }
 };

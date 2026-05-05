@@ -70,17 +70,16 @@ serve(async (req) => {
             .eq('user_id', userId)
             .eq('status', 'pending');
 
-          // Registrar pago
+          // Registrar pago (sin plan_id - no existe en schema)
           await supabase
             .from('payments')
             .upsert({
               id: `MP-${paymentId}`,
               user_id: userId,
               amount: paymentData.transaction_amount,
-              description: paymentData.description || 'Suscripción AmaruApp',
+              concept: paymentData.description || 'Suscripción AmaruApp',
               status: 'approved',
-              payment_method: 'mercadopago',
-              plan_id: planId
+              payment_method: 'mercadopago'
             });
         }
       }
