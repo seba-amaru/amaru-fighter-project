@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
+    base: '/',
     root: '.',
     build: {
         outDir: 'dist',
@@ -11,7 +12,6 @@ export default defineConfig({
                 main: resolve(__dirname, 'index.html'),
                 app: resolve(__dirname, 'app/index.html'),
             },
-            external: ['sw.js', /firebase-messaging/],
         },
     },
     server: {

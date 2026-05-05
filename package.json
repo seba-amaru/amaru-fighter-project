@@ -7,7 +7,7 @@
         "dev": "vite",
         "build": "vite build && node -e \"const fs=require('fs'),path=require('path');['dist/app/images','dist/app/styles'].forEach(d=>{try{fs.mkdirSync(d,{recursive:true})}catch(e){}});fs.copyFileSync('app/sw.js','dist/app/sw.js');fs.copyFileSync('app/manifest.json','dist/app/manifest.json');fs.copyFileSync('app/images/icon-192.png','dist/app/images/icon-192.png');\"",
         "preview": "vite preview",
-        "deploy": "npm run build && firebase deploy",
+        "deploy": "npm run build && gh-pages -d dist",
         "lint": "eslint .",
         "format": "prettier --write .",
         "test": "vitest run"
@@ -16,7 +16,6 @@
         "@supabase/supabase-js": "^2.99.3",
         "canvas-confetti": "^1.9.4",
         "chart.js": "^4.5.1",
-        "firebase": "^12.11.0",
         "lucide": "^1.14.0"
     },
     "devDependencies": {
@@ -27,6 +26,7 @@
         "eslint": "^10.3.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.5",
+        "gh-pages": "^6.3.0",
         "globals": "^17.6.0",
         "jsdom": "^29.1.1",
         "prettier": "^3.8.3",

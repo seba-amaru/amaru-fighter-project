@@ -1,11 +1,10 @@
-import { auth } from './src/firebase-config.js';
 import supabase from './src/supabase-config.js';
 import { createIcons, icons } from 'lucide';
 
 
-auth.onAuthStateChanged(user => {
-    if (user) {
-        console.log("Sesión persistente detectada:", user.email);
+supabase.auth.onAuthStateChange((event, session) => {
+    if (session) {
+        console.log("Sesión persistente detectada:", session.user.email);
         // Removed auto-redirect so user can browse landing page
         // window.location.href = './app/index.html';
     }
