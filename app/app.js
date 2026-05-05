@@ -812,10 +812,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log(`[DEBUG] Switching to screen: ${targetScreen}`);
                         switchScreen(targetScreen);
                         
-                        // Fix for black screen: Render default admin content if in admin mode
+                        // Render welcome message instead of opening a section by default
                         if (appState.isAdminMode) {
-                            console.log("[DEBUG] Triggering default admin view (Active Users)");
-                            renderAdminActiveUsers().catch(e => console.error("Error rendering admin users:", e));
+                            const area = document.getElementById('admin-content-area');
+                            if (area) {
+                                area.innerHTML = `<div class="p-20 text-center glass" style="border-radius: 12px; margin-top: 20px;">
+                                    <i data-lucide="shield-check" style="width: 48px; height: 48px; color: var(--accent-purple); margin-bottom: 10px;"></i>
+                                    <h3>Panel de Control</h3>
+                                    <p style="color: var(--text-gray); font-size: 0.9rem;">Selecciona una opción del menú superior para comenzar.</p>
+                                </div>`;
+                                if (window.lucide) window.lucide.createIcons();
+                            }
                         }
                     }
                 }
@@ -2063,7 +2070,7 @@ document.addEventListener('click', (e) => {
 let currentEditingClassId = null;
 let currentEditingPlanId = null;
 
-const renderAdminActiveUsers = async (filterType = 'all') => {
+const renderAdminActiveUsers = async (filterType = 'active') => {
     const area = document.getElementById('admin-content-area');
     area.innerHTML = `<div class="p-20 text-center"><i data-lucide="loader" class="spin"></i> Cargando socios...</div>`;
     lucide.createIcons();
@@ -3141,37 +3148,6 @@ const renderAdminAttendance = async () => {
                 window._attExportData = { reservations: filteredReservations, groups: displayGroups, periodLabel: period };
             };
 
-            // Main UI Wrapper
-            adminContent.innerHTML = `
-                <div class="glass-premium p-20">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <div>
-                            <h2 style="font-size:1.4rem; font-weight:900; margin:0;">Control de Asistencia</h2>
-                            <p style="font-size:0.75rem; opacity:0.4; margin-top:2px;">${allReservations.length} asistencias en historial</p>
-                        </div>
-                    </div>
-
-                    <div style="display:flex; gap:8px; margin-bottom:25px; background:rgba(255,255,255,0.03); padding:6px; border-radius:14px; width:fit-content;">
-                        <button class="att-period-btn" data-period="today" style="border:none; background:var(--accent-purple); color:white; padding:8px 18px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; transition:0.2s;">Hoy</button>
-                        <button class="att-period-btn" data-period="week" style="border:none; background:transparent; color:var(--text-gray); padding:8px 18px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; transition:0.2s;">Semana</button>
-                        <button class="att-period-btn" data-period="month" style="border:none; background:transparent; color:var(--text-gray); padding:8px 18px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; transition:0.2s;">Mes</button>
-                        <button class="att-period-btn" data-period="all" style="border:none; background:transparent; color:var(--text-gray); padding:8px 18px; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; transition:0.2s;">Todo</button>
-                    </div>
-
-                    <div id="att-period-content"></div>
-
-                    <div style="margin-top:30px; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:15px; padding:15px;">
-                       <select id="att-export-format" style="flex:1; background:rgba(255,255,255,0.05); color:white; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px; font-weight:600; outline:none;">
-                            <option value="csv" style="color:black">Formato CSV</option>
-                            <option value="xls" style="color:black">Formato EXCEL</option>
-                            <option value="pdf" style="color:black">Formato PDF</option>
-                       </select>
-                       <button id="btn-export-attendance" class="btn-primary" style="padding:10px 25px; font-weight:800;">
-                            <i data-lucide="download" style="width:16px; margin-right:8px; vertical-align:middle;"></i> EXPORTAR
-                       </button>
-                    </div>
-                </div>
-            `;
             lucide.createIcons();
             renderPeriod('today');
 
@@ -4317,10 +4293,22 @@ const renderAdminAttendance = async () => {
             renderAdminClasses();
         };
 
-        if (manageUsersBtn) manageUsersBtn.onclick = () => renderAdminPlans();
-        if (manageActiveUsersBtn) manageActiveUsersBtn.onclick = () => renderAdminActiveUsers();
-        if (viewAttendanceBtn) viewAttendanceBtn.onclick = () => renderAdminAttendance();
-        if (managePaymentsBtn) managePaymentsBtn.onclick = () => renderAdminPayments();
+        if (manageUsersBtn) manageUsersBtn.onclick = () => {
+            document.getElementById('admin-revenue-section').classList.add('hidden');
+            renderAdminPlans();
+        };
+        if (manageActiveUsersBtn) manageActiveUsersBtn.onclick = () => {
+            document.getElementById('admin-revenue-section').classList.add('hidden');
+            renderAdminActiveUsers();
+        };
+        if (viewAttendanceBtn) viewAttendanceBtn.onclick = () => {
+            document.getElementById('admin-revenue-section').classList.add('hidden');
+            renderAdminAttendance();
+        };
+        if (managePaymentsBtn) managePaymentsBtn.onclick = () => {
+            document.getElementById('admin-revenue-section').classList.add('hidden');
+            renderAdminPayments();
+        };
         if (viewRevenueBtn) viewRevenueBtn.onclick = () => initRevenueChart();
         if (manageDiscountsBtn) manageDiscountsBtn.onclick = () => renderAdminDiscounts();
         if (manageNotificationsBtn) manageNotificationsBtn.onclick = () => renderAdminNotifications();

@@ -3,6 +3,9 @@ import prettier from "eslint-config-prettier";
 import globals from "globals";
 
 export default [
+  {
+    ignores: ["app/app.js", "dist/**"]
+  },
   js.configs.recommended,
   {
     languageOptions: {
