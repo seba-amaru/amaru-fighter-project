@@ -40,15 +40,47 @@ export const renderSchedule = () => {
         }
     }
 
-    const currentDay = new Date(appState.selectedDate + 'T12:00:00').getDay();
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const currentDayInt = new Date(appState.selectedDate + 'T12:00:00').getDay();
+    const currentDayName = dayNames[currentDayInt];
+
+    console.log(`[Schedule] Rendering for ${appState.selectedDate} (${currentDayName}, index: ${currentDayInt})`);
+    console.log(`[Schedule] Total classes in state: ${appState.classes?.length}`);
 
     const filteredClasses = appState.classes.filter(c => {
         const matchesFilter = appState.activeFilter === 'Todas' || c.type === appState.activeFilter;
         let cDays = c.days;
-        if (typeof cDays === 'string') { try { cDays = JSON.parse(cDays); } catch (e) { console.warn('Invalid JSON for cDays'); } }
-        const matchesDay = Array.isArray(cDays) && cDays.includes(currentDay);
+        if (typeof cDays === 'string') { 
+            try { cDays = JSON.parse(cDays); } 
+            catch (e) { 
+                cDays = cDays.split(',').map(d => d.trim());
+            } 
+        }
+        
+        let matchesDay = false;
+        if (Array.isArray(cDays)) {
+            matchesDay = cDays.some(d => 
+                d === currentDayInt || 
+                String(d) === String(currentDayInt) ||
+                String(d).toLowerCase() === currentDayName.toLowerCase() ||
+                String(d).toLowerCase().startsWith(currentDayName.substring(0, 3).toLowerCase())
+            );
+        }
         return matchesFilter && matchesDay;
     });
+
+    console.log(`[Schedule] Filtered classes: ${filteredClasses.length}`);
+
+    if (filteredClasses.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; color:var(--text-gray);">
+                <i data-lucide="calendar-x" style="width:40px; height:40px; opacity:0.3; margin-bottom:15px;"></i>
+                <p>No hay clases programadas para este día.</p>
+                <span style="font-size:0.8rem; opacity:0.6;">(Filtro: ${appState.activeFilter})</span>
+            </div>`;
+        if (window.lucide) window.lucide.createIcons();
+        return;
+    }
 
     container.innerHTML = filteredClasses.map((cls, idx) => {
         const isBooked = appState.reservations.includes(cls.id);

@@ -580,6 +580,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const attendanceData = await SupabaseService.getAttendance(user.uid);
                     calculateDynamicStats(attendanceData || []);
 
+                    // 2.2 Fetch Notifications
+                    if (appState.role === 'admin') {
+                        appState.notifications = await SupabaseService.getNotifications();
+                    } else {
+                        // Usuarios normales solo ven avisos activos
+                        const allNotifs = await SupabaseService.getNotifications();
+                        appState.notifications = allNotifs.filter(n => n.is_active !== false);
+                    }
+
                 // 3. UI UPDATES
                 const greetingSpan = document.querySelector('.greeting');
                 if (greetingSpan) {
@@ -2286,6 +2295,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const manageDiscountsBtn = document.getElementById('manage-discounts-btn');
         const manageNotificationsBtn = document.getElementById('manage-notifications-btn');
         const exportReportBtn = document.getElementById('btn-export-revenue');
+
+        let revenueDataRecords = [];
+        window.revenueChartInstance = null;
+
+        const initRevenueChart = async () => {
+            const revSection = document.getElementById('admin-revenue-section');
+            if (revSection) revSection.classList.remove('hidden');
+            const adminContent = document.getElementById('admin-content-area');
+            if (adminContent) adminContent.innerHTML = '<p style="text-align:center; padding:20px;">Cargando ingresos...</p>';
+            
+            try {
+                const payments = appState.payments || await SupabaseService.getAllPayments?.() || []; 
+                revenueDataRecords = payments;
+                
+                if (adminContent) adminContent.innerHTML = ''; 
+                
+                const insights = document.getElementById('insights-content');
+                if (insights) {
+                    insights.innerHTML = `
+                        <p>Total de pagos registrados: ${revenueDataRecords.length}</p>
+                        <p>Total recaudado (aprox): $${revenueDataRecords.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0)}</p>
+                        <p>Sección en construcción para gráficos interactivos.</p>
+                    `;
+                }
+            } catch (e) {
+                console.error("Error cargando ingresos:", e);
+                if (window.showToast) window.showToast("Error al cargar ingresos", "#ef4444");
+            }
+        };
 
         if (manageClsBtn) manageClsBtn.onclick = () => {
             const rev = document.getElementById('admin-revenue-section');

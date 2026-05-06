@@ -82,4 +82,35 @@ export const renderTournaments = () => {
             }
         };
     });
+
+    const createBtn = document.getElementById('add-tourney-btn');
+    if (createBtn) {
+        createBtn.onclick = () => openTournamentModal(null, appState.tournaments);
+    }
+};
+
+export const openTournamentModal = (id = null, tournaments = []) => {
+    const modal = document.getElementById('tourney-modal');
+    if (!modal) {
+        console.error('Tournament modal not found in DOM');
+        return;
+    }
+    
+    if (id) {
+        const t = tournaments.find(tour => tour.id === id);
+        if (t) {
+            document.getElementById('tourney-id').value = t.id;
+            document.getElementById('tourney-name').value = t.name;
+            document.getElementById('tourney-place').value = t.place;
+            document.getElementById('tourney-date').value = t.date;
+            document.getElementById('tourney-modal-title').innerText = "Editar Torneo";
+        }
+    } else {
+        document.getElementById('tourney-id').value = '';
+        document.getElementById('tourney-name').value = '';
+        document.getElementById('tourney-place').value = '';
+        document.getElementById('tourney-date').value = '';
+        document.getElementById('tourney-modal-title').innerText = "Nuevo Torneo";
+    }
+    modal.classList.add('active');
 };
