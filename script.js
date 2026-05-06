@@ -16,24 +16,30 @@ const mobileMenu = document.querySelector('.mobile-menu');
 const mobileLinks = document.querySelectorAll('.mobile-link');
 const stats = document.querySelectorAll('.stat-number');
 
-window.addEventListener('scroll', () => {
-    if (window.scrollY > 50) {
-        navbar.classList.add('scrolled');
-    } else {
-        navbar.classList.remove('scrolled');
-    }
-});
-
-mobileBtn.addEventListener('click', () => {
-    mobileMenu.classList.toggle('active');
-    mobileBtn.classList.toggle('open');
-});
-
-mobileLinks.forEach(link => {
-    link.addEventListener('click', () => {
-        mobileMenu.classList.remove('active');
+if (navbar) {
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
     });
-});
+}
+
+if (mobileBtn && mobileMenu) {
+    mobileBtn.addEventListener('click', () => {
+        mobileMenu.classList.toggle('active');
+        mobileBtn.classList.toggle('open');
+    });
+}
+
+if (mobileMenu) {
+    mobileLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+        });
+    });
+}
 
 const observerOptions = {
     threshold: 0.1,
@@ -198,7 +204,7 @@ async function loadMemberships() {
 function createPlanCard(plan) {
     const card = document.createElement('div');
     card.className = `plan-card glass-card ${plan.theme}-theme`;
-    
+
     // Fix: Handle both string and array for features
     let featuresHtml = '';
     if (plan.features) {
