@@ -6,9 +6,12 @@ console.log("[INIT] Amaru App Logic Loaded - V1.4.5 (Restored & Robust)");
 
 import { SupabaseService } from './services/supabaseService.js';
 import { initModals } from './modules/adminModals.js';
-import { renderAdminActiveUsers, renderAdminClasses, renderAdminPlans, renderAdminPayments, renderAdminAttendance, renderAdminDiscounts, renderAdminNotifications } from './modules/admin.js';
+import { renderAdminActiveUsers, renderAdminClasses, renderAdminPlans, renderAdminAttendance, renderAdminDiscounts, renderAdminNotifications } from './modules/admin.js';
+import { renderAdminPayments } from './modules/payments.js';
+import { renderAdminMembers } from './modules/members.js';
 import { renderSchedule } from './modules/schedule.js';
 import { renderTournaments } from './modules/tournaments.js';
+import { renderRevenueSection } from './modules/revenue.js';
 import unknowAvatar from '../images/unknow.png';
 // Firebase Auth removed, using Supabase Auth
 const auth = {
@@ -154,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 didOpen: () => {
                     Swal.showLoading();
                     const loader = Swal.getPopup().querySelector('.swal2-loader');
-                    if(loader) loader.style.borderColor = 'var(--accent-cyan, #00f0ff) transparent var(--accent-cyan, #00f0ff) transparent';
+                    if (loader) loader.style.borderColor = 'var(--accent-cyan, #00f0ff) transparent var(--accent-cyan, #00f0ff) transparent';
                 }
             });
         }
@@ -184,7 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
     debugMsg("App Initializing...");
 
     // --- State Management ---
-    window.appState = {
+    // Extend the imported store's appState instead of creating a new object,
+    // so that window.appState and the local appState variable reference the SAME object.
+    Object.assign(appState, {
         attendance: 0,
         attendanceGoal: 4,
         membershipLimit: 2,
@@ -205,7 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
         unsubscribeReservations: null,
         activePromo: null,
         proRataPreference: null
-    };
+    });
+    window.appState = appState;
 
     const motivationalQuotes = [
         "El único entrenamiento malo es el que no sucedió.",
@@ -528,66 +534,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 debugMsg("Fetching profile...");
-                    let profile = await SupabaseService.getProfile(user.uid);
-                    debugMsg("Profile fetched.");
-                    if (!profile) {
-                        debugMsg("Profile not found in Supabase. Creating...");
-                        await SupabaseService.createProfile(user);
-                        profile = await SupabaseService.getProfile(user.uid);
-                    }
+                let profile = await SupabaseService.getProfile(user.uid);
+                debugMsg("Profile fetched.");
+                if (!profile) {
+                    debugMsg("Profile not found in Supabase. Creating...");
+                    await SupabaseService.createProfile(user);
+                    profile = await SupabaseService.getProfile(user.uid);
+                }
 
-                    if (sessionStorage.getItem('mp_payment_success') === 'true') {
-                        sessionStorage.removeItem('mp_payment_success');
-                        try {
-                            const payments = await SupabaseService.getPayments(user.uid);
-                            const pendingPayment = payments.find(p => p.status === 'pending');
-                            if (pendingPayment) {
-                                await SupabaseService.updatePaymentStatus(pendingPayment.id, 'approved', 'mercadopago');
-                                showToast("Pago validado automáticamente ✨", "#22c55e");
+                if (sessionStorage.getItem('mp_payment_success') === 'true') {
+                    sessionStorage.removeItem('mp_payment_success');
+                    try {
+                        const payments = await SupabaseService.getPayments(user.uid);
+                        const pendingPayment = payments.find(p => p.status === 'pending');
+                        if (pendingPayment) {
+                            await SupabaseService.updatePaymentStatus(pendingPayment.id, 'approved', 'mercadopago');
+                            showToast("Pago validado automáticamente ✨", "#22c55e");
 
-                                const expiry = new Date();
-                                expiry.setMonth(expiry.getMonth() + 1);
-                                await SupabaseService.updateProfile(user.uid, {
-                                    membership_status: 'active',
-                                    membership_expiry: expiry.toISOString().split('T')[0]
-                                });
-                                profile = await SupabaseService.getProfile(user.uid);
-                            }
-                        } catch (err) {
-                            console.error("Error confirmando pago:", err);
+                            const expiry = new Date();
+                            expiry.setMonth(expiry.getMonth() + 1);
+                            await SupabaseService.updateProfile(user.uid, {
+                                membership_status: 'active',
+                                membership_expiry: expiry.toISOString().split('T')[0]
+                            });
+                            profile = await SupabaseService.getProfile(user.uid);
                         }
+                    } catch (err) {
+                        console.error("Error confirmando pago:", err);
                     }
+                }
 
-                    // 2. UPDATE STATE
-                    appState.role = profile.role || 'athlete';
-                    
-                    // Enforce admin mode correctly based on role
-                    if (appState.role === 'admin') {
-                        appState.isAdminMode = true; // Force true initially for admin users
-                    } else {
-                        appState.isAdminMode = false;
-                    }
-                    
-                    appState.level = profile.level || 0;
-                    appState.xp = profile.xp || 0;
-                    appState.membershipLimit = profile.membership_limit || 2;
-                    appState.membershipStatus = profile.membership_status || 'inactive';
-                    appState.planTheme = profile.membership_plans?.theme || 'bronze';
-                    appState.plan = profile.membership_plan_id;
-                    appState.photoURL = profile.photo_url || '../images/icon-192.png';
+                // 2. UPDATE STATE
+                appState.role = profile.role || 'athlete';
 
-                    // 2.1 Fetch Attendance History (Request #2)
-                    const attendanceData = await SupabaseService.getAttendance(user.uid);
-                    calculateDynamicStats(attendanceData || []);
+                // Enforce admin mode correctly based on role
+                if (appState.role === 'admin') {
+                    appState.isAdminMode = true; // Force true initially for admin users
+                } else {
+                    appState.isAdminMode = false;
+                }
 
-                    // 2.2 Fetch Notifications
-                    if (appState.role === 'admin') {
-                        appState.notifications = await SupabaseService.getNotifications();
-                    } else {
-                        // Usuarios normales solo ven avisos activos
-                        const allNotifs = await SupabaseService.getNotifications();
-                        appState.notifications = allNotifs.filter(n => n.is_active !== false);
-                    }
+                appState.level = profile.level || 0;
+                appState.xp = profile.xp || 0;
+                appState.membershipLimit = profile.membership_limit || 2;
+                appState.membershipStatus = profile.membership_status || 'inactive';
+                appState.planTheme = profile.membership_plans?.theme || 'bronze';
+                appState.plan = profile.membership_plan_id;
+                appState.photoURL = profile.photo_url || '../images/icon-192.png';
+
+                // 2.1 Fetch Attendance History (Request #2)
+                const attendanceData = await SupabaseService.getAttendance(user.uid);
+                calculateDynamicStats(attendanceData || []);
+
+                // 2.2 Fetch Notifications
+                if (appState.role === 'admin') {
+                    appState.notifications = await SupabaseService.getNotifications();
+                } else {
+                    // Usuarios normales solo ven avisos activos
+                    const allNotifs = await SupabaseService.getNotifications();
+                    appState.notifications = allNotifs.filter(n => n.is_active !== false);
+                }
 
                 // 3. UI UPDATES
                 const greetingSpan = document.querySelector('.greeting');
@@ -862,7 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         const targetScreen = appState.isAdminMode ? 'admin-panel' : 'dashboard';
                         switchScreen(targetScreen);
-                        
+
                         // Render welcome message instead of opening a section by default
                         if (appState.isAdminMode) {
                             const area = document.getElementById('admin-content-area');
@@ -908,7 +914,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initAuthUI(switchScreen, renderMembershipPlans);
 
-        // --- Profile Avatar Logic ---
+    // --- Profile Avatar Logic ---
     const btnEditAvatar = document.getElementById('btn-edit-avatar');
     const btnDeleteAvatar = document.getElementById('btn-delete-avatar');
     const avatarInput = document.getElementById('avatar-input');
@@ -939,423 +945,423 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnDeleteAvatar) {
-    btnDeleteAvatar.onclick = async () => {
-        const user = auth.currentUser;
-        if (!user) return;
+        btnDeleteAvatar.onclick = async () => {
+            const user = auth.currentUser;
+            if (!user) return;
 
-        showToast("Eliminando foto... 🗑️");
-        try {
-            await user.updateProfile({ photoURL: "" });
-            await SupabaseService.updateProfile(user.uid, { photo_url: null });
+            showToast("Eliminando foto... 🗑️");
+            try {
+                await user.updateProfile({ photoURL: "" });
+                await SupabaseService.updateProfile(user.uid, { photo_url: null });
 
-            const avatarImg = document.getElementById('profile-avatar');
-            if (avatarImg) avatarImg.src = '../images/icon-192.png';
+                const avatarImg = document.getElementById('profile-avatar');
+                if (avatarImg) avatarImg.src = '../images/icon-192.png';
 
-            showToast("Foto eliminada ✅");
-        } catch (err) {
-            console.error(err);
-            showToast("Error al eliminar ❌", "#ef4444");
-        }
-    };
-}
-
-// Exit Admin Mode Action
-const btnExitAdmin = document.getElementById('btn-exit-admin-mode');
-if (btnExitAdmin) {
-    btnExitAdmin.onclick = () => setAdminMode(false);
-}
-
-// --- Profile Chart Logic ---
-let profileChartInstance = null;
-const initProfileChart = (dataValues = [0, 0, 0, 0]) => {
-    const ctx = document.getElementById('attendanceChart');
-    if (!ctx) return;
-    if (profileChartInstance) profileChartInstance.destroy();
-
-    // Start empty if no progress provided
-    const finalData = dataValues.every(v => v === 0) ? [0, 0, 0, 0] : dataValues;
-
-    profileChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
-            datasets: [{
-                label: 'Clases',
-                data: finalData,
-                borderColor: '#CBF2F0',
-                tension: 0.4,
-                fill: true,
-                backgroundColor: 'rgba(203, 242, 240, 0.1)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { display: false, beginAtZero: true },
-                x: { grid: { display: false } }
+                showToast("Foto eliminada ✅");
+            } catch (err) {
+                console.error(err);
+                showToast("Error al eliminar ❌", "#ef4444");
             }
-        }
-    });
-};
+        };
+    }
 
-// --- Schedule & Tournaments Rendering ---
-const renderDateCarousel = () => {
-    const container = document.querySelector('.date-carousel-premium');
-    if (!container) return;
+    // Exit Admin Mode Action
+    const btnExitAdmin = document.getElementById('btn-exit-admin-mode');
+    if (btnExitAdmin) {
+        btnExitAdmin.onclick = () => setAdminMode(false);
+    }
 
-    const days = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
-    const today = new Date();
-    let html = '';
+    // --- Profile Chart Logic ---
+    let profileChartInstance = null;
+    const initProfileChart = (dataValues = [0, 0, 0, 0]) => {
+        const ctx = document.getElementById('attendanceChart');
+        if (!ctx) return;
+        if (profileChartInstance) profileChartInstance.destroy();
 
-    for (let i = 0; i < 7; i++) {
-        const date = new Date();
-        date.setDate(today.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const isActive = dateStr === appState.selectedDate;
+        // Start empty if no progress provided
+        const finalData = dataValues.every(v => v === 0) ? [0, 0, 0, 0] : dataValues;
 
-        html += `
+        profileChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+                datasets: [{
+                    label: 'Clases',
+                    data: finalData,
+                    borderColor: '#CBF2F0',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(203, 242, 240, 0.1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { display: false, beginAtZero: true },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    };
+
+    // --- Schedule & Tournaments Rendering ---
+    const renderDateCarousel = () => {
+        const container = document.querySelector('.date-carousel-premium');
+        if (!container) return;
+
+        const days = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+        const today = new Date();
+        let html = '';
+
+        for (let i = 0; i < 7; i++) {
+            const date = new Date();
+            date.setDate(today.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            const isActive = dateStr === appState.selectedDate;
+
+            html += `
                 <div class="date-chip ${isActive ? 'active' : ''}" data-date="${dateStr}">
                     <span>${days[date.getDay()]}</span>
                     <p>${date.getDate()}</p>
                 </div>
             `;
-    }
+        }
 
-    container.innerHTML = html;
+        container.innerHTML = html;
 
-    container.querySelectorAll('.date-chip').forEach(chip => {
-        chip.onclick = async () => {
-            appState.selectedDate = chip.getAttribute('data-date');
-            renderDateCarousel();
+        container.querySelectorAll('.date-chip').forEach(chip => {
+            chip.onclick = async () => {
+                appState.selectedDate = chip.getAttribute('data-date');
+                renderDateCarousel();
 
-            // Re-subscribe or re-fetch for this date
-            const user = auth.currentUser;
-            if (user) {
-                const res = await SupabaseService.getReservations(appState.selectedDate);
-                appState.reservations = res.filter(r => r.user_id === user.uid).map(r => r.class_id);
-                renderSchedule();
-            }
-        };
-    });
-};
+                // Re-subscribe or re-fetch for this date
+                const user = auth.currentUser;
+                if (user) {
+                    const res = await SupabaseService.getReservations(appState.selectedDate);
+                    appState.reservations = res.filter(r => r.user_id === user.uid).map(r => r.class_id);
+                    renderSchedule();
+                }
+            };
+        });
+    };
 
-let isProcessingReservation = false;
-window.toggleReservation = async (classId) => {
-    if (isProcessingReservation) return;
-    const user = auth.currentUser;
-    if (!user) {
-        showToast("Inicia sesión 🔒", "#ef4444");
-        return;
-    }
+    let isProcessingReservation = false;
+    window.toggleReservation = async (classId) => {
+        if (isProcessingReservation) return;
+        const user = auth.currentUser;
+        if (!user) {
+            showToast("Inicia sesión 🔒", "#ef4444");
+            return;
+        }
 
-    const d = new Date();
-    const todayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const d = new Date();
+        const todayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
-    if (appState.role !== 'admin' && appState.selectedDate !== todayStr) {
-        showToast("Solo puedes agendar clases para el día de hoy 📅", "#ef4444");
-        return;
-    }
+        if (appState.role !== 'admin' && appState.selectedDate !== todayStr) {
+            showToast("Solo puedes agendar clases para el día de hoy 📅", "#ef4444");
+            return;
+        }
 
-    const cls = appState.classes.find(c => c.id === classId);
-    if (!cls) return;
-    const isBooked = appState.reservations.includes(classId);
+        const cls = appState.classes.find(c => c.id === classId);
+        if (!cls) return;
+        const isBooked = appState.reservations.includes(classId);
 
-    isProcessingReservation = true;
-    try {
-        if (isBooked) {
-            const now = new Date();
-            const classDateTime = new Date(`${appState.selectedDate}T${cls.time}`);
-            const hoursDiff = (classDateTime - now) / (1000 * 60 * 60);
+        isProcessingReservation = true;
+        try {
+            if (isBooked) {
+                const now = new Date();
+                const classDateTime = new Date(`${appState.selectedDate}T${cls.time}`);
+                const hoursDiff = (classDateTime - now) / (1000 * 60 * 60);
 
-            if (appState.role !== 'admin' && hoursDiff < 1) {
-                showToast("No puedes cancelar a menos de 1 hr ⏳", "#ef4444");
-                return;
-            }
+                if (appState.role !== 'admin' && hoursDiff < 1) {
+                    showToast("No puedes cancelar a menos de 1 hr ⏳", "#ef4444");
+                    return;
+                }
 
-            await SupabaseService.deleteReservation(user.uid, classId, appState.selectedDate);
-            // Update UI in real-time
-            appState.reservations = appState.reservations.filter(id => id !== classId);
-            if (appState.allUserReservations) {
-                appState.allUserReservations = appState.allUserReservations.filter(r => !(r.class_id === classId && r.reservation_date === appState.selectedDate));
-            }
-            setTimeout(() => {
-                renderSchedule();
-                updateAttendanceUI();
-                renderDashboardNextClass();
-            }, 0);
-            showToast("Reserva cancelada 🗓️", "#71717A");
-        } else {
-            if (appState.membershipStatus !== 'active' && appState.role !== 'admin') {
-                showToast("Membresía inactiva. ¡Actívala ahora! 🔒", "#f59e0b");
-                switchScreen('membership');
-                return;
-            }
+                await SupabaseService.deleteReservation(user.uid, classId, appState.selectedDate);
+                // Update UI in real-time
+                appState.reservations = appState.reservations.filter(id => id !== classId);
+                if (appState.allUserReservations) {
+                    appState.allUserReservations = appState.allUserReservations.filter(r => !(r.class_id === classId && r.reservation_date === appState.selectedDate));
+                }
+                setTimeout(() => {
+                    renderSchedule();
+                    updateAttendanceUI();
+                    renderDashboardNextClass();
+                }, 0);
+                showToast("Reserva cancelada 🗓️", "#71717A");
+            } else {
+                if (appState.membershipStatus !== 'active' && appState.role !== 'admin') {
+                    showToast("Membresía inactiva. ¡Actívala ahora! 🔒", "#f59e0b");
+                    switchScreen('membership');
+                    return;
+                }
 
-            // Check Plan Day Restrictions
-            if (appState.plan) {
-                const currentPlan = appState.plans.find(p => p.name === appState.plan || p.id === appState.plan);
-                if (currentPlan && currentPlan.days && currentPlan.days.length > 0) {
-                    const currentDay = new Date(appState.selectedDate + 'T12:00:00').getDay();
-                    if (!currentPlan.days.includes(currentDay)) {
-                        return showToast("Plan no válido para este día 🗓️", "#ef4444");
+                // Check Plan Day Restrictions
+                if (appState.plan) {
+                    const currentPlan = appState.plans.find(p => p.name === appState.plan || p.id === appState.plan);
+                    if (currentPlan && currentPlan.days && currentPlan.days.length > 0) {
+                        const currentDay = new Date(appState.selectedDate + 'T12:00:00').getDay();
+                        if (!currentPlan.days.includes(currentDay)) {
+                            return showToast("Plan no válido para este día 🗓️", "#ef4444");
+                        }
+                    }
+
+                    // Monthly Limit Check
+                    const currentMonth = appState.selectedDate.substring(0, 7);
+                    const monthlyReservations = appState.allUserReservations ? appState.allUserReservations.filter(r => r.reservation_date && r.reservation_date.startsWith(currentMonth)) : [];
+
+                    let monthlyLimit = 999;
+                    if (currentPlan) {
+                        monthlyLimit = currentPlan.monthly || 999;
+                    }
+
+                    if (monthlyReservations.length >= monthlyLimit) {
+                        const upsellModal = document.getElementById('upsell-modal');
+                        if (upsellModal) {
+                            upsellModal.classList.remove('hidden');
+                            lucide.createIcons();
+                        }
+                        isProcessingReservation = false;
+                        return showToast("Límite mensual agotado ⚠️", "#eab308");
                     }
                 }
 
-                // Monthly Limit Check
-                const currentMonth = appState.selectedDate.substring(0, 7);
-                const monthlyReservations = appState.allUserReservations ? appState.allUserReservations.filter(r => r.reservation_date && r.reservation_date.startsWith(currentMonth)) : [];
-
-                let monthlyLimit = 999;
-                if (currentPlan) {
-                    monthlyLimit = currentPlan.monthly || 999;
-                }
-
-                if (monthlyReservations.length >= monthlyLimit) {
+                if (appState.reservations.length >= appState.membershipLimit) {
                     const upsellModal = document.getElementById('upsell-modal');
                     if (upsellModal) {
                         upsellModal.classList.remove('hidden');
                         lucide.createIcons();
                     }
                     isProcessingReservation = false;
-                    return showToast("Límite mensual agotado ⚠️", "#eab308");
+                    return showToast("Límite diario alcanzado ⚠️", "#eab308");
                 }
-            }
 
-            if (appState.reservations.length >= appState.membershipLimit) {
-                const upsellModal = document.getElementById('upsell-modal');
-                if (upsellModal) {
-                    upsellModal.classList.remove('hidden');
-                    lucide.createIcons();
+                await SupabaseService.createReservation(user.uid, classId, cls.name, appState.selectedDate);
+
+                // Update UI in real-time
+                if (!appState.reservations.includes(classId)) {
+                    appState.reservations.push(classId);
                 }
-                isProcessingReservation = false;
-                return showToast("Límite diario alcanzado ⚠️", "#eab308");
-            }
+                if (appState.allUserReservations) {
+                    appState.allUserReservations.push({
+                        user_id: user.uid,
+                        class_id: classId,
+                        class_name: cls.name,
+                        reservation_date: appState.selectedDate
+                    });
+                }
+                setTimeout(() => {
+                    renderSchedule();
+                    updateAttendanceUI();
+                    renderDashboardNextClass();
+                }, 0);
 
-            await SupabaseService.createReservation(user.uid, classId, cls.name, appState.selectedDate);
+                // Update Profile XP (Refining logic Request #2)
+                let xpBonus = 10; // Base XP
+                const type = (cls.type || '').toLowerCase();
+                if (type.includes('gi') || type.includes('no-gi')) xpBonus = 15;
+                if (type.includes('open')) xpBonus = 5;
 
-            // Update UI in real-time
-            if (!appState.reservations.includes(classId)) {
-                appState.reservations.push(classId);
-            }
-            if (appState.allUserReservations) {
-                appState.allUserReservations.push({
-                    user_id: user.uid,
-                    class_id: classId,
-                    class_name: cls.name,
-                    reservation_date: appState.selectedDate
+                await SupabaseService.updateProfile(user.uid, {
+                    xp: (appState.xp || 0) + xpBonus
                 });
+
+                appState.xp = (appState.xp || 0) + xpBonus;
+                updateRankUI();
+
+                showToast("¡Clase reservada con éxito! 🥋", "#22c55e");
             }
-            setTimeout(() => {
-                renderSchedule();
-                updateAttendanceUI();
-                renderDashboardNextClass();
-            }, 0);
-
-            // Update Profile XP (Refining logic Request #2)
-            let xpBonus = 10; // Base XP
-            const type = (cls.type || '').toLowerCase();
-            if (type.includes('gi') || type.includes('no-gi')) xpBonus = 15;
-            if (type.includes('open')) xpBonus = 5;
-
-            await SupabaseService.updateProfile(user.uid, {
-                xp: (appState.xp || 0) + xpBonus
-            });
-
-            appState.xp = (appState.xp || 0) + xpBonus;
-            updateRankUI();
-
-            showToast("¡Clase reservada con éxito! 🥋", "#22c55e");
+        } catch (err) {
+            console.error("Supabase Reservation Error:", err);
+            showToast("Error procesando reserva ❌", "#ef4444");
+        } finally {
+            isProcessingReservation = false;
         }
-    } catch (err) {
-        console.error("Supabase Reservation Error:", err);
-        showToast("Error procesando reserva ❌", "#ef4444");
-    } finally {
-        isProcessingReservation = false;
-    }
-};
+    };
 
-window.renderSchedule = renderSchedule;
+    window.renderSchedule = renderSchedule;
 
-window.renderTournaments = renderTournaments;
+    window.renderTournaments = renderTournaments;
 
-const updateAttendanceUI = () => {
-    const circle = document.getElementById('attendance-circle');
-    const percentLabel = document.getElementById('attendance-percent');
-    const completedCountLabel = document.getElementById('completed-classes-count');
-    const streakLabel = document.getElementById('user-streak-text');
+    const updateAttendanceUI = () => {
+        const circle = document.getElementById('attendance-circle');
+        const percentLabel = document.getElementById('attendance-percent');
+        const completedCountLabel = document.getElementById('completed-classes-count');
+        const streakLabel = document.getElementById('user-streak-text');
 
-    if (streakLabel) {
-        streakLabel.innerText = `${appState.currentStreak || 0} Días`;
-    }
-
-    if (circle && percentLabel) {
-        let limitPerWeek = appState.membershipLimit || 5;
-        if (limitPerWeek > 10) limitPerWeek = 5;
-
-        const total = limitPerWeek * 4;
-        const current = appState.currentMonthAttendance || 0;
-        const percent = Math.min(100, Math.round((current / total) * 100));
-
-        let ringColor = 'var(--amaru-gold)';
-        if (percent < 50) {
-            ringColor = '#ef4444';
-        } else if (percent < 100) {
-            ringColor = '#eab308';
-        } else {
-            ringColor = '#22c55e';
+        if (streakLabel) {
+            streakLabel.innerText = `${appState.currentStreak || 0} Días`;
         }
-        circle.style.stroke = ringColor;
 
-        const offset = 188.5 - (percent / 100) * 188.5;
-        circle.style.strokeDashoffset = offset;
-        percentLabel.innerText = `${percent}%`;
+        if (circle && percentLabel) {
+            let limitPerWeek = appState.membershipLimit || 5;
+            if (limitPerWeek > 10) limitPerWeek = 5;
 
-        if (completedCountLabel) {
-            const targetCount = current;
-            let currentCount = 0;
+            const total = limitPerWeek * 4;
+            const current = appState.currentMonthAttendance || 0;
+            const percent = Math.min(100, Math.round((current / total) * 100));
 
-            const updateCounterText = (val) => {
-                completedCountLabel.innerHTML = `${val} <span style="font-size: 1rem; color: var(--text-gray); font-weight: 600;">/ ${total}</span>`;
-            };
-
-            if (targetCount > 0) {
-                const duration = 1500;
-                const interval = 30;
-                const step = Math.max(1, Math.ceil(targetCount / (duration / interval)));
-
-                const timer = setInterval(() => {
-                    currentCount += step;
-                    if (currentCount >= targetCount) {
-                        currentCount = targetCount;
-                        clearInterval(timer);
-                        updateCounterText(currentCount);
-
-                        if (percent >= 100 && auth.currentUser) {
-                            const currentMonthKey = `goal_reward_${new Date().getFullYear()}_${new Date().getMonth()}_${auth.currentUser.uid}`;
-                            if (!localStorage.getItem(currentMonthKey)) {
-                                triggerMonthlyGoalReward(currentMonthKey);
-                            }
-                        }
-                    } else {
-                        updateCounterText(currentCount);
-                    }
-                }, interval);
+            let ringColor = 'var(--amaru-gold)';
+            if (percent < 50) {
+                ringColor = '#ef4444';
+            } else if (percent < 100) {
+                ringColor = '#eab308';
             } else {
-                updateCounterText(0);
+                ringColor = '#22c55e';
+            }
+            circle.style.stroke = ringColor;
+
+            const offset = 188.5 - (percent / 100) * 188.5;
+            circle.style.strokeDashoffset = offset;
+            percentLabel.innerText = `${percent}%`;
+
+            if (completedCountLabel) {
+                const targetCount = current;
+                let currentCount = 0;
+
+                const updateCounterText = (val) => {
+                    completedCountLabel.innerHTML = `${val} <span style="font-size: 1rem; color: var(--text-gray); font-weight: 600;">/ ${total}</span>`;
+                };
+
+                if (targetCount > 0) {
+                    const duration = 1500;
+                    const interval = 30;
+                    const step = Math.max(1, Math.ceil(targetCount / (duration / interval)));
+
+                    const timer = setInterval(() => {
+                        currentCount += step;
+                        if (currentCount >= targetCount) {
+                            currentCount = targetCount;
+                            clearInterval(timer);
+                            updateCounterText(currentCount);
+
+                            if (percent >= 100 && auth.currentUser) {
+                                const currentMonthKey = `goal_reward_${new Date().getFullYear()}_${new Date().getMonth()}_${auth.currentUser.uid}`;
+                                if (!localStorage.getItem(currentMonthKey)) {
+                                    triggerMonthlyGoalReward(currentMonthKey);
+                                }
+                            }
+                        } else {
+                            updateCounterText(currentCount);
+                        }
+                    }, interval);
+                } else {
+                    updateCounterText(0);
+                }
             }
         }
-    }
-};
+    };
 
-const triggerMonthlyGoalReward = async (storageKey) => {
-    if (typeof confetti === 'function') {
-        confetti({
-            particleCount: 150,
-            spread: 80,
-            origin: { y: 0.6 },
-            colors: ['#D4AF37', '#ffffff', '#22c55e']
-        });
-    }
-
-    showToast("¡Meta Mensual Alcanzada! +500 XP Extra 🏆", "var(--amaru-gold)");
-
-    try {
-        const user = auth.currentUser;
-        if (user) {
-            const addXp = 500;
-            appState.xp = (appState.xp || 0) + addXp;
-            await SupabaseService.updateProfile(user.uid, { xp: appState.xp });
-            updateRankUI();
-            localStorage.setItem(storageKey, 'true');
-        }
-    } catch (e) {
-        console.error("Error giving month reward", e);
-    }
-};
-
-const renderDashboardNextClass = () => {
-    const container = document.getElementById('dynamic-next-class');
-    if (!container) return;
-
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const currentDayNum = now.getDay();
-
-    let displayClass = null;
-    let isBooked = false;
-
-    // 1. Find the actual NEXT reservation for the user
-    if (appState.allUserReservations && appState.allUserReservations.length > 0) {
-        const sortedReservations = appState.allUserReservations
-            .filter(r => r.reservation_date >= todayStr)
-            .map(r => {
-                const cls = appState.classes.find(c => c.id === r.class_id);
-                if (!cls) return null;
-                const [h, m] = cls.time.split(':').map(Number);
-                return { ...r, classData: cls, totalMinutes: h * 60 + m };
-            })
-            .filter(r => r !== null)
-            .sort((a, b) => {
-                if (a.reservation_date !== b.reservation_date) {
-                    return a.reservation_date.localeCompare(b.reservation_date);
-                }
-                return a.totalMinutes - b.totalMinutes;
+    const triggerMonthlyGoalReward = async (storageKey) => {
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 150,
+                spread: 80,
+                origin: { y: 0.6 },
+                colors: ['#D4AF37', '#ffffff', '#22c55e']
             });
-
-        const nextRes = sortedReservations.find(r => {
-            if (r.reservation_date > todayStr) return true;
-            return r.totalMinutes > (nowMinutes + 10); // 10 min grace period
-        });
-
-        if (nextRes) {
-            displayClass = nextRes.classData;
-            isBooked = true;
         }
-    }
 
-    // 2. If no reservation, find next available class in schedule for today or upcoming days
-    if (!displayClass && appState.classes.length > 0) {
-        for (let i = 0; i < 7; i++) {
-            const searchDate = new Date();
-            searchDate.setDate(now.getDate() + i);
-            const searchDay = searchDate.getDay();
+        showToast("¡Meta Mensual Alcanzada! +500 XP Extra 🏆", "var(--amaru-gold)");
 
-            const dayClasses = appState.classes.filter(c => {
-                let cDays = c.days;
-                if (typeof cDays === 'string') { try { cDays = JSON.parse(cDays); } catch (e) { } }
-                return Array.isArray(cDays) && cDays.includes(searchDay);
-            }).sort((a, b) => {
-                const [ha, ma] = a.time.split(':').map(Number);
-                const [hb, mb] = b.time.split(':').map(Number);
-                return (ha * 60 + ma) - (hb * 60 + mb);
-            });
+        try {
+            const user = auth.currentUser;
+            if (user) {
+                const addXp = 500;
+                appState.xp = (appState.xp || 0) + addXp;
+                await SupabaseService.updateProfile(user.uid, { xp: appState.xp });
+                updateRankUI();
+                localStorage.setItem(storageKey, 'true');
+            }
+        } catch (e) {
+            console.error("Error giving month reward", e);
+        }
+    };
 
-            if (i === 0) {
-                const nextToday = dayClasses.find(c => {
-                    const [h, m] = c.time.split(':').map(Number);
-                    return (h * 60 + m) > nowMinutes;
+    const renderDashboardNextClass = () => {
+        const container = document.getElementById('dynamic-next-class');
+        if (!container) return;
+
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const currentDayNum = now.getDay();
+
+        let displayClass = null;
+        let isBooked = false;
+
+        // 1. Find the actual NEXT reservation for the user
+        if (appState.allUserReservations && appState.allUserReservations.length > 0) {
+            const sortedReservations = appState.allUserReservations
+                .filter(r => r.reservation_date >= todayStr)
+                .map(r => {
+                    const cls = appState.classes.find(c => c.id === r.class_id);
+                    if (!cls) return null;
+                    const [h, m] = cls.time.split(':').map(Number);
+                    return { ...r, classData: cls, totalMinutes: h * 60 + m };
+                })
+                .filter(r => r !== null)
+                .sort((a, b) => {
+                    if (a.reservation_date !== b.reservation_date) {
+                        return a.reservation_date.localeCompare(b.reservation_date);
+                    }
+                    return a.totalMinutes - b.totalMinutes;
                 });
-                if (nextToday) {
-                    displayClass = nextToday;
+
+            const nextRes = sortedReservations.find(r => {
+                if (r.reservation_date > todayStr) return true;
+                return r.totalMinutes > (nowMinutes + 10); // 10 min grace period
+            });
+
+            if (nextRes) {
+                displayClass = nextRes.classData;
+                isBooked = true;
+            }
+        }
+
+        // 2. If no reservation, find next available class in schedule for today or upcoming days
+        if (!displayClass && appState.classes.length > 0) {
+            for (let i = 0; i < 7; i++) {
+                const searchDate = new Date();
+                searchDate.setDate(now.getDate() + i);
+                const searchDay = searchDate.getDay();
+
+                const dayClasses = appState.classes.filter(c => {
+                    let cDays = c.days;
+                    if (typeof cDays === 'string') { try { cDays = JSON.parse(cDays); } catch (e) { } }
+                    return Array.isArray(cDays) && cDays.includes(searchDay);
+                }).sort((a, b) => {
+                    const [ha, ma] = a.time.split(':').map(Number);
+                    const [hb, mb] = b.time.split(':').map(Number);
+                    return (ha * 60 + ma) - (hb * 60 + mb);
+                });
+
+                if (i === 0) {
+                    const nextToday = dayClasses.find(c => {
+                        const [h, m] = c.time.split(':').map(Number);
+                        return (h * 60 + m) > nowMinutes;
+                    });
+                    if (nextToday) {
+                        displayClass = nextToday;
+                        break;
+                    }
+                } else if (dayClasses.length > 0) {
+                    displayClass = dayClasses[0];
                     break;
                 }
-            } else if (dayClasses.length > 0) {
-                displayClass = dayClasses[0];
-                break;
             }
         }
-    }
 
-    if (displayClass) {
-        container.classList.remove('smoke-purple', 'smoke-cyan', 'smoke-gold', 'smoke-crimson');
-        if (displayClass.theme) {
-            container.classList.add(displayClass.theme);
-        }
+        if (displayClass) {
+            container.classList.remove('smoke-purple', 'smoke-cyan', 'smoke-gold', 'smoke-crimson');
+            if (displayClass.theme) {
+                container.classList.add(displayClass.theme);
+            }
 
-        container.innerHTML = `
+            container.innerHTML = `
                 <div class="card-overlay" style="backdrop-filter: blur(12px); background: linear-gradient(90deg, rgba(8, 8, 10, 0.95) 0%, rgba(8, 8, 10, 0.45) 100%);"></div>
                 <div class="hero-content">
                     <span class="tag" style="background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
@@ -1369,67 +1375,67 @@ const renderDashboardNextClass = () => {
                     </div>
                 </div>
             `;
-        lucide.createIcons();
+            lucide.createIcons();
 
-        if (isBooked) {
-            const checkInBtn = document.getElementById('btn-checkin-dash');
-            if (checkInBtn) checkInBtn.onclick = () => handleCheckIn(displayClass);
+            if (isBooked) {
+                const checkInBtn = document.getElementById('btn-checkin-dash');
+                if (checkInBtn) checkInBtn.onclick = () => handleCheckIn(displayClass);
+            }
+
+            document.getElementById('btn-dashboard-go-schedule').onclick = () => {
+                const scheduleNav = document.querySelector('[data-screen="schedule"]');
+                if (scheduleNav) scheduleNav.click();
+            };
+        } else {
+            container.innerHTML = `<div class="p-30 text-center opacity-50">No hay clases programadas próximamente</div>`;
         }
+    };
 
-        document.getElementById('btn-dashboard-go-schedule').onclick = () => {
-            const scheduleNav = document.querySelector('[data-screen="schedule"]');
-            if (scheduleNav) scheduleNav.click();
-        };
-    } else {
-        container.innerHTML = `<div class="p-30 text-center opacity-50">No hay clases programadas próximamente</div>`;
-    }
-};
+    const handleCheckIn = async (cls) => {
+        const user = auth.currentUser;
+        if (!user) return;
 
-const handleCheckIn = async (cls) => {
-    const user = auth.currentUser;
-    if (!user) return;
+        showToast("Registrando asistencia... 🥋");
+        try {
+            await SupabaseService.logAttendance(user.uid, cls.id, cls.name);
 
-    showToast("Registrando asistencia... 🥋");
-    try {
-        await SupabaseService.logAttendance(user.uid, cls.id, cls.name);
+            // Bonus XP for attendance (gamification Request #2)
+            const newXP = (appState.xp || 0) + 25;
+            await SupabaseService.updateProfile(user.uid, { xp: newXP });
+            appState.xp = newXP;
+            appState.attendanceHistoryCount++;
 
-        // Bonus XP for attendance (gamification Request #2)
-        const newXP = (appState.xp || 0) + 25;
-        await SupabaseService.updateProfile(user.uid, { xp: newXP });
-        appState.xp = newXP;
-        appState.attendanceHistoryCount++;
+            showToast("¡Asistencia confirmada! +25 XP 🔥", "#22c55e");
+            updateRankUI();
+            renderDashboardNextClass();
+            updateAttendanceUI();
+        } catch (err) {
+            console.error("Check-in error:", err);
+            showToast("Ya registraste asistencia hoy o hubo un error 🛡️", "#eab308");
+        }
+    };
 
-        showToast("¡Asistencia confirmada! +25 XP 🔥", "#22c55e");
-        updateRankUI();
-        renderDashboardNextClass();
-        updateAttendanceUI();
-    } catch (err) {
-        console.error("Check-in error:", err);
-        showToast("Ya registraste asistencia hoy o hubo un error 🛡️", "#eab308");
-    }
-};
+    const renderDashboardNotifications = () => {
+        const container = document.getElementById('motivation-container');
+        if (!container) return;
+        container.innerHTML = "";
 
-const renderDashboardNotifications = () => {
-    const container = document.getElementById('motivation-container');
-    if (!container) return;
-    container.innerHTML = "";
+        // Tournament Interactive Countdown
+        const nextTourney = appState.tournaments[0];
+        if (nextTourney) {
+            const tourneyDate = new Date(nextTourney.date);
+            const now = new Date();
+            const diff = tourneyDate - now;
+            const daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    // Tournament Interactive Countdown
-    const nextTourney = appState.tournaments[0];
-    if (nextTourney) {
-        const tourneyDate = new Date(nextTourney.date);
-        const now = new Date();
-        const diff = tourneyDate - now;
-        const daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
+            if (daysLeft > 0) {
+                const card = document.createElement('div');
+                card.className = 'glass-premium tournament-countdown-card';
+                card.style.margin = "0 20px 20px";
+                card.style.position = "relative";
+                card.style.overflow = "hidden";
 
-        if (daysLeft > 0) {
-            const card = document.createElement('div');
-            card.className = 'glass-premium tournament-countdown-card';
-            card.style.margin = "0 20px 20px";
-            card.style.position = "relative";
-            card.style.overflow = "hidden";
-
-            card.innerHTML = `
+                card.innerHTML = `
                     <div class="countdown-bg-glow"></div>
                     <div style="position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 15px;">
@@ -1450,70 +1456,70 @@ const renderDashboardNotifications = () => {
                         <div class="t-progress-fill" style="width: ${Math.max(5, 100 - (daysLeft * 3.3))}%"></div>
                     </div>
                 `;
-            container.prepend(card);
+                container.prepend(card);
+            }
         }
-    }
-    lucide.createIcons();
-};
+        lucide.createIcons();
+    };
 
-const updateRankUI = () => {
-    const badge = document.getElementById('user-rank-status');
-    const fill = document.querySelector('.rank-bar-fill');
-    const info = document.querySelector('.rank-info-text');
+    const updateRankUI = () => {
+        const badge = document.getElementById('user-rank-status');
+        const fill = document.querySelector('.rank-bar-fill');
+        const info = document.querySelector('.rank-info-text');
 
-    // Dynamic level calculation based on planTheme and XP
-    let maxLevel = appState.planTheme === 'gold' ? 100 : appState.planTheme === 'silver' ? 30 : 10;
-    let xpPerLevel = 100;
-    let totalDisplayXP = Math.floor(appState.xp || 0);
-    let derivedLevel = Math.min(Math.floor(totalDisplayXP / xpPerLevel), maxLevel);
-    let progressPct = Math.min((totalDisplayXP % xpPerLevel) / xpPerLevel * 100, 100);
-    if (derivedLevel >= maxLevel) {
-        progressPct = 100;
-    }
+        // Dynamic level calculation based on planTheme and XP
+        let maxLevel = appState.planTheme === 'gold' ? 100 : appState.planTheme === 'silver' ? 30 : 10;
+        let xpPerLevel = 100;
+        let totalDisplayXP = Math.floor(appState.xp || 0);
+        let derivedLevel = Math.min(Math.floor(totalDisplayXP / xpPerLevel), maxLevel);
+        let progressPct = Math.min((totalDisplayXP % xpPerLevel) / xpPerLevel * 100, 100);
+        if (derivedLevel >= maxLevel) {
+            progressPct = 100;
+        }
 
-    let rankTitle = derivedLevel < 10 ? 'Nomad' : derivedLevel < 30 ? 'Warrior' : derivedLevel < 50 ? 'Elite' : 'Legend';
-    appState.level = derivedLevel; // Local override based on XP
+        let rankTitle = derivedLevel < 10 ? 'Nomad' : derivedLevel < 30 ? 'Warrior' : derivedLevel < 50 ? 'Elite' : 'Legend';
+        appState.level = derivedLevel; // Local override based on XP
 
-    if (appState.role === 'admin') {
-        if (badge) badge.innerText = `ADMINISTRADOR • Elite`;
-        if (fill) fill.style.width = `100%`;
-        if (info) info.innerHTML = `<span>MAX XP</span><strong>100%</strong>`;
-    } else {
-        if (badge) badge.innerText = `Nivel ${derivedLevel} • ${rankTitle}`;
-        if (fill) fill.style.width = `${progressPct}%`;
-        if (info) info.innerHTML = `<span>${totalDisplayXP} / ${maxLevel * xpPerLevel} XP Max</span><strong>${Math.floor(progressPct)}% Lvl Up</strong>`;
-    }
+        if (appState.role === 'admin') {
+            if (badge) badge.innerText = `ADMINISTRADOR • Elite`;
+            if (fill) fill.style.width = `100%`;
+            if (info) info.innerHTML = `<span>MAX XP</span><strong>100%</strong>`;
+        } else {
+            if (badge) badge.innerText = `Nivel ${derivedLevel} • ${rankTitle}`;
+            if (fill) fill.style.width = `${progressPct}%`;
+            if (info) info.innerHTML = `<span>${totalDisplayXP} / ${maxLevel * xpPerLevel} XP Max</span><strong>${Math.floor(progressPct)}% Lvl Up</strong>`;
+        }
 
-    // Update inline level in premium card
-    const levelVal = document.querySelector('#profile-user-level span');
-    if (levelVal) levelVal.innerText = appState.role === 'admin' ? 'MAX' : derivedLevel;
+        // Update inline level in premium card
+        const levelVal = document.querySelector('#profile-user-level span');
+        if (levelVal) levelVal.innerText = appState.role === 'admin' ? 'MAX' : derivedLevel;
 
-    // Update Dashboard indicator too (Request #2)
-    const dashLvlFill = document.querySelector('.lvl-fill');
-    const dashLvlText = document.querySelector('.level-indicator span');
-    if (dashLvlFill) dashLvlFill.style.width = appState.role === 'admin' ? '100%' : `${progressPct}%`;
-    if (dashLvlText) dashLvlText.innerText = appState.role === 'admin' ? 'LVL MAX' : `NVL ${derivedLevel}`;
+        // Update Dashboard indicator too (Request #2)
+        const dashLvlFill = document.querySelector('.lvl-fill');
+        const dashLvlText = document.querySelector('.level-indicator span');
+        if (dashLvlFill) dashLvlFill.style.width = appState.role === 'admin' ? '100%' : `${progressPct}%`;
+        if (dashLvlText) dashLvlText.innerText = appState.role === 'admin' ? 'LVL MAX' : `NVL ${derivedLevel}`;
 
-    // Update Classes count (Request #2)
-    const classesVal = document.querySelector('.stat-box:nth-child(2) .stat-value');
-    if (classesVal) classesVal.innerText = appState.attendanceHistoryCount || 0;
+        // Update Classes count (Request #2)
+        const classesVal = document.querySelector('.stat-box:nth-child(2) .stat-value');
+        if (classesVal) classesVal.innerText = appState.attendanceHistoryCount || 0;
 
-    // Update Badges (Request #2)
-    updateBadgesUI();
-};
+        // Update Badges (Request #2)
+        updateBadgesUI();
+    };
 
-const updateBadgesUI = () => {
-    const container = document.getElementById('user-badges-container');
-    if (!container) return;
+    const updateBadgesUI = () => {
+        const container = document.getElementById('user-badges-container');
+        if (!container) return;
 
-    const badges = [
-        { id: 'Novato', icon: 'shield', unlocked: appState.role === 'admin' || appState.attendanceHistoryCount >= 5, desc: '5 Clases tomadas', msg: '¡El inicio de la grandeza empieza con el primer paso!' },
-        { id: 'Constante', icon: 'calendar-check', unlocked: appState.role === 'admin' || appState.attendanceHistoryCount >= 20, desc: '20 Clases tomadas', msg: 'La disciplina es el puente entre metas y logros.' },
-        { id: 'Guerrero', icon: 'zap', unlocked: appState.role === 'admin' || appState.level >= 10, desc: 'Alcanza Nivel 10', msg: 'Tus rivales tiemblan ante tu poder.' },
-        { id: 'Elite', icon: 'crown', unlocked: appState.role === 'admin' || appState.level >= 50, desc: 'Alcanza Nivel 50', msg: '¡Eres una leyenda viviente en el tatami!' }
-    ];
+        const badges = [
+            { id: 'Novato', icon: 'shield', unlocked: appState.role === 'admin' || appState.attendanceHistoryCount >= 5, desc: '5 Clases tomadas', msg: '¡El inicio de la grandeza empieza con el primer paso!' },
+            { id: 'Constante', icon: 'calendar-check', unlocked: appState.role === 'admin' || appState.attendanceHistoryCount >= 20, desc: '20 Clases tomadas', msg: 'La disciplina es el puente entre metas y logros.' },
+            { id: 'Guerrero', icon: 'zap', unlocked: appState.role === 'admin' || appState.level >= 10, desc: 'Alcanza Nivel 10', msg: 'Tus rivales tiemblan ante tu poder.' },
+            { id: 'Elite', icon: 'crown', unlocked: appState.role === 'admin' || appState.level >= 50, desc: 'Alcanza Nivel 50', msg: '¡Eres una leyenda viviente en el tatami!' }
+        ];
 
-    container.innerHTML = badges.map(b => `
+        container.innerHTML = badges.map(b => `
             <div class="badge-item ${b.unlocked ? '' : 'locked'}" title="${b.id}: ${b.desc}" ${b.unlocked ? `onclick="this.classList.toggle('flipped')"` : ''}>
                 <div class="badge-card-inner">
                     <div class="badge-card-front">
@@ -1525,37 +1531,37 @@ const updateBadgesUI = () => {
                 </div>
             </div>
         `).join('');
-    lucide.createIcons();
-};
+        lucide.createIcons();
+    };
 
-// --- Firebase Messaging Implementation (Request #3) ---
-let messagingRetryCount = 0;
-const MAX_MESSAGING_RETRIES = 3;
-const initMessaging = async (uid) => {
-    try {
-        console.log("Firebase Messaging removed. Push notifications require Supabase/OneSignal setup.");
-    } catch (err) {
-        console.error("Error initializing Firebase Messaging:", err);
-    }
-};
+    // --- Firebase Messaging Implementation (Request #3) ---
+    let messagingRetryCount = 0;
+    const MAX_MESSAGING_RETRIES = 3;
+    const initMessaging = async (uid) => {
+        try {
+            console.log("Firebase Messaging removed. Push notifications require Supabase/OneSignal setup.");
+        } catch (err) {
+            console.error("Error initializing Firebase Messaging:", err);
+        }
+    };
 
 
-const renderNotifications = () => {
-    const container = document.getElementById('notifications-list');
-    if (!container) return;
+    const renderNotifications = () => {
+        const container = document.getElementById('notifications-list');
+        if (!container) return;
 
-    const notificationsHTML = [];
+        const notificationsHTML = [];
 
-    // 1. Plan Expiry Notification
-    if (appState.membershipExpiry) {
-        const expiryDate = new Date(appState.membershipExpiry);
-        const today = new Date();
-        const diffTime = expiryDate - today;
-        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        // 1. Plan Expiry Notification
+        if (appState.membershipExpiry) {
+            const expiryDate = new Date(appState.membershipExpiry);
+            const today = new Date();
+            const diffTime = expiryDate - today;
+            const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if (daysLeft <= 10 && daysLeft >= 0) {
-            const isCritical = daysLeft <= 3;
-            notificationsHTML.push(`
+            if (daysLeft <= 10 && daysLeft >= 0) {
+                const isCritical = daysLeft <= 3;
+                notificationsHTML.push(`
                     <div class="notification-item glass ${isCritical ? 'critical' : ''}" style="border-left-color: var(--accent-cyan);">
                         <div class="notif-icon ${isCritical ? 'pulse' : ''}" style="color: var(--accent-cyan);">
                             <i data-lucide="credit-card"></i>
@@ -1568,12 +1574,12 @@ const renderNotifications = () => {
                         ${isCritical ? '<div class="critical-badge" style="background:var(--accent-cyan)">RENOVAR</div>' : ''}
                     </div>
                 `);
+            }
         }
-    }
 
-    // Welcome Notification for New Users
-    if (appState.level === 0 && (appState.xp || 0) < 5) {
-        notificationsHTML.push(`
+        // Welcome Notification for New Users
+        if (appState.level === 0 && (appState.xp || 0) < 5) {
+            notificationsHTML.push(`
                 <div class="notification-item glass" style="border-left-color: var(--accent-purple);">
                     <div class="notif-icon" style="color: var(--accent-purple);">
                         <i data-lucide="sparkles"></i>
@@ -1585,27 +1591,27 @@ const renderNotifications = () => {
                     </div>
                 </div>
             `);
-    }
-
-    // 2. Custom App Notifications (Welcome, etc.)
-    const customNotifs = appState.notifications.map(n => {
-        let icon = 'bell';
-        let color = 'var(--accent-purple)';
-        let badgeHtml = '';
-
-        if (n.type === 'welcome') {
-            icon = 'sparkles';
-        } else if (n.type === 'alert') {
-            icon = 'alert-triangle';
-            color = '#ef4444';
-            badgeHtml = '<div class="critical-badge" style="background:#ef4444">URGENTE</div>';
-        } else if (n.type === 'calendar') {
-            icon = 'calendar';
-            color = '#f59e0b';
-            badgeHtml = '<div class="critical-badge" style="background:#f59e0b">IMPORTANTE</div>';
         }
 
-        return `
+        // 2. Custom App Notifications (Welcome, etc.)
+        const customNotifs = appState.notifications.map(n => {
+            let icon = 'bell';
+            let color = 'var(--accent-purple)';
+            let badgeHtml = '';
+
+            if (n.type === 'welcome') {
+                icon = 'sparkles';
+            } else if (n.type === 'alert') {
+                icon = 'alert-triangle';
+                color = '#ef4444';
+                badgeHtml = '<div class="critical-badge" style="background:#ef4444">URGENTE</div>';
+            } else if (n.type === 'calendar') {
+                icon = 'calendar';
+                color = '#f59e0b';
+                badgeHtml = '<div class="critical-badge" style="background:#f59e0b">IMPORTANTE</div>';
+            }
+
+            return `
             <div class="notification-item glass" style="border-left-color: ${color};">
                 <div class="notif-icon" style="color: ${color};">
                     <i data-lucide="${icon}"></i>
@@ -1618,14 +1624,14 @@ const renderNotifications = () => {
                 ${badgeHtml}
             </div>
             `;
-    });
+        });
 
-    // 3. Tournament Notifications
-    const tourneyHTML = appState.tournaments.map(t => {
-        const daysLeft = Math.ceil((new Date(t.date) - new Date()) / (1000 * 60 * 60 * 24));
-        const isCritical = daysLeft <= 7;
+        // 3. Tournament Notifications
+        const tourneyHTML = appState.tournaments.map(t => {
+            const daysLeft = Math.ceil((new Date(t.date) - new Date()) / (1000 * 60 * 60 * 24));
+            const isCritical = daysLeft <= 7;
 
-        return `
+            return `
             <div class="notification-item glass ${isCritical ? 'critical' : ''}">
                 <div class="notif-icon ${isCritical ? 'pulse' : ''}">
                     <i data-lucide="trophy"></i>
@@ -1637,62 +1643,62 @@ const renderNotifications = () => {
                 </div>
                 ${isCritical ? '<div class="critical-badge">EVENTO</div>' : ''}
             </div>`;
-    });
+        });
 
-    const finalHTML = [...notificationsHTML, ...customNotifs, ...tourneyHTML].join('');
-    container.innerHTML = finalHTML || `<div class="p-20 text-center opacity-50">No hay notificaciones nuevas.</div>`;
+        const finalHTML = [...notificationsHTML, ...customNotifs, ...tourneyHTML].join('');
+        container.innerHTML = finalHTML || `<div class="p-20 text-center opacity-50">No hay notificaciones nuevas.</div>`;
 
-    lucide.createIcons();
-};
+        lucide.createIcons();
+    };
 
-const renderPayments = async () => {
-    const container = document.getElementById('payment-history-list');
-    const memProgressContainer = document.getElementById('current-membership-progress');
+    const renderPayments = async () => {
+        const container = document.getElementById('payment-history-list');
+        const memProgressContainer = document.getElementById('current-membership-progress');
 
-    const btnViewPlans = document.getElementById('btn-view-plans');
-    if (btnViewPlans) {
-        btnViewPlans.onclick = () => {
-            const msScreen = document.getElementById('membership-selection-screen');
-            if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
-            if (typeof renderMembershipPlans === 'function') {
-                renderMembershipPlans();
-            }
-        };
-    }
-
-    if (!container || !auth.currentUser) return;
-
-    // Update current membership progress
-    if (memProgressContainer) {
-        try {
-            const profile = await SupabaseService.getProfile(auth.currentUser.uid);
-            if (profile && profile.membership_status === 'active') {
-                const planName = profile.membership_plans?.name || 'PLAN ACTIVO';
-                const planTheme = profile.membership_plans?.theme || 'bronze';
-                const limit = profile.membership_plans?.class_limit || profile.membership_limit || 0;
-
-                let usedClasses = 0;
-                let daysLeft = 0;
-
-                if (profile.membership_expiry) {
-                    const expiry = new Date(profile.membership_expiry);
-                    daysLeft = Math.max(0, Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)));
-
-                    // Approximate the start date of the current cycle (30 days before expiry)
-                    const start = new Date(expiry);
-                    start.setDate(start.getDate() - 30);
-
-                    if (appState.allUserReservations) {
-                        usedClasses = appState.allUserReservations.filter(res => {
-                            const d = new Date(res.reservation_date);
-                            return d >= start && d <= expiry;
-                        }).length;
-                    }
+        const btnViewPlans = document.getElementById('btn-view-plans');
+        if (btnViewPlans) {
+            btnViewPlans.onclick = () => {
+                const msScreen = document.getElementById('membership-selection-screen');
+                if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
+                if (typeof renderMembershipPlans === 'function') {
+                    renderMembershipPlans();
                 }
+            };
+        }
 
-                const progressPercent = limit > 0 ? Math.min((usedClasses / limit) * 100, 100) : (usedClasses > 0 ? 100 : 0);
+        if (!container || !auth.currentUser) return;
 
-                memProgressContainer.innerHTML = `
+        // Update current membership progress
+        if (memProgressContainer) {
+            try {
+                const profile = await SupabaseService.getProfile(auth.currentUser.uid);
+                if (profile && profile.membership_status === 'active') {
+                    const planName = profile.membership_plans?.name || 'PLAN ACTIVO';
+                    const planTheme = profile.membership_plans?.theme || 'bronze';
+                    const limit = profile.membership_plans?.class_limit || profile.membership_limit || 0;
+
+                    let usedClasses = 0;
+                    let daysLeft = 0;
+
+                    if (profile.membership_expiry) {
+                        const expiry = new Date(profile.membership_expiry);
+                        daysLeft = Math.max(0, Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)));
+
+                        // Approximate the start date of the current cycle (30 days before expiry)
+                        const start = new Date(expiry);
+                        start.setDate(start.getDate() - 30);
+
+                        if (appState.allUserReservations) {
+                            usedClasses = appState.allUserReservations.filter(res => {
+                                const d = new Date(res.reservation_date);
+                                return d >= start && d <= expiry;
+                            }).length;
+                        }
+                    }
+
+                    const progressPercent = limit > 0 ? Math.min((usedClasses / limit) * 100, 100) : (usedClasses > 0 ? 100 : 0);
+
+                    memProgressContainer.innerHTML = `
                         <div class="membership-card-interactive" id="membership-main-info" style="cursor:pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 5px; border-radius: 12px;">
                             <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
                                 <div style="display:flex; flex-direction:column; gap:2px;">
@@ -1749,54 +1755,54 @@ const renderPayments = async () => {
                         </div>
                     `;
 
-                // Add Interactive Logic
-                const mainInfo = memProgressContainer.querySelector('#membership-main-info');
-                const extraDetails = memProgressContainer.querySelector('#membership-extra-details');
-                const indicator = memProgressContainer.querySelector('#toggle-membership-indicator');
+                    // Add Interactive Logic
+                    const mainInfo = memProgressContainer.querySelector('#membership-main-info');
+                    const extraDetails = memProgressContainer.querySelector('#membership-extra-details');
+                    const indicator = memProgressContainer.querySelector('#toggle-membership-indicator');
 
-                if (mainInfo && extraDetails) {
-                    mainInfo.onclick = () => {
-                        const isHidden = extraDetails.classList.contains('hidden');
-                        if (isHidden) {
-                            extraDetails.classList.remove('hidden');
-                            if (indicator) indicator.style.transform = 'rotate(180deg)';
-                            mainInfo.style.background = 'rgba(255,255,255,0.03)';
-                        } else {
-                            extraDetails.classList.add('hidden');
-                            if (indicator) indicator.style.transform = 'rotate(0deg)';
-                            mainInfo.style.background = 'transparent';
-                        }
-                        lucide.createIcons();
-                    };
+                    if (mainInfo && extraDetails) {
+                        mainInfo.onclick = () => {
+                            const isHidden = extraDetails.classList.contains('hidden');
+                            if (isHidden) {
+                                extraDetails.classList.remove('hidden');
+                                if (indicator) indicator.style.transform = 'rotate(180deg)';
+                                mainInfo.style.background = 'rgba(255,255,255,0.03)';
+                            } else {
+                                extraDetails.classList.add('hidden');
+                                if (indicator) indicator.style.transform = 'rotate(0deg)';
+                                mainInfo.style.background = 'transparent';
+                            }
+                            lucide.createIcons();
+                        };
+                    }
+
+                    const btnRenewAdvance = memProgressContainer.querySelector('#btn-renew-advance-plan');
+                    if (btnRenewAdvance) {
+                        btnRenewAdvance.onclick = () => {
+                            const msScreen = document.getElementById('membership-selection-screen');
+                            if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
+                            if (typeof renderMembershipPlans === 'function') {
+                                renderMembershipPlans();
+                            }
+                        };
+                    }
+
+                    lucide.createIcons();
+                } else {
+                    memProgressContainer.innerHTML = `<p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">No tienes una membresía activa actualmente.</p>`;
                 }
-
-                const btnRenewAdvance = memProgressContainer.querySelector('#btn-renew-advance-plan');
-                if (btnRenewAdvance) {
-                    btnRenewAdvance.onclick = () => {
-                        const msScreen = document.getElementById('membership-selection-screen');
-                        if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
-                        if (typeof renderMembershipPlans === 'function') {
-                            renderMembershipPlans();
-                        }
-                    };
-                }
-
-                lucide.createIcons();
-            } else {
-                memProgressContainer.innerHTML = `<p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">No tienes una membresía activa actualmente.</p>`;
+            } catch (error) {
+                console.error("Error setting membership progress:", error);
+                memProgressContainer.innerHTML = `<p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">Error al cargar progreso.</p>`;
             }
-        } catch (error) {
-            console.error("Error setting membership progress:", error);
-            memProgressContainer.innerHTML = `<p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">Error al cargar progreso.</p>`;
         }
-    }
 
-    try {
-        const entries = await SupabaseService.getPayments(auth.currentUser.uid);
+        try {
+            const entries = await SupabaseService.getPayments(auth.currentUser.uid);
 
-        container.innerHTML = entries.length === 0
-            ? '<li class="p-20 opacity-50 text-center">No hay pagos registrados.</li>'
-            : entries.map(p => `
+            container.innerHTML = entries.length === 0
+                ? '<li class="p-20 opacity-50 text-center">No hay pagos registrados.</li>'
+                : entries.map(p => `
                     <li class="payment-premium-item glass" style="display:flex; justify-content:space-between; align-items:center; padding:15px; margin-bottom:10px; border-radius:15px;">
                         <div class="pay-info">
                             <strong style="display:block; font-size:1.1rem;">$${parseFloat(p.amount).toLocaleString()}</strong>
@@ -1807,282 +1813,62 @@ const renderPayments = async () => {
                         </span>
                     </li>
                 `).join('');
-    } catch (error) {
-        console.error("Error rendering payments:", error);
-    }
-};
-
-// --- ADMIN MANAGEMENT LOGIC ---
-const adminContent = document.getElementById('admin-content-area');
-
-let currentRevenueChart = null;
-    let revenueDataRecords = [];
-
-        const initRevenueChart = async () => {
-        const ctx = document.getElementById('revenueChart');
-        if (!ctx) return;
-        document.getElementById('admin-revenue-section').classList.remove('hidden');
-        adminContent.innerHTML = ""; // Clear content area for the chart section above it
-
-        showToast("Calculando inteligencia financiera... 🧠");
-
-        try {
-            const payments = await SupabaseService.getAllPayments();
-            const approvedPayments = payments.filter(p => p.status === 'approved');
-
-            const updateChart = () => {
-                const selectElement = document.getElementById('revenue-timeframe');
-                const timeframe = selectElement ? selectElement.value : 'mensual';
-                const now = new Date();
-                
-                let currentPeriodPayments = [];
-                let previousPeriodPayments = [];
-                
-                let configuredLabels = [];
-                let currentDataRaw = [];
-                let previousDataRaw = [];
-                
-                if (timeframe === 'mensual') {
-                    // This month vs Last month
-                    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                    
-                    currentPeriodPayments = approvedPayments.filter(p => new Date(p.created_at) >= startOfThisMonth);
-                    previousPeriodPayments = approvedPayments.filter(p => {
-                        const d = new Date(p.created_at);
-                        return d >= startOfLastMonth && d < startOfThisMonth;
-                    });
-                    
-                    configuredLabels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4+'];
-                    currentDataRaw = [0, 0, 0, 0];
-                    previousDataRaw = [0, 0, 0, 0];
-                    
-                    currentPeriodPayments.forEach(p => {
-                        const d = new Date(p.created_at).getDate();
-                        if (d <= 7) currentDataRaw[0] += parseFloat(p.amount);
-                        else if (d <= 14) currentDataRaw[1] += parseFloat(p.amount);
-                        else if (d <= 21) currentDataRaw[2] += parseFloat(p.amount);
-                        else currentDataRaw[3] += parseFloat(p.amount);
-                    });
-                    
-                    previousPeriodPayments.forEach(p => {
-                        const d = new Date(p.created_at).getDate();
-                        if (d <= 7) previousDataRaw[0] += parseFloat(p.amount);
-                        else if (d <= 14) previousDataRaw[1] += parseFloat(p.amount);
-                        else if (d <= 21) previousDataRaw[2] += parseFloat(p.amount);
-                        else previousDataRaw[3] += parseFloat(p.amount);
-                    });
-                    
-                } else if (timeframe === 'anual') {
-                    // This year vs Last year
-                    const startOfThisYear = new Date(now.getFullYear(), 0, 1);
-                    const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1);
-                    
-                    currentPeriodPayments = approvedPayments.filter(p => new Date(p.created_at) >= startOfThisYear);
-                    previousPeriodPayments = approvedPayments.filter(p => {
-                        const d = new Date(p.created_at);
-                        return d >= startOfLastYear && d < startOfThisYear;
-                    });
-                    
-                    configuredLabels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-                    currentDataRaw = new Array(12).fill(0);
-                    previousDataRaw = new Array(12).fill(0);
-                    
-                    currentPeriodPayments.forEach(p => {
-                        currentDataRaw[new Date(p.created_at).getMonth()] += parseFloat(p.amount);
-                    });
-                    previousPeriodPayments.forEach(p => {
-                        previousDataRaw[new Date(p.created_at).getMonth()] += parseFloat(p.amount);
-                    });
-                }
-                
-                const currentTotal = currentDataRaw.reduce((a, b) => a + b, 0);
-                const previousTotal = previousDataRaw.reduce((a, b) => a + b, 0);
-                
-                let growth = 0;
-                if (previousTotal > 0) {
-                    growth = ((currentTotal - previousTotal) / previousTotal) * 100;
-                } else if (currentTotal > 0) {
-                    growth = 100;
-                }
-
-                if (currentRevenueChart) currentRevenueChart.destroy();
-
-                currentRevenueChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: configuredLabels,
-                        datasets: [
-                            {
-                                label: timeframe === 'mensual' ? 'Mes Actual' : 'Año Actual',
-                                data: currentDataRaw,
-                                backgroundColor: '#8b5cf6',
-                                borderRadius: 4
-                            },
-                            {
-                                label: timeframe === 'mensual' ? 'Mes Anterior' : 'Año Anterior',
-                                data: previousDataRaw,
-                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                borderRadius: 4
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                labels: { color: 'rgba(255,255,255,0.7)' }
-                            }
-                        },
-                        scales: {
-                            y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                            x: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { display: false } }
-                        }
-                    }
-                });
-
-                document.getElementById('admin-total-month').innerText = "$" + currentTotal.toLocaleString('es-CL', { minimumFractionDigits: 0 });
-                const growthEl = document.getElementById('admin-growth-value');
-                if (growthEl) {
-                    growthEl.innerText = (growth > 0 ? '+' : '') + growth.toFixed(1) + "%";
-                    growthEl.style.color = growth >= 0 ? '#22c55e' : '#ef4444';
-                }
-
-                // --- Breakdown ---
-                const breakdownMap = {};
-                currentPeriodPayments.forEach(p => {
-                    let cat = p.concept || 'Otro';
-                    if (cat.toLowerCase().includes('plan')) {
-                        if (cat.toLowerCase().includes('básico')) cat = 'Plan Básico';
-                        else if (cat.toLowerCase().includes('pro') || cat.toLowerCase().includes('premium')) cat = 'Plan Pro/Premium';
-                        else cat = 'Otras Membresías';
-                    } else if (cat.toLowerCase().includes('pase') || cat.toLowerCase().includes('clase')) {
-                        cat = 'Clases Sueltas / Pases';
-                    } else {
-                        cat = 'Ingresos Extra';
-                    }
-                    if (!breakdownMap[cat]) breakdownMap[cat] = 0;
-                    breakdownMap[cat] += parseFloat(p.amount);
-                });
-                
-                const breakdownHtml = Object.keys(breakdownMap).sort((a,b) => breakdownMap[b] - breakdownMap[a]).map(cat => {
-                    const pct = currentTotal > 0 ? Math.round((breakdownMap[cat] / currentTotal) * 100) : 0;
-                    return `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px;">
-                            <span style="font-size: 0.85rem; color: #ccc;">${cat}</span>
-                            <div style="text-align: right;">
-                                <strong style="display: block; font-size: 1rem;">$${breakdownMap[cat].toLocaleString('es-CL')}</strong>
-                                <span style="font-size: 0.7rem; color: var(--accent-purple);">${pct}% del total</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                const bdEl = document.getElementById('revenue-breakdown');
-                if (bdEl) bdEl.innerHTML = breakdownHtml || '<p style="opacity:0.5; font-size:0.8rem;">Sin ingresos en este periodo.</p>';
-
-                // --- Automated Insights ---
-                const insights = [];
-                // 1. Growth insight
-                if (growth > 5) {
-                    insights.push(`<div style="display:flex; gap:8px;"><i data-lucide="trending-up" style="color:#22c55e; width:16px;"></i> <span>¡Excelente! Tus ingresos subieron un <strong>${growth.toFixed(1)}%</strong> respecto al periodo anterior.</span></div>`);
-                } else if (growth < -5) {
-                    insights.push(`<div style="display:flex; gap:8px;"><i data-lucide="trending-down" style="color:#ef4444; width:16px;"></i> <span>Cuidado, tus ingresos bajaron un <strong>${Math.abs(growth).toFixed(1)}%</strong>. Considera lanzar una promoción.</span></div>`);
-                } else {
-                    insights.push(`<div style="display:flex; gap:8px;"><i data-lucide="minus" style="color:#fbbf24; width:16px;"></i> <span>Tus ingresos se mantienen estables respecto al periodo anterior.</span></div>`);
-                }
-
-                // 2. Pareto Insight (Top Users)
-                const userTotals = {};
-                currentPeriodPayments.forEach(p => {
-                    if (!userTotals[p.user_id]) userTotals[p.user_id] = 0;
-                    userTotals[p.user_id] += parseFloat(p.amount);
-                });
-                const userValues = Object.values(userTotals).sort((a,b) => b-a);
-                if (userValues.length > 5 && currentTotal > 0) {
-                    const top10PercentCount = Math.max(1, Math.floor(userValues.length * 0.1));
-                    const top10Revenue = userValues.slice(0, top10PercentCount).reduce((a,b)=>a+b, 0);
-                    const topPct = ((top10Revenue / currentTotal) * 100).toFixed(0);
-                    insights.push(`<div style="display:flex; gap:8px;"><i data-lucide="users" style="color:#3b82f6; width:16px;"></i> <span>El <strong>${topPct}%</strong> de tus ingresos viene de solo el 10% de tus alumnos más activos.</span></div>`);
-                }
-
-                // 3. Best selling concept
-                const bestCat = Object.keys(breakdownMap).sort((a,b) => breakdownMap[b] - breakdownMap[a])[0];
-                if (bestCat) {
-                    insights.push(`<div style="display:flex; gap:8px;"><i data-lucide="award" style="color:#fbbf24; width:16px;"></i> <span>La categoría <strong>${bestCat}</strong> es tu principal motor financiero este periodo.</span></div>`);
-                }
-
-                const insEl = document.getElementById('insights-content');
-                if (insEl) insEl.innerHTML = insights.join('');
-                lucide.createIcons();
-
-                revenueDataRecords = currentPeriodPayments; // For export
-            };
-
-            const selectTimeframe = document.getElementById('revenue-timeframe');
-            if (selectTimeframe) {
-                const newSelect = selectTimeframe.cloneNode(true);
-                selectTimeframe.parentNode.replaceChild(newSelect, selectTimeframe);
-                newSelect.addEventListener('change', updateChart);
-            }
-
-            updateChart();
-
-        } catch (err) {
-            console.error(err);
-            showToast("Error al cargar tendencia ❌", "#ef4444");
+        } catch (error) {
+            console.error("Error rendering payments:", error);
         }
     };
 
+    // --- ADMIN MANAGEMENT LOGIC ---
+    const adminContent = document.getElementById('admin-content-area');
 
-// --- Membership Redesign Logic ---
-function renderMembershipPlans() {
-    const container = document.getElementById('membership-plans-container');
-    if (!container) return;
+    // --- Membership Redesign Logic ---
+    function renderMembershipPlans() {
+        const container = document.getElementById('membership-plans-container');
+        if (!container) return;
 
-    debugMsg("Rendering Premium Plans...");
-    container.innerHTML = appState.plans.map((plan, idx) => {
-        let finalPrice = plan.price;
-        let originalPriceHtml = '';
-        let subtitleHtml = plan.subtitle;
-        let priceSuffix = '/ MES';
-        let proportionalWarning = '';
+        debugMsg("Rendering Premium Plans...");
+        container.innerHTML = appState.plans.map((plan, idx) => {
+            let finalPrice = plan.price;
+            let originalPriceHtml = '';
+            let subtitleHtml = plan.subtitle;
+            let priceSuffix = '/ MES';
+            let proportionalWarning = '';
 
-        if (appState.proRataPreference === 'proportional') {
-            const today = new Date();
-            const currentDay = today.getDate();
-            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-            const daysLeft = daysInMonth - currentDay + 1; // inclusive today
-            const dailyRate = plan.price / daysInMonth;
-            const surchargeMultiplier = 1 + (appState.surchargePct / 100);
+            if (appState.proRataPreference === 'proportional') {
+                const today = new Date();
+                const currentDay = today.getDate();
+                const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+                const daysLeft = daysInMonth - currentDay + 1; // inclusive today
+                const dailyRate = plan.price / daysInMonth;
+                const surchargeMultiplier = 1 + (appState.surchargePct / 100);
 
-            finalPrice = Math.round(dailyRate * daysLeft * surchargeMultiplier);
-            originalPriceHtml = `<span style="text-decoration: line-through; opacity: 0.5; font-size: 0.8em; margin-right: 5px;">$${plan.price.toLocaleString()}</span>`;
-            subtitleHtml = `Plan Proporcional (${daysLeft} días restantes)`;
-            priceSuffix = '';
-            proportionalWarning = `<div style="font-size: 0.75em; color: var(--accent-yellow); margin-bottom: 5px; font-weight: 600;">Incluye recargo del ${appState.surchargePct}%</div>`;
-        } else if (appState.activePromo) {
-            let isValidForPlan = true;
-            let isExpired = false;
-
-            if (appState.activePromo.plans && appState.activePromo.plans.length > 0) {
-                isValidForPlan = appState.activePromo.plans.includes(plan.id);
-            }
-            if (appState.activePromo.expiresAt) {
-                const expDate = new Date(appState.activePromo.expiresAt);
-                expDate.setDate(expDate.getDate() + 1); // Expirar al final del día seleccionado
-                isExpired = expDate < new Date();
-            }
-
-            if (isValidForPlan && !isExpired) {
-                finalPrice = finalPrice - (finalPrice * (appState.activePromo.percent / 100));
+                finalPrice = Math.round(dailyRate * daysLeft * surchargeMultiplier);
                 originalPriceHtml = `<span style="text-decoration: line-through; opacity: 0.5; font-size: 0.8em; margin-right: 5px;">$${plan.price.toLocaleString()}</span>`;
-            }
-        } else if (appState.proRataPreference === 'full') {
-            proportionalWarning = `<div style="font-size: 0.75em; color: #60a5fa; margin-bottom: 5px; font-weight: 600;">Mes adelantado sin recargos</div>`;
-        }
+                subtitleHtml = `Plan Proporcional (${daysLeft} días restantes)`;
+                priceSuffix = '';
+                proportionalWarning = `<div style="font-size: 0.75em; color: var(--accent-yellow); margin-bottom: 5px; font-weight: 600;">Incluye recargo del ${appState.surchargePct}%</div>`;
+            } else if (appState.activePromo) {
+                let isValidForPlan = true;
+                let isExpired = false;
 
-        return `
+                if (appState.activePromo.plans && appState.activePromo.plans.length > 0) {
+                    isValidForPlan = appState.activePromo.plans.includes(plan.id);
+                }
+                if (appState.activePromo.expiresAt) {
+                    const expDate = new Date(appState.activePromo.expiresAt);
+                    expDate.setDate(expDate.getDate() + 1); // Expirar al final del día seleccionado
+                    isExpired = expDate < new Date();
+                }
+
+                if (isValidForPlan && !isExpired) {
+                    finalPrice = finalPrice - (finalPrice * (appState.activePromo.percent / 100));
+                    originalPriceHtml = `<span style="text-decoration: line-through; opacity: 0.5; font-size: 0.8em; margin-right: 5px;">$${plan.price.toLocaleString()}</span>`;
+                }
+            } else if (appState.proRataPreference === 'full') {
+                proportionalWarning = `<div style="font-size: 0.75em; color: #60a5fa; margin-bottom: 5px; font-weight: 600;">Mes adelantado sin recargos</div>`;
+            }
+
+            return `
             <div id="plan-card-${plan.id}" class="plan-card ${plan.theme} ${plan.popular ? 'popular' : ''}" style="opacity:0; animation: elegantFadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${0.05 + idx * 0.12}s forwards;">
                 <div class="plan-card-inner">
                     <!-- Front Side -->
@@ -2115,91 +1901,91 @@ function renderMembershipPlans() {
                 </div>
             </div>
         `
-    }).join('');
-    lucide.createIcons();
-};
+        }).join('');
+        lucide.createIcons();
+    };
 
-window.togglePlanFlip = (planId) => {
-    const card = document.getElementById(`plan-card-${planId}`);
-    if (card) {
-        card.classList.toggle('flipped');
-    }
-};
-
-window.selectMembershipPlan = async (planId) => {
-    const plan = appState.plans.find(p => p.id == planId);
-    if (!plan) return;
-
-    const user = auth.currentUser;
-    if (!user) return showToast("Debes iniciar sesión para continuar", "#ef4444");
-
-    let paymentPlan = { ...plan };
-    if (appState.activePromo) {
-        let isValidForPlan = true;
-        if (appState.activePromo.plans && appState.activePromo.plans.length > 0) {
-            isValidForPlan = appState.activePromo.plans.includes(plan.id);
-        }
-        if (isValidForPlan) {
-            paymentPlan.price = paymentPlan.price - (paymentPlan.price * (appState.activePromo.percent / 100));
-            paymentPlan.name = `${paymentPlan.name} (Promo: ${appState.activePromo.code})`;
-        }
-    }
-
-    const processPayment = async (finalPlan) => {
-        try {
-            showToast(`Iniciando pago para ${finalPlan.name}... 💳`, "#22c55e");
-            if (typeof PaymentService !== 'undefined' && typeof PaymentService.createPreference === 'function') {
-                await PaymentService.createPreference(finalPlan);
-            } else {
-                throw new Error("Servicio de pagos no disponible");
-            }
-        } catch (error) {
-            console.error("Auto-payment error:", error);
-            showToast("No se pudo iniciar el pago automático. Intenta de nuevo.", "#ef4444");
+    window.togglePlanFlip = (planId) => {
+        const card = document.getElementById(`plan-card-${planId}`);
+        if (card) {
+            card.classList.toggle('flipped');
         }
     };
 
-    const today = new Date();
-    const currentDay = today.getDate();
-    let isNewUser = false;
-    try {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
-            const p = userDoc.data();
-            if (!p.membership_status || p.membership_status === 'pending') {
-                isNewUser = true;
+    window.selectMembershipPlan = async (planId) => {
+        const plan = appState.plans.find(p => p.id == planId);
+        if (!plan) return;
+
+        const user = auth.currentUser;
+        if (!user) return showToast("Debes iniciar sesión para continuar", "#ef4444");
+
+        let paymentPlan = { ...plan };
+        if (appState.activePromo) {
+            let isValidForPlan = true;
+            if (appState.activePromo.plans && appState.activePromo.plans.length > 0) {
+                isValidForPlan = appState.activePromo.plans.includes(plan.id);
+            }
+            if (isValidForPlan) {
+                paymentPlan.price = paymentPlan.price - (paymentPlan.price * (appState.activePromo.percent / 100));
+                paymentPlan.name = `${paymentPlan.name} (Promo: ${appState.activePromo.code})`;
             }
         }
-    } catch (e) {
-        console.error("Error checking user plan status:", e);
-    }
 
-    if (isNewUser && currentDay >= 15) {
-        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-        const daysLeft = daysInMonth - currentDay + 1; // inclusive today
-        const dailyRate = paymentPlan.price / daysInMonth;
-        const surchargeMultiplier = 1 + (appState.surchargePct / 100);
-        const proportionalPriceWithSurcharge = Math.round(dailyRate * daysLeft * surchargeMultiplier); // Using dynamic surcharge from admin panel
-
-        const proportionalPlan = {
-            ...paymentPlan,
-            price: proportionalPriceWithSurcharge,
-            name: `${paymentPlan.name} (Proporcional resto del mes)`
+        const processPayment = async (finalPlan) => {
+            try {
+                showToast(`Iniciando pago para ${finalPlan.name}... 💳`, "#22c55e");
+                if (typeof PaymentService !== 'undefined' && typeof PaymentService.createPreference === 'function') {
+                    await PaymentService.createPreference(finalPlan);
+                } else {
+                    throw new Error("Servicio de pagos no disponible");
+                }
+            } catch (error) {
+                console.error("Auto-payment error:", error);
+                showToast("No se pudo iniciar el pago automático. Intenta de nuevo.", "#ef4444");
+            }
         };
 
-        const nextMonthPlan = {
-            ...paymentPlan,
-            name: `${paymentPlan.name} (Mes Completo)`
-        };
-
-        if (appState.proRataPreference === 'proportional') {
-            return await processPayment(proportionalPlan);
-        } else if (appState.proRataPreference === 'full') {
-            return await processPayment(nextMonthPlan);
+        const today = new Date();
+        const currentDay = today.getDate();
+        let isNewUser = false;
+        try {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const p = userDoc.data();
+                if (!p.membership_status || p.membership_status === 'pending') {
+                    isNewUser = true;
+                }
+            }
+        } catch (e) {
+            console.error("Error checking user plan status:", e);
         }
 
-        if (!document.getElementById('proportional-modal')) {
-            const modalHtml = `
+        if (isNewUser && currentDay >= 15) {
+            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+            const daysLeft = daysInMonth - currentDay + 1; // inclusive today
+            const dailyRate = paymentPlan.price / daysInMonth;
+            const surchargeMultiplier = 1 + (appState.surchargePct / 100);
+            const proportionalPriceWithSurcharge = Math.round(dailyRate * daysLeft * surchargeMultiplier); // Using dynamic surcharge from admin panel
+
+            const proportionalPlan = {
+                ...paymentPlan,
+                price: proportionalPriceWithSurcharge,
+                name: `${paymentPlan.name} (Proporcional resto del mes)`
+            };
+
+            const nextMonthPlan = {
+                ...paymentPlan,
+                name: `${paymentPlan.name} (Mes Completo)`
+            };
+
+            if (appState.proRataPreference === 'proportional') {
+                return await processPayment(proportionalPlan);
+            } else if (appState.proRataPreference === 'full') {
+                return await processPayment(nextMonthPlan);
+            }
+
+            if (!document.getElementById('proportional-modal')) {
+                const modalHtml = `
                 <div id="proportional-modal" class="overlay" style="display:flex; z-index: 10000; align-items: center; justify-content: center; background: rgba(0,0,0,0.8);">
                     <div class="modal-content glass" style="max-width:350px; text-align:center; padding: 25px; border-radius: 20px;">
                         <h3 style="margin-bottom:15px; color:var(--accent-yellow); font-size: 1.2rem; font-weight: 800;">Bienvenido a Amaru</h3>
@@ -2217,69 +2003,69 @@ window.selectMembershipPlan = async (planId) => {
                         </div>
                     </div>
                 </div>`;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        } else {
-            document.getElementById('btn-pay-proportional').innerHTML = `<strong style="font-size: 1rem;">Pagar Proporcional ($${proportionalPriceWithSurcharge.toLocaleString()})</strong><span style="font-size:0.7rem; font-weight:normal; opacity: 0.8; margin-top: 3px;">Lo que resta del mes (incluye recargo)</span>`;
-            document.getElementById('btn-pay-full').innerHTML = `<strong style="font-size: 1rem;">Pagar Mes Completo ($${paymentPlan.price.toLocaleString()})</strong><span style="font-size:0.7rem; font-weight:normal; opacity: 0.8; margin-top: 3px;">Se cobrará el mes entero desde hoy</span>`;
-            document.getElementById('proportional-modal').style.display = 'flex';
-        }
-
-        document.getElementById('btn-pay-proportional').onclick = async () => {
-            document.getElementById('proportional-modal').style.display = 'none';
-            await processPayment(proportionalPlan);
-        };
-        document.getElementById('btn-pay-full').onclick = async () => {
-            document.getElementById('proportional-modal').style.display = 'none';
-            await processPayment(nextMonthPlan);
-        };
-        document.getElementById('btn-cancel-proportional').onclick = () => {
-            document.getElementById('proportional-modal').style.display = 'none';
-        };
-        return;
-    }
-
-    if (appState.role === 'admin') return showToast("El administrador no realiza pagos ⚙️", "#fbbf24");
-    await processPayment(paymentPlan);
-};
-
-// The checkout modal and simulation logic were removed to make the process automatic.
-
-
-const btnSkipMembership = document.getElementById('btn-skip-membership');
-if (btnSkipMembership) {
-    btnSkipMembership.onclick = async () => {
-        document.getElementById('membership-selection-screen').classList.add('hidden');
-        document.getElementById('app-container').classList.remove('hidden');
-        switchScreen('dashboard');
-
-        const user = auth.currentUser;
-        if (user && appState.role !== 'admin') {
-            try {
-                // Check if a pending payment limit already exists to avoid duplicates
-                const { data: existing } = await window.supabase
-                    .from('payments')
-                    .select('id')
-                    .eq('user_id', user.uid)
-                    .eq('status', 'pending');
-
-                if (!existing || existing.length === 0) {
-                    await SupabaseService.recordPayment(user.uid, {
-                        amount: 0,
-                        concept: 'Registro - Pago Omitido',
-                        receipt_url: null,
-                        status: 'pending',
-                        payment_method: 'manual',
-                        currency: 'COP'
-                    });
-                }
-            } catch (err) {
-                console.error("Error al registrar el pago omitido:", err);
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            } else {
+                document.getElementById('btn-pay-proportional').innerHTML = `<strong style="font-size: 1rem;">Pagar Proporcional ($${proportionalPriceWithSurcharge.toLocaleString()})</strong><span style="font-size:0.7rem; font-weight:normal; opacity: 0.8; margin-top: 3px;">Lo que resta del mes (incluye recargo)</span>`;
+                document.getElementById('btn-pay-full').innerHTML = `<strong style="font-size: 1rem;">Pagar Mes Completo ($${paymentPlan.price.toLocaleString()})</strong><span style="font-size:0.7rem; font-weight:normal; opacity: 0.8; margin-top: 3px;">Se cobrará el mes entero desde hoy</span>`;
+                document.getElementById('proportional-modal').style.display = 'flex';
             }
+
+            document.getElementById('btn-pay-proportional').onclick = async () => {
+                document.getElementById('proportional-modal').style.display = 'none';
+                await processPayment(proportionalPlan);
+            };
+            document.getElementById('btn-pay-full').onclick = async () => {
+                document.getElementById('proportional-modal').style.display = 'none';
+                await processPayment(nextMonthPlan);
+            };
+            document.getElementById('btn-cancel-proportional').onclick = () => {
+                document.getElementById('proportional-modal').style.display = 'none';
+            };
+            return;
         }
 
-        showToast("¡Explora AmaruApp! 🥋");
+        if (appState.role === 'admin') return showToast("El administrador no realiza pagos ⚙️", "#fbbf24");
+        await processPayment(paymentPlan);
     };
-}
+
+    // The checkout modal and simulation logic were removed to make the process automatic.
+
+
+    const btnSkipMembership = document.getElementById('btn-skip-membership');
+    if (btnSkipMembership) {
+        btnSkipMembership.onclick = async () => {
+            document.getElementById('membership-selection-screen').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            switchScreen('dashboard');
+
+            const user = auth.currentUser;
+            if (user && appState.role !== 'admin') {
+                try {
+                    // Check if a pending payment limit already exists to avoid duplicates
+                    const { data: existing } = await window.supabase
+                        .from('payments')
+                        .select('id')
+                        .eq('user_id', user.uid)
+                        .eq('status', 'pending');
+
+                    if (!existing || existing.length === 0) {
+                        await SupabaseService.recordPayment(user.uid, {
+                            amount: 0,
+                            concept: 'Registro - Pago Omitido',
+                            receipt_url: null,
+                            status: 'pending',
+                            payment_method: 'manual',
+                            currency: 'COP'
+                        });
+                    }
+                } catch (err) {
+                    console.error("Error al registrar el pago omitido:", err);
+                }
+            }
+
+            showToast("¡Explora AmaruApp! 🥋");
+        };
+    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2296,65 +2082,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const manageNotificationsBtn = document.getElementById('manage-notifications-btn');
         const exportReportBtn = document.getElementById('btn-export-revenue');
 
-        let revenueDataRecords = [];
-        window.revenueChartInstance = null;
-
-        const initRevenueChart = async () => {
-            const revSection = document.getElementById('admin-revenue-section');
-            if (revSection) revSection.classList.remove('hidden');
-            const adminContent = document.getElementById('admin-content-area');
-            if (adminContent) adminContent.innerHTML = '<p style="text-align:center; padding:20px;">Cargando ingresos...</p>';
-            
-            try {
-                const payments = appState.payments || await SupabaseService.getAllPayments?.() || []; 
-                revenueDataRecords = payments;
-                
-                if (adminContent) adminContent.innerHTML = ''; 
-                
-                const insights = document.getElementById('insights-content');
-                if (insights) {
-                    insights.innerHTML = `
-                        <p>Total de pagos registrados: ${revenueDataRecords.length}</p>
-                        <p>Total recaudado (aprox): $${revenueDataRecords.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0)}</p>
-                        <p>Sección en construcción para gráficos interactivos.</p>
-                    `;
-                }
-            } catch (e) {
-                console.error("Error cargando ingresos:", e);
-                if (window.showToast) window.showToast("Error al cargar ingresos", "#ef4444");
-            }
-        };
-
         if (manageClsBtn) manageClsBtn.onclick = () => {
             const rev = document.getElementById('admin-revenue-section');
-            if(rev) rev.classList.add('hidden');
+            if (rev) rev.classList.add('hidden');
             renderAdminClasses();
         };
 
         if (manageUsersBtn) manageUsersBtn.onclick = () => renderAdminPlans();
-        if (manageActiveUsersBtn) manageActiveUsersBtn.onclick = () => renderAdminActiveUsers();
+        if (manageActiveUsersBtn) manageActiveUsersBtn.onclick = () => renderAdminMembers();
         if (viewAttendanceBtn) viewAttendanceBtn.onclick = () => renderAdminAttendance();
         if (managePaymentsBtn) managePaymentsBtn.onclick = () => renderAdminPayments();
-        if (viewRevenueBtn) viewRevenueBtn.onclick = () => initRevenueChart();
+        if (viewRevenueBtn) viewRevenueBtn.onclick = () => renderRevenueSection();
         if (manageDiscountsBtn) manageDiscountsBtn.onclick = () => renderAdminDiscounts();
         if (manageNotificationsBtn) manageNotificationsBtn.onclick = () => renderAdminNotifications();
-
-        if (exportReportBtn) {
-            const newExport = exportReportBtn.cloneNode(true);
-            exportReportBtn.parentNode.replaceChild(newExport, exportReportBtn);
-            newExport.onclick = () => {
-                const format = document.getElementById('export-format-rev') ? document.getElementById('export-format-rev').value : 'csv';
-                const timeframe = document.getElementById('revenue-timeframe') ? document.getElementById('revenue-timeframe').value : 'reporte';
-                const headers = ['Fecha', 'Alumno', 'Monto', 'Concepto'];
-                const rows = revenueDataRecords.map(p => [
-                    new Date(p.created_at).toLocaleDateString(),
-                    p.profiles?.full_name || 'N/A',
-                    p.amount,
-                    p.concept || 'Plan'
-                ]);
-                exportToFormat(format, rows, headers, `Recaudacion_${timeframe}_Amaru_${new Date().getFullYear()}`);
-            };
-        }
     };
 
     initAdminListeners();

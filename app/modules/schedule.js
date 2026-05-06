@@ -30,9 +30,15 @@ export const renderSchedule = () => {
             chip.onclick = async () => {
                 appState.selectedDate = isoDate;
                 if (showLoading) showLoading("Cargando clases... ⏳");
-                appState.reservations = (await SupabaseService.getReservations(isoDate))
-                    .filter(r => r.user_id === auth.currentUser?.uid)
-                    .map(r => r.class_id);
+                try {
+                    const res = await SupabaseService.getReservations(isoDate);
+                    appState.reservations = (res || [])
+                        .filter(r => r.user_id === auth.currentUser?.uid)
+                        .map(r => r.class_id);
+                } catch (e) {
+                    console.error('[Schedule] Error fetching reservations:', e);
+                    appState.reservations = [];
+                }
                 if (hideLoading) hideLoading();
                 renderSchedule();
             };
@@ -50,17 +56,17 @@ export const renderSchedule = () => {
     const filteredClasses = appState.classes.filter(c => {
         const matchesFilter = appState.activeFilter === 'Todas' || c.type === appState.activeFilter;
         let cDays = c.days;
-        if (typeof cDays === 'string') { 
-            try { cDays = JSON.parse(cDays); } 
-            catch (e) { 
+        if (typeof cDays === 'string') {
+            try { cDays = JSON.parse(cDays); }
+            catch (e) {
                 cDays = cDays.split(',').map(d => d.trim());
-            } 
+            }
         }
-        
+
         let matchesDay = false;
         if (Array.isArray(cDays)) {
-            matchesDay = cDays.some(d => 
-                d === currentDayInt || 
+            matchesDay = cDays.some(d =>
+                d === currentDayInt ||
                 String(d) === String(currentDayInt) ||
                 String(d).toLowerCase() === currentDayName.toLowerCase() ||
                 String(d).toLowerCase().startsWith(currentDayName.substring(0, 3).toLowerCase())
@@ -99,7 +105,7 @@ export const renderSchedule = () => {
                 </div>
             </div>`;
     }).join('');
-    
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
