@@ -4,7 +4,7 @@ import { SupabaseService } from '../services/supabaseService.js';
  * Renders the class schedule and the date carousel.
  * Relies on global `window.appState`, `window.showLoading`, `window.hideLoading`, `window.auth`, `window.toggleReservation`, `window.openClassModal`.
  */
-export const renderSchedule = () => {
+export const renderSchedule = async () => {
     const container = document.querySelector('.class-timeline');
     const carousel = document.querySelector('.date-carousel-premium');
     if (!container) return;
@@ -53,6 +53,14 @@ export const renderSchedule = () => {
     console.log(`[Schedule] Rendering for ${appState.selectedDate} (${currentDayName}, index: ${currentDayInt})`);
     console.log(`[Schedule] Total classes in state: ${appState.classes?.length}`);
 
+    // Fetch all reservations for this date to show attendance
+    let allReservationsForDate = [];
+    try {
+        allReservationsForDate = await SupabaseService.getReservations(appState.selectedDate);
+    } catch (e) {
+        console.warn('[Schedule] Could not fetch reservations for date:', e);
+    }
+
     const filteredClasses = appState.classes.filter(c => {
         const matchesFilter = appState.activeFilter === 'Todas' || c.type === appState.activeFilter;
         let cDays = c.days;
@@ -90,18 +98,64 @@ export const renderSchedule = () => {
 
     container.innerHTML = filteredClasses.map((cls, idx) => {
         const isBooked = appState.reservations.includes(cls.id);
+        const classReservations = allReservationsForDate.filter(r => r.class_id === cls.id);
+        const attendeeCount = classReservations.length;
+        const attendeeNames = classReservations.map(r => r.user_name || r.profiles?.full_name || 'Atleta').slice(0, 5);
+        const hasMoreAttendees = classReservations.length > 5;
+
+        const typeColor = {
+            'Striking': '#ef4444',
+            'BJJ': '#8b5cf6',
+            'MMA': '#f97316',
+            'Funcional Fighter': '#22c55e',
+            'BJJ Gi': '#8b5cf6',
+            'No Gi': '#a855f7'
+        }[cls.type] || 'var(--accent-cyan)';
+
         return `
-            <div class="stitch-class-card ${isBooked ? 'booked' : ''} ${cls.theme}" style="opacity:0; animation: elegantFadeIn 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${0.04 + idx * 0.08}s forwards;">
+            <div class="stitch-class-card ${isBooked ? 'booked' : ''} ${cls.theme}" data-class-id="${cls.id}" style="opacity:0; animation: elegantFadeIn 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${0.04 + idx * 0.08}s forwards; cursor: pointer; transition: all 0.3s;"
+                 onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.3)';"
+                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='';">
                 <div class="smoke-layer"></div>
                 <div class="stitch-class-content">
-                    <div class="cls-info-main">
-                        <span class="tag">${cls.type}</span>
-                        <h4>${cls.name}</h4>
-                        <p>${cls.time} • Coach ${cls.coach}</p>
+                    <div class="cls-info-main" style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                            <span class="tag" style="background:${typeColor}22; color:${typeColor}; border:1px solid ${typeColor}44;">${cls.type}</span>
+                            ${isBooked ? '<span class="tag" style="background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3);">✓ Reservado</span>' : ''}
+                        </div>
+                        <h4 style="margin:0; font-size:1.05rem; font-weight:800;">${cls.name}</h4>
+                        <p style="margin:4px 0 0; font-size:0.8rem; opacity:0.7;">${cls.time} • Coach ${cls.coach}</p>
+                        <div style="display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap;">
+                            <span style="font-size:0.7rem; opacity:0.5; display:flex; align-items:center; gap:4px;">
+                                <i data-lucide="users" style="width:12px;"></i> ${attendeeCount} inscrito${attendeeCount !== 1 ? 's' : ''}
+                            </span>
+                            ${attendeeCount > 0 ? `<span style="font-size:0.65rem; opacity:0.4;">• ${attendeeNames.join(', ')}${hasMoreAttendees ? '...' : ''}</span>` : ''}
+                        </div>
                     </div>
-                    <button class="btn-reserve-stitch ${isBooked ? 'booked' : ''}" data-id="${cls.id}">
-                        ${appState.role === 'admin' ? 'EDITAR' : (isBooked ? 'CANCELAR' : 'RESERVAR')}
-                    </button>
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <button class="btn-reserve-stitch ${isBooked ? 'booked' : ''}" data-id="${cls.id}" style="min-width:100px;"
+                            onclick="event.stopPropagation();">
+                            ${appState.role === 'admin' ? 'EDITAR' : (isBooked ? 'CANCELAR' : 'RESERVAR')}
+                        </button>
+                        ${appState.role === 'admin' ? `
+                        <button class="btn-view-attendees" data-class-id="${cls.id}" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-gray); padding:4px 10px; border-radius:8px; font-size:0.65rem; font-weight:700; cursor:pointer;"
+                            onclick="event.stopPropagation();">
+                            <i data-lucide="eye" style="width:10px; margin-right:3px;"></i> Ver asistencia
+                        </button>` : ''}
+                    </div>
+                </div>
+                <div class="class-attendees-detail" id="attendees-${cls.id}" style="display:none; padding:12px 20px 16px; border-top:1px solid rgba(255,255,255,0.05);">
+                    <p style="font-size:0.7rem; opacity:0.5; margin-bottom:8px; text-transform:uppercase; font-weight:700; letter-spacing:1px;">Lista de asistentes</p>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        ${classReservations.length === 0 ? '<span style="font-size:0.8rem; opacity:0.4;">Nadie inscrito todavía</span>' : classReservations.map((r, i) => `
+                            <div style="display:flex; align-items:center; gap:8px; padding:6px 0; ${i < classReservations.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.03);' : ''}">
+                                <div style="width:26px; height:26px; border-radius:8px; background:${typeColor}15; border:1px solid ${typeColor}30; display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-weight:800; color:${typeColor};">
+                                    ${(r.profiles?.full_name || r.user_name || 'A').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                </div>
+                                <span style="font-size:0.8rem; font-weight:600;">${r.profiles?.full_name || r.user_name || 'Atleta'}</span>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             </div>`;
     }).join('');
@@ -110,13 +164,37 @@ export const renderSchedule = () => {
         window.lucide.createIcons();
     }
 
+    // Main card click - toggle attendees detail
+    document.querySelectorAll('.stitch-class-card').forEach(card => {
+        card.onclick = () => {
+            const classId = card.getAttribute('data-class-id');
+            const detail = document.getElementById(`attendees-${classId}`);
+            if (detail) {
+                const isOpen = detail.style.display === 'block';
+                detail.style.display = isOpen ? 'none' : 'block';
+            }
+        };
+    });
+
     document.querySelectorAll('.btn-reserve-stitch').forEach(btn => {
         btn.onclick = () => {
             const id = btn.getAttribute('data-id');
             if (appState.role === 'admin') {
                 if (openClassModal) openClassModal(id, appState.classes);
+                else window.showToast("Función de edición no disponible", "#ef4444");
             } else {
                 if (toggleReservation) toggleReservation(id);
+            }
+        };
+    });
+
+    // Admin: view attendees button
+    document.querySelectorAll('.btn-view-attendees').forEach(btn => {
+        btn.onclick = () => {
+            const classId = btn.getAttribute('data-class-id');
+            const detail = document.getElementById(`attendees-${classId}`);
+            if (detail) {
+                detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
             }
         };
     });

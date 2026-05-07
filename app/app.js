@@ -1,8 +1,9 @@
 import { initAuthUI } from './auth/auth.js';
 import { appState } from './store/appState.js';
 import { exportToFormat, exportUserData } from './utils/exportUtils.js';
+import { withTimeout, withRetry, isNetworkError } from './utils/promiseHelpers.js';
 // Amaru App Logic - Version 1.4.1 - Force Sync Update
-console.log("[INIT] Amaru App Logic Loaded - V1.4.5 (Restored & Robust)");
+console.log("[INIT] Amaru App Logic Loaded - V1.4.6 (Robust Login & Background Load)");
 
 import { SupabaseService } from './services/supabaseService.js';
 import { initModals } from './modules/adminModals.js';
@@ -364,7 +365,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'schedule') renderSchedule();
         if (id === 'tournaments') renderTournaments();
         if (id === 'notifications') renderNotifications();
-        if (id === 'profile') updateProfileStats();
+        if (id === 'profile') {
+            updateProfileStats();
+            renderPayments();
+        }
     };
 
     const calculateDynamicStats = (attendance) => {
@@ -490,326 +494,391 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Auth State Observer
+    // Auth State Observer — Refactored for robustness v1.4.6
     let authInitialized = false;
-    window.supabase.auth.onAuthStateChange(async (event, session) => {
-        // Skip SIGNED_IN if we haven't processed INITIAL_SESSION yet — the token may not be ready
-        if (event === 'SIGNED_IN' && !authInitialized) {
-            return;
+    let currentUserId = null;
+
+    const showAuthLoadingScreen = (message = 'CARGANDO DATOS...', showRetry = false, errorDetail = '') => {
+        const authScreen = document.getElementById('auth-screen');
+        if (!authScreen) return;
+        authScreen.innerHTML = `
+            <div id="auth-loading-container" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-dark, #0d0d12); padding: 20px;">
+                <div style="width: 220px; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 25px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
+                    <div id="auth-load-bar" style="height: 100%; background: linear-gradient(90deg, var(--accent-cyan, #00f0ff), var(--neon-blue, #0055ff)); border-radius: 10px; animation: cyberLoad 1.5s infinite ease-in-out alternate; width: 60%; box-shadow: 0 0 10px var(--accent-cyan, #00f0ff);"></div>
+                </div>
+                <p id="auth-load-text" style="color: rgba(255,255,255,0.8); font-size: 0.85rem; font-weight: 600; letter-spacing: 2px; animation: pulseText 1.5s infinite alternate; font-family: 'Inter', sans-serif; text-align: center;">${message}</p>
+                ${errorDetail ? `<p style="color: #ef4444; font-size: 0.75rem; margin-top: 10px; text-align: center; max-width: 300px; opacity: 0.8;">${errorDetail}</p>` : ''}
+                ${showRetry ? `<button id="btn-auth-retry" style="margin-top: 20px; padding: 10px 24px; background: rgba(139,92,246,0.2); border: 1px solid var(--accent-purple); color: white; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 0.8rem; transition: all 0.3s;">🔄 Reintentar</button>` : ''}
+                <style>
+                @keyframes cyberLoad { 0% { transform: translateX(-100%); } 100% { transform: translateX(150%); } }
+                @keyframes pulseText { 0% { opacity: 0.4; } 100% { opacity: 1; } }
+                </style>
+            </div>`;
+
+        const retryBtn = document.getElementById('btn-auth-retry');
+        if (retryBtn) {
+            retryBtn.onmouseover = () => { retryBtn.style.background = 'var(--accent-purple)'; };
+            retryBtn.onmouseout = () => { retryBtn.style.background = 'rgba(139,92,246,0.2)'; };
+            retryBtn.onclick = () => {
+                authScreen.innerHTML = '';
+                // Force re-trigger by reloading auth state
+                window.supabase.auth.getSession().then(({ data }) => {
+                    handleAuthSession(data.session);
+                });
+            };
         }
-        // Skip duplicate INITIAL_SESSION with no user if we already have a user loaded
-        if (event === 'INITIAL_SESSION' && authInitialized) {
-            return;
+    };
+
+    const setupRealtimeSubscriptions = (user, profile) => {
+        // Cleanup previous subscriptions
+        if (appState._channels) {
+            appState._channels.forEach(ch => {
+                try { window.supabase.removeChannel(ch); } catch (e) { }
+            });
         }
-        if (event === 'INITIAL_SESSION') {
-            authInitialized = true;
+        appState._channels = [];
+
+        const styleSelect = document.getElementById('user-combat-style');
+
+        // Profile Subscription
+        const profileChannel = window.supabase
+            .channel(`profile:${user.uid}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                filter: `id=eq.${user.uid}`,
+                schema: 'public',
+                table: 'profiles'
+            }, payload => {
+                debugMsg("Profile updated in real-time");
+                const newData = payload.new;
+                Object.assign(profile, newData);
+                appState.level = newData.level;
+                appState.xp = newData.xp;
+                appState.membershipLimit = newData.membership_limit;
+                appState.membershipStatus = newData.membership_status || 'inactive';
+                if (styleSelect && newData.combat_style) {
+                    styleSelect.value = newData.combat_style;
+                }
+                updateRankUI();
+                updateAdminUIVisibility();
+            })
+            .subscribe();
+        appState._channels.push(profileChannel);
+
+        // Global Subscriptions for Classes & Plans
+        const globalChannel = window.supabase
+            .channel('global-data')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, async () => {
+                try {
+                    appState.classes = await SupabaseService.getClasses();
+                    renderSchedule();
+                } catch (e) { console.error('Realtime classes error:', e); }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'membership_plans' }, async () => {
+                try {
+                    appState.plans = await SupabaseService.getPlans();
+                } catch (e) { console.error('Realtime plans error:', e); }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments', filter: `user_id=eq.${user.uid}` }, async () => {
+                try {
+                    appState.tournaments = await SupabaseService.getTournaments(user.uid);
+                    renderTournaments();
+                    renderDashboardNotifications();
+                } catch (e) { console.error('Realtime tournaments error:', e); }
+            })
+            .subscribe();
+        appState._channels.push(globalChannel);
+
+        // Real-time Payments Subscription (Admin only)
+        if (appState.role === 'admin') {
+            const paymentsChannel = window.supabase
+                .channel('admin-payments')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, async () => {
+                    debugMsg("Real-time payment update received!");
+                    const adminAreaTitle = document.querySelector('#admin-content-area h3')?.innerText;
+                    if (adminAreaTitle && (adminAreaTitle.includes('Validación de Pagos') || adminAreaTitle.includes('Pagos'))) {
+                        renderAdminPayments();
+                    }
+                    showToast("¡Actualización de pago detectada! 💳", "#22c55e");
+                })
+                .subscribe();
+            appState._channels.push(paymentsChannel);
         }
+
+        // Reservations Subscription
+        if (appState.unsubscribeReservations) appState.unsubscribeReservations();
+
+        const reservationChannel = window.supabase
+            .channel(`reservations:${user.uid}`)
+            .on('postgres_changes', {
+                event: '*',
+                filter: `user_id=eq.${user.uid}`,
+                schema: 'public',
+                table: 'reservations'
+            }, async () => {
+                debugMsg("Reservations updated in real-time (Supabase)");
+                try {
+                    const res = await SupabaseService.getReservations(appState.selectedDate);
+                    appState.reservations = res.filter(r => r.user_id === user.uid).map(r => r.class_id);
+                    appState.allUserReservations = await SupabaseService.getUserReservations(user.uid);
+                    appState.xp = (profile.xp || 0) + ((appState.allUserReservations?.length || 0) * 50);
+                    updateRankUI();
+                    renderSchedule();
+                    updateAttendanceUI();
+                } catch (e) { console.error('Realtime reservations error:', e); }
+            })
+            .subscribe();
+
+        appState.unsubscribeReservations = () => {
+            window.supabase.removeChannel(reservationChannel);
+        };
+        appState._channels.push(reservationChannel);
+    };
+
+    const loadUserDataInBackground = async (user, profile) => {
+        // This runs AFTER the UI is already visible
+        try {
+            // Fetch Attendance History
+            const attendanceData = await withTimeout(
+                SupabaseService.getAttendance(user.uid),
+                8000,
+                'Asistencia'
+            );
+            calculateDynamicStats(attendanceData || []);
+            updateAttendanceUI();
+        } catch (err) {
+            console.warn("[Background] Error loading attendance:", err.message);
+        }
+
+        try {
+            // Fetch Notifications
+            if (appState.role === 'admin') {
+                appState.notifications = await withTimeout(SupabaseService.getNotifications(), 8000, 'Notificaciones admin');
+            } else {
+                const allNotifs = await withTimeout(SupabaseService.getNotifications(), 8000, 'Notificaciones');
+                appState.notifications = allNotifs.filter(n => n.is_active !== false);
+            }
+        } catch (err) {
+            console.warn("[Background] Error loading notifications:", err.message);
+        }
+
+        try {
+            // Classes, Plans & Tournaments
+            const [fetchedClasses, fetchedPlans, fetchedTournaments, fetchedAllRes] = await Promise.all([
+                withTimeout(SupabaseService.getClasses(), 8000, 'Clases'),
+                withTimeout(SupabaseService.getPlans(), 8000, 'Planes'),
+                withTimeout(SupabaseService.getTournaments(user.uid), 8000, 'Torneos'),
+                withTimeout(SupabaseService.getUserReservations(user.uid), 8000, 'Reservas')
+            ]);
+            if (fetchedClasses) appState.classes = fetchedClasses;
+            if (fetchedPlans) {
+                appState.plans = fetchedPlans;
+                if (window.renderPaymentTabs) window.renderPaymentTabs();
+            }
+            if (fetchedTournaments) appState.tournaments = fetchedTournaments;
+            if (fetchedAllRes) {
+                appState.allUserReservations = fetchedAllRes;
+                appState.xp = (appState.xp || 0) + (fetchedAllRes.length * 50);
+            }
+            renderSchedule();
+            renderTournaments();
+            renderDashboardNextClass();
+            updateAttendanceUI();
+        } catch (err) {
+            console.warn("[Background] Error fetching initial data:", err.message);
+            showToast("Algunos datos no cargaron. Intenta refrescar. 🔄", "#eab308");
+        }
+
+        try {
+            // Initial Reservations Fetch
+            const initialRes = await withTimeout(SupabaseService.getReservations(appState.selectedDate), 8000, 'Reservas iniciales');
+            appState.reservations = initialRes.filter(r => r.user_id === user.uid).map(r => r.class_id);
+            renderSchedule();
+            updateAttendanceUI();
+        } catch (err) {
+            console.warn("[Background] Error loading initial reservations:", err.message);
+        }
+
+        // Setup real-time subscriptions only after basic data is loaded
+        setupRealtimeSubscriptions(user, profile);
+    };
+
+    const handleAuthSession = async (session) => {
+        console.log('[Auth] handleAuthSession called. Session exists:', !!session, 'User exists:', !!session?.user);
         const supabaseUser = session?.user;
         let user = null;
         if (supabaseUser) {
             user = { ...supabaseUser, uid: supabaseUser.id, email: supabaseUser.email };
-            appState.user = user;
-        } else {
-            appState.user = null;
         }
 
         const authScreen = document.getElementById('auth-screen');
         const appContainer = document.getElementById('app-container');
 
-        if (user) {
-            // Show a loading indicator instead of a black screen
-            authScreen.innerHTML = `
-                <div style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-dark, #0d0d12);">
-                    <div style="width: 220px; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 25px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
-                        <div style="height: 100%; background: linear-gradient(90deg, var(--accent-cyan, #00f0ff), var(--neon-blue, #0055ff)); border-radius: 10px; animation: cyberLoad 1.5s infinite ease-in-out alternate; width: 60%; box-shadow: 0 0 10px var(--accent-cyan, #00f0ff);"></div>
-                    </div>
-                    <p style="color: rgba(255,255,255,0.8); font-size: 0.85rem; font-weight: 600; letter-spacing: 2px; animation: pulseText 1.5s infinite alternate; font-family: 'Inter', sans-serif;">CARGANDO DATOS...</p>
-                    <style>
-                    @keyframes cyberLoad { 0% { transform: translateX(-100%); } 100% { transform: translateX(150%); } }
-                    @keyframes pulseText { 0% { opacity: 0.4; } 100% { opacity: 1; } }
-                    </style>
-                </div>`;
-            // Do NOT hide authScreen yet. We'll hide it when appContainer is ready.
-            // authScreen.classList.add('hidden');
+        if (!user) {
+            console.log('[Auth] No user in session, showing auth screen');
+            authScreen.classList.remove('hidden');
+            triggerScreenAppear(authScreen);
+            appContainer.classList.add('hidden');
+            authInitialized = false;
+            currentUserId = null;
+            appState.user = null;
+            return;
+        }
 
-            try {
-                debugMsg("Fetching profile...");
-                let profile = await SupabaseService.getProfile(user.uid);
-                debugMsg("Profile fetched.");
-                if (!profile) {
-                    debugMsg("Profile not found in Supabase. Creating...");
-                    await SupabaseService.createProfile(user);
-                    profile = await SupabaseService.getProfile(user.uid);
-                }
+        // CRITICAL FIX: Prevent duplicate processing for the same user.
+        // Supabase's _recoverAndRefresh triggers onAuthStateChange multiple times
+        // for the same session, which was overwriting a working UI with an error screen.
+        if (currentUserId === user.uid && appState.user) {
+            console.log('[Auth] Same user already logged in, skipping duplicate session handler');
+            return;
+        }
 
-                if (sessionStorage.getItem('mp_payment_success') === 'true') {
-                    sessionStorage.removeItem('mp_payment_success');
-                    try {
-                        const payments = await SupabaseService.getPayments(user.uid);
-                        const pendingPayment = payments.find(p => p.status === 'pending');
-                        if (pendingPayment) {
-                            await SupabaseService.updatePaymentStatus(pendingPayment.id, 'approved', 'mercadopago');
-                            showToast("Pago validado automáticamente ✨", "#22c55e");
+        appState.user = user;
+        currentUserId = user.uid;
+        console.log('[Auth] User found:', user.email, '- starting profile load...');
 
-                            const expiry = new Date();
-                            expiry.setMonth(expiry.getMonth() + 1);
-                            await SupabaseService.updateProfile(user.uid, {
-                                membership_status: 'active',
-                                membership_expiry: expiry.toISOString().split('T')[0]
-                            });
-                            profile = await SupabaseService.getProfile(user.uid);
-                        }
-                    } catch (err) {
-                        console.error("Error confirmando pago:", err);
-                    }
-                }
+        // Show loading screen with timeout fail-safe
+        showAuthLoadingScreen('CARGANDO DATOS...');
+        const loadStartTime = Date.now();
+        const LOAD_TIMEOUT = 15000; // 15 seconds max
 
-                // 2. UPDATE STATE
-                appState.role = profile.role || 'athlete';
+        let profile = null;
+        let loadError = null;
 
-                // Enforce admin mode correctly based on role
-                if (appState.role === 'admin') {
-                    appState.isAdminMode = true; // Force true initially for admin users
-                } else {
-                    appState.isAdminMode = false;
-                }
+        try {
+            // Step 1: Get profile with generous timeout (30s) and 1 retry
+            // Localhost/development connections to Supabase can be slow
+            profile = await withRetry(
+                () => withTimeout(SupabaseService.getProfile(user.uid), 30000, 'Perfil'),
+                { maxRetries: 1, delayMs: 2000, context: 'Cargar perfil' }
+            );
 
-                appState.level = profile.level || 0;
-                appState.xp = profile.xp || 0;
-                appState.membershipLimit = profile.membership_limit || 2;
-                appState.membershipStatus = profile.membership_status || 'inactive';
-                appState.planTheme = profile.membership_plans?.theme || 'bronze';
-                appState.plan = profile.membership_plan_id;
-                appState.photoURL = profile.photo_url || '../images/icon-192.png';
+            if (!profile) {
+                debugMsg("Profile not found in Supabase. Creating...");
+                await withRetry(
+                    () => withTimeout(SupabaseService.createProfile(user), 30000, 'Crear perfil'),
+                    { maxRetries: 1, delayMs: 2000, context: 'Crear perfil' }
+                );
+                profile = await withTimeout(SupabaseService.getProfile(user.uid), 30000, 'Perfil recién creado');
+            }
 
-                // 2.1 Fetch Attendance History (Request #2)
-                const attendanceData = await SupabaseService.getAttendance(user.uid);
-                calculateDynamicStats(attendanceData || []);
-
-                // 2.2 Fetch Notifications
-                if (appState.role === 'admin') {
-                    appState.notifications = await SupabaseService.getNotifications();
-                } else {
-                    // Usuarios normales solo ven avisos activos
-                    const allNotifs = await SupabaseService.getNotifications();
-                    appState.notifications = allNotifs.filter(n => n.is_active !== false);
-                }
-
-                // 3. UI UPDATES
-                const greetingSpan = document.querySelector('.greeting');
-                if (greetingSpan) {
-                    const fullName = profile.full_name || user.displayName || 'Atleta';
-                    greetingSpan.textContent = `¡Hola, ${fullName}!`;
-                }
-
-                // 4. PUSH NOTIFICATIONS (Request #3)
-                initMessaging(user.uid);
-
-                const planNameEl = document.getElementById('profile-plan-name');
-                const planStatusEl = document.getElementById('profile-plan-status');
-                const planRemainingEl = document.getElementById('profile-plan-remaining');
-                const planProgressEl = document.getElementById('profile-plan-progress');
-
-                if (planNameEl) {
-                    const planName = profile.membership_plans?.name || (profile.membership_status === 'active' ? 'PLAN ACTIVO' : 'SIN PLAN');
-                    planNameEl.textContent = planName;
-
-                    if (profile.membership_expiry) {
-                        const expiryDate = new Date(profile.membership_expiry);
-                        const today = new Date();
-                        if (expiryDate > today) {
-                            planStatusEl.textContent = 'ACTIVO';
-                            planStatusEl.style.background = '#22c55e';
-                            const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-                            planRemainingEl.textContent = `${diffDays} Días restantes`;
-                            const progress = Math.max(0, Math.min(100, ((30 - diffDays) / 30) * 100));
-                            if (planProgressEl) planProgressEl.style.width = `${progress}%`;
-                        } else {
-                            planStatusEl.textContent = 'INACTIVO';
-                            planStatusEl.style.background = '#ef4444';
-                            planRemainingEl.textContent = 'Renovación requerida';
-                        }
-                    }
-                }
-
-                updateRankUI();
-
-                // Style Selector Setup
-                const styleSelect = document.getElementById('user-combat-style');
-                if (styleSelect) {
-                    styleSelect.value = profile.combat_style || 'striker';
-                    styleSelect.onchange = async (e) => {
-                        const newStyle = e.target.value;
-                        window.showLoading("Guardando estilo...");
-                        try {
-                            await SupabaseService.updateProfile(user.uid, { combat_style: newStyle });
-                            window.hideLoading();
-                            showToast("¡Estilo actualizado!", "#22c55e");
-                        } catch (err) {
-                            console.error(err);
-                            showToast("Error al guardar estilo", "#ef4444");
-                        }
-                    };
-                }
-
-                // 4. REAL-TIME SUBSCRIPTIONS
-                // Profile Subscription
-                const profileSubscription = window.supabase
-                    .channel(`profile:${user.uid}`)
-                    .on('postgres_changes', {
-                        event: 'UPDATE',
-                        filter: `id=eq.${user.uid}`,
-                        schema: 'public',
-                        table: 'profiles'
-                    }, payload => {
-                        debugMsg("Profile updated in real-time");
-                        const newData = payload.new;
-                        Object.assign(profile, newData);
-                        appState.level = newData.level;
-                        appState.xp = newData.xp;
-                        appState.membershipLimit = newData.membership_limit;
-                        appState.membershipStatus = newData.membership_status || 'inactive';
-                        if (styleSelect && newData.combat_style) {
-                            styleSelect.value = newData.combat_style;
-                        }
-                        updateRankUI();
-                        updateAdminUIVisibility();
-                    })
-                    .subscribe();
-
-                // Classes, Plans & Tournaments Fetching
+            // Mercado Pago callback check
+            if (sessionStorage.getItem('mp_payment_success') === 'true') {
+                sessionStorage.removeItem('mp_payment_success');
                 try {
-                    const [fetchedClasses, fetchedPlans, fetchedTournaments, fetchedAllRes] = await Promise.all([
-                        SupabaseService.getClasses(),
-                        SupabaseService.getPlans(),
-                        SupabaseService.getTournaments(user.uid),
-                        SupabaseService.getUserReservations(user.uid)
-                    ]);
-                    if (fetchedClasses) appState.classes = fetchedClasses;
-                    if (fetchedPlans) {
-                        appState.plans = fetchedPlans;
-                        if (window.renderPaymentTabs) window.renderPaymentTabs();
+                    const payments = await SupabaseService.getPayments(user.uid);
+                    const pendingPayment = payments.find(p => p.status === 'pending');
+                    if (pendingPayment) {
+                        await SupabaseService.updatePaymentStatus(pendingPayment.id, 'approved', 'mercadopago');
+                        showToast("Pago validado automáticamente ✨", "#22c55e");
+                        const expiry = new Date();
+                        expiry.setMonth(expiry.getMonth() + 1);
+                        await SupabaseService.updateProfile(user.uid, {
+                            membership_status: 'active',
+                            membership_expiry: expiry.toISOString().split('T')[0]
+                        });
+                        profile = await SupabaseService.getProfile(user.uid);
                     }
-                    if (fetchedTournaments) appState.tournaments = fetchedTournaments;
-                    if (fetchedAllRes) {
-                        appState.allUserReservations = fetchedAllRes;
-                        appState.xp = (appState.xp || 0) + (fetchedAllRes.length * 50); // Each class booked is 50 XP
-                    }
-                    renderSchedule();
-                    renderTournaments();
                 } catch (err) {
-                    console.error("Error fetching initial data:", err);
+                    console.error("Error confirmando pago:", err);
                 }
+            }
 
-                try {
-                    console.log("Global notifications listener (Firebase) disabled.");
-                } catch (gErr) {
-                    console.error("Error setting up global notifications listener:", gErr);
+            // Update core state
+            appState.role = profile.role || 'athlete';
+            appState.isAdminMode = appState.role === 'admin';
+            appState.level = profile.level || 0;
+            appState.xp = profile.xp || 0;
+            appState.membershipLimit = profile.membership_limit || 2;
+            appState.membershipStatus = profile.membership_status || 'inactive';
+            appState.planTheme = profile.membership_plans?.theme || 'bronze';
+            appState.plan = profile.membership_plan_id;
+            appState.photoURL = profile.photo_url || '../images/icon-192.png';
+
+            // UI Updates - basic info
+            const greetingSpan = document.querySelector('.greeting');
+            if (greetingSpan) {
+                greetingSpan.textContent = `¡Hola, ${profile.full_name || user.displayName || 'Atleta'}!`;
+            }
+
+            const planNameEl = document.getElementById('profile-plan-name');
+            const planStatusEl = document.getElementById('profile-plan-status');
+            const planRemainingEl = document.getElementById('profile-plan-remaining');
+            const planProgressEl = document.getElementById('profile-plan-progress');
+
+            if (planNameEl) {
+                planNameEl.textContent = profile.membership_plans?.name || (profile.membership_status === 'active' ? 'PLAN ACTIVO' : 'SIN PLAN');
+                if (profile.membership_expiry) {
+                    const expiryDate = new Date(profile.membership_expiry);
+                    const today = new Date();
+                    if (expiryDate > today) {
+                        planStatusEl.textContent = 'ACTIVO';
+                        planStatusEl.style.background = '#22c55e';
+                        const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                        planRemainingEl.textContent = `${diffDays} Días restantes`;
+                        const progress = Math.max(0, Math.min(100, ((30 - diffDays) / 30) * 100));
+                        if (planProgressEl) planProgressEl.style.width = `${progress}%`;
+                    } else {
+                        planStatusEl.textContent = 'INACTIVO';
+                        planStatusEl.style.background = '#ef4444';
+                        planRemainingEl.textContent = 'Renovación requerida';
+                    }
                 }
+            }
 
-                // Global Subscriptions for Classes & Plans
-                window.supabase
-                    .channel('global-data')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, async () => {
-                        appState.classes = await SupabaseService.getClasses();
-                        renderSchedule();
-                    })
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'membership_plans' }, async () => {
-                        appState.plans = await SupabaseService.getPlans();
-                    })
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments', filter: `user_id=eq.${user.uid}` }, async () => {
-                        appState.tournaments = await SupabaseService.getTournaments(user.uid);
-                        renderTournaments();
-                        renderDashboardNotifications();
-                    })
-                    .subscribe();
+            updateRankUI();
 
-                // Real-time Payments Subscription (Admin only)
-                if (appState.role === 'admin') {
-                    window.supabase
-                        .channel('admin-payments')
-                        .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, async () => {
-                            debugMsg("Real-time payment update received!");
-                            // If the admin is currently viewing the payments validation area, re-render it
-                            const adminAreaTitle = document.querySelector('#admin-content-area h3')?.innerText;
-                            if (adminAreaTitle && (adminAreaTitle.includes('Validación de Pagos') || adminAreaTitle.includes('Pagos'))) {
-                                renderAdminPayments();
-                            }
-                            showToast("¡Actualización de pago detectada! 💳", "#22c55e");
-                        })
-                        .subscribe();
-                }
-
-                // Reservations Subscription (Supabase)
-                if (appState.unsubscribeReservations) appState.unsubscribeReservations();
-
-                const reservationChannel = window.supabase
-                    .channel(`reservations:${user.uid}`)
-                    .on('postgres_changes', {
-                        event: '*',
-                        filter: `user_id=eq.${user.uid}`,
-                        schema: 'public',
-                        table: 'reservations'
-                    }, async () => {
-                        debugMsg("Reservations updated in real-time (Supabase)");
-                        const res = await SupabaseService.getReservations(appState.selectedDate);
-                        appState.reservations = res.filter(r => r.user_id === user.uid).map(r => r.class_id);
-                        appState.allUserReservations = await SupabaseService.getUserReservations(user.uid);
-                        appState.xp = (profile.xp || 0) + ((appState.allUserReservations?.length || 0) * 50);
-                        updateRankUI();
-                        renderSchedule();
-                        updateAttendanceUI();
-                    })
-                    .subscribe();
-
-                appState.unsubscribeReservations = () => {
-                    window.supabase.removeChannel(reservationChannel);
+            // Style selector
+            const styleSelect = document.getElementById('user-combat-style');
+            if (styleSelect) {
+                styleSelect.value = profile.combat_style || 'striker';
+                styleSelect.onchange = async (e) => {
+                    const newStyle = e.target.value;
+                    window.showLoading("Guardando estilo...");
+                    try {
+                        await SupabaseService.updateProfile(user.uid, { combat_style: newStyle });
+                        window.hideLoading();
+                        showToast("¡Estilo actualizado!", "#22c55e");
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Error al guardar estilo", "#ef4444");
+                    }
                 };
+            }
 
-                // Initial Reservations Fetch
-                const initialRes = await SupabaseService.getReservations(appState.selectedDate);
-                appState.reservations = initialRes.filter(r => r.user_id === user.uid).map(r => r.class_id);
-                renderSchedule();
-                updateAttendanceUI();
+            // Final UI Config
+            const navAdmin = document.getElementById('nav-admin');
+            const athleteNavs = document.querySelectorAll('.nav-item:not(#nav-admin)');
 
-                // 5. LEGACY SYNC (Optional: Keep Firestore for basic backup or remove)
-                // We'll skip Firestore sync if Supabase is successful
+            if (appState.role === 'admin') {
+                athleteNavs.forEach(nav => nav.classList.remove('hidden'));
+            } else {
+                if (navAdmin) navAdmin.classList.add('hidden');
+            }
 
-                appState.role = profile.role || 'athlete';
+            updateAdminUIVisibility();
+            renderDateCarousel();
 
-                // Final UI Config
-                const navAdmin = document.getElementById('nav-admin');
-                const athleteNavs = document.querySelectorAll('.nav-item:not(#nav-admin)');
+            // Admin Entry Point Listeners
+            const btnBackProfile = document.getElementById('btn-back-admin');
+            const btnBackDash = document.getElementById('btn-dashboard-back-admin');
+            if (btnBackProfile) btnBackProfile.onclick = () => setAdminMode(true);
+            if (btnBackDash) btnBackDash.onclick = () => setAdminMode(true);
 
-                if (appState.role === 'admin') {
-                    athleteNavs.forEach(nav => nav.classList.remove('hidden'));
-                } else {
-                    if (navAdmin) navAdmin.classList.add('hidden');
-                }
+            // Check membership status
+            if (appState.role !== 'admin' && profile.membership_status !== 'active') {
+                appContainer.classList.add('hidden');
 
-                updateAdminUIVisibility();
-                renderDateCarousel();
+                const now = new Date();
+                const systemMonthYear = `${now.getMonth()}-${now.getFullYear()}`;
+                const savedMonthYear = profile.proRataMonthYear || "";
 
-                // Admin Entry Point Listeners
-                const btnBackProfile = document.getElementById('btn-back-admin');
-                const btnBackDash = document.getElementById('btn-dashboard-back-admin');
-                if (btnBackProfile) btnBackProfile.onclick = () => setAdminMode(true);
-                if (btnBackDash) btnBackDash.onclick = () => setAdminMode(true);
-
-                if (appState.role !== 'admin' && profile.membership_status !== 'active') {
-                    appContainer.classList.add('hidden');
-
-                    // --- Load and Validate Saved Preference ---
-                    const now = new Date();
-                    const systemMonthYear = `${now.getMonth()}-${now.getFullYear()}`;
-                    const savedMonthYear = profile.proRataMonthYear || "";
-
-                    if (profile.proRataPreference && savedMonthYear === systemMonthYear) {
-                        appState.proRataPreference = profile.proRataPreference;
-                    } else if (profile.proRataPreference) {
-                        // Choice from previous month is no longer valid
-                        debugMsg("Pro-rata preference from previous month reset.");
-                        appState.proRataPreference = null;
+                if (profile.proRataPreference && savedMonthYear === systemMonthYear) {
+                    appState.proRataPreference = profile.proRataPreference;
+                } else if (profile.proRataPreference) {
+                    debugMsg("Pro-rata preference from previous month reset.");
+                    appState.proRataPreference = null;
+                    if (typeof db !== 'undefined' && db.collection) {
                         db.collection('users').doc(user.uid).set({
                             proRataPreference: null,
                             proRataMonthYear: null,
@@ -817,100 +886,195 @@ document.addEventListener('DOMContentLoaded', () => {
                             proRataExpiredInMonth: true
                         }, { merge: true }).catch(e => console.error("Error resetting data:", e));
                     }
+                }
 
-                    if (profile.proRataExpiredInMonth) {
-                        showToast("⚠️ Tu opción proporcional anterior expiró al terminar el mes. Se ha restablecido a pago de mes completo.", "#8b5cf6");
-                        window.supabase.from('profiles').update({ pro_rata_expired_in_month: null }).eq('id', user.uid).catch(e => console.error("Error clearing expiration flag:", e));
-                    }
+                if (profile.proRataExpiredInMonth) {
+                    showToast("⚠️ Tu opción proporcional anterior expiró al terminar el mes. Se ha restablecido a pago de mes completo.", "#8b5cf6");
+                    window.supabase.from('profiles').update({ pro_rata_expired_in_month: null }).eq('id', user.uid).catch(e => console.error("Error clearing expiration flag:", e));
+                }
 
-                    renderMembershipPlans();
+                renderMembershipPlans();
 
-                    const systemDay = now.getDate();
-                    // If no valid preference is saved and it's >= 15, show explaining screen
-                    if (!appState.proRataPreference && systemDay >= 15) {
-                        const prScreen = document.getElementById('pro-rata-info-screen');
-                        const msScreen = document.getElementById('membership-selection-screen');
-                        if (prScreen) { prScreen.classList.remove('hidden'); triggerScreenAppear(prScreen); }
-                        if (msScreen) msScreen.classList.add('hidden');
+                const systemDay = now.getDate();
+                if (!appState.proRataPreference && systemDay >= 15) {
+                    const prScreen = document.getElementById('pro-rata-info-screen');
+                    const msScreen = document.getElementById('membership-selection-screen');
+                    if (prScreen) { prScreen.classList.remove('hidden'); triggerScreenAppear(prScreen); }
+                    if (msScreen) msScreen.classList.add('hidden');
 
-                        const updateDbPreference = async (pref) => {
-                            try {
-                                appState.proRataPreference = pref;
+                    const updateDbPreference = async (pref) => {
+                        try {
+                            appState.proRataPreference = pref;
+                            if (typeof db !== 'undefined' && db.collection) {
                                 await db.collection('users').doc(user.uid).set({
                                     proRataPreference: pref,
                                     proRataMonthYear: systemMonthYear,
                                     proRataSelectionDate: now.toISOString()
                                 }, { merge: true });
-                                renderMembershipPlans();
-                                if (prScreen) prScreen.classList.add('hidden');
-                                if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
-                            } catch (e) {
-                                console.error("Error saving preference:", e);
-                                showToast("Error al guardar preferencia", "#ef4444");
                             }
-                        };
+                            renderMembershipPlans();
+                            if (prScreen) prScreen.classList.add('hidden');
+                            if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
+                        } catch (e) {
+                            console.error("Error saving preference:", e);
+                            showToast("Error al guardar preferencia", "#ef4444");
+                        }
+                    };
 
-                        document.getElementById('btn-option-proportional').onclick = () => updateDbPreference('proportional');
-                        document.getElementById('btn-option-full').onclick = () => updateDbPreference('full');
-
-                    } else {
-                        // Either we have a preference already or it's < 15, skip intro screen
-                        document.getElementById('pro-rata-info-screen').classList.add('hidden');
-                        const msScreen = document.getElementById('membership-selection-screen');
-                        if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
-                    }
+                    document.getElementById('btn-option-proportional').onclick = () => updateDbPreference('proportional');
+                    document.getElementById('btn-option-full').onclick = () => updateDbPreference('full');
                 } else {
-                    authScreen.classList.add('hidden');
-                    appContainer.classList.remove('hidden');
-                    if (window.location.hash === '#payments') {
-                        switchScreen('profile');
-                        document.getElementById('payment-modal')?.classList.add('active');
-                    } else {
-                        const targetScreen = appState.isAdminMode ? 'admin-panel' : 'dashboard';
-                        switchScreen(targetScreen);
+                    document.getElementById('pro-rata-info-screen').classList.add('hidden');
+                    const msScreen = document.getElementById('membership-selection-screen');
+                    if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
+                }
+            } else {
+                // SHOW APP IMMEDIATELY
+                authScreen.classList.add('hidden');
+                appContainer.classList.remove('hidden');
 
-                        // Render welcome message instead of opening a section by default
-                        if (appState.isAdminMode) {
-                            const area = document.getElementById('admin-content-area');
-                            if (area) {
-                                area.innerHTML = `<div class="p-20 text-center glass" style="border-radius: 12px; margin-top: 20px;">
-                                    <i data-lucide="shield-check" style="width: 48px; height: 48px; color: var(--accent-purple); margin-bottom: 10px;"></i>
-                                    <h3>Panel de Control</h3>
-                                    <p style="color: var(--text-gray); font-size: 0.9rem;">Selecciona una opción del menú superior para comenzar.</p>
-                                </div>`;
-                                if (window.lucide) window.lucide.createIcons();
-                            }
+                if (window.location.hash === '#payments') {
+                    switchScreen('profile');
+                    document.getElementById('payment-modal')?.classList.add('active');
+                } else {
+                    const targetScreen = appState.isAdminMode ? 'admin-panel' : 'dashboard';
+                    switchScreen(targetScreen);
+
+                    if (appState.isAdminMode) {
+                        const area = document.getElementById('admin-content-area');
+                        if (area) {
+                            area.innerHTML = `<div class="p-20 text-center glass" style="border-radius: 12px; margin-top: 20px;">
+                                <i data-lucide="shield-check" style="width: 48px; height: 48px; color: var(--accent-purple); margin-bottom: 10px;"></i>
+                                <h3>Panel de Control</h3>
+                                <p style="color: var(--text-gray); font-size: 0.9rem;">Selecciona una opción del menú superior para comenzar.</p>
+                            </div>`;
+                            if (window.lucide) window.lucide.createIcons();
                         }
                     }
                 }
 
-            } catch (err) {
-                console.error("Sync error:", err);
-                authScreen.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                switchScreen('dashboard');
+                // Load heavy data in background AFTER UI is visible
+                loadUserDataInBackground(user, profile);
+
+                // Messaging init (non-blocking)
+                initMessaging(user.uid).catch(() => { });
             }
 
-            updateAttendanceUI();
-            renderDashboardNextClass();
-            renderPayments();
-            updateRankUI();
-            const profileName = document.getElementById('profile-user-name');
-            const navUserName = document.getElementById('nav-user-name'); // If exists in top bar
-            const displayName = user.displayName || (appState.role === 'admin' ? 'Administrador' : 'Atleta');
-
-            if (profileName) profileName.innerText = displayName;
-            if (navUserName) navUserName.innerText = displayName;
-
-            const avatarImg = document.getElementById('profile-avatar');
-            if (avatarImg) avatarImg.src = appState.photoURL || '../images/icon-192.png';
-
-        } else {
-            authScreen.classList.remove('hidden');
-            triggerScreenAppear(authScreen);
-            appContainer.classList.add('hidden');
+        } catch (err) {
+            loadError = err;
+            console.error("[Auth] Critical error during login:", err);
+            const isNetErr = isNetworkError(err);
+            showAuthLoadingScreen(
+                'Error al cargar',
+                true,
+                isNetErr ? 'Parece que hay un problema de conexión. Verifica tu red e intenta de nuevo.' : (err.message || 'Error desconocido al iniciar sesión.')
+            );
+            return; // Don't proceed - wait for retry
         }
+
+        // Final UI updates
+        const profileName = document.getElementById('profile-user-name');
+        const navUserName = document.getElementById('nav-user-name');
+        const displayName = user.displayName || (appState.role === 'admin' ? 'Administrador' : 'Atleta');
+
+        if (profileName) profileName.innerText = displayName;
+        if (navUserName) navUserName.innerText = displayName;
+
+        const avatarImg = document.getElementById('profile-avatar');
+        if (avatarImg) avatarImg.src = appState.photoURL || '../images/icon-192.png';
+    };
+
+    window.supabase.auth.onAuthStateChange(async (event, session) => {
+        // FIXED: Process SIGNED_IN always — it's the event fired after manual login
+        if (event === 'SIGNED_IN') {
+            authInitialized = true;
+            await handleAuthSession(session);
+            return;
+        }
+        if (event === 'INITIAL_SESSION' && authInitialized) {
+            return;
+        }
+        if (event === 'INITIAL_SESSION') {
+            authInitialized = true;
+        }
+        await handleAuthSession(session);
     });
+
+    // CRITICAL FIX: Explicitly get existing session on app load.
+    // onAuthStateChange(INITIAL_SESSION) does NOT always fire if the session
+    // is already restored before the listener is registered (race condition).
+    // Supabase restores session from localStorage asynchronously, so we poll
+    // for up to 5 seconds until the session is ready.
+    (async () => {
+        const MAX_ATTEMPTS = 20; // 20 x 500ms = 10 seconds max
+        const INTERVAL_MS = 500;
+        let attempts = 0;
+        let pollInterval = null;
+
+        // Wait for window.supabase to be available (supabase-config.js loads in parallel)
+        while (!window.supabase && attempts < MAX_ATTEMPTS) {
+            console.log('[Auth] Waiting for window.supabase to be ready...');
+            await new Promise(r => setTimeout(r, INTERVAL_MS));
+            attempts++;
+        }
+
+        if (!window.supabase) {
+            console.error('[Auth] window.supabase never became available. Check supabase-config.js loading.');
+            return;
+        }
+
+        attempts = 0;
+
+        const tryGetSession = async () => {
+            try {
+                const { data, error } = await window.supabase.auth.getSession();
+                if (error) {
+                    console.error('[Auth] getSession error:', error);
+                    return false;
+                }
+                if (data.session && !authInitialized) {
+                    console.log('[Auth] Session found via getSession(), triggering handleAuthSession...');
+                    authInitialized = true;
+                    await handleAuthSession(data.session);
+                    return true;
+                }
+                return false;
+            } catch (err) {
+                console.error('[Auth] Critical error calling getSession():', err);
+                return false;
+            }
+        };
+
+        // Try immediately
+        if (await tryGetSession()) return;
+
+        // If no session yet, Supabase may still be restoring from localStorage.
+        // Poll every 500ms for up to 10 seconds.
+        pollInterval = setInterval(async () => {
+            attempts++;
+            if (authInitialized) {
+                // Session was already handled by onAuthStateChange, stop polling
+                clearInterval(pollInterval);
+                return;
+            }
+            if (await tryGetSession()) {
+                clearInterval(pollInterval);
+                return;
+            }
+            if (attempts >= MAX_ATTEMPTS) {
+                clearInterval(pollInterval);
+                console.log('[Auth] No active session found after polling.');
+                // Ensure auth screen is visible if no session
+                const authScreen = document.getElementById('auth-screen');
+                const appContainer = document.getElementById('app-container');
+                if (authScreen) {
+                    authScreen.classList.remove('hidden');
+                    triggerScreenAppear(authScreen);
+                }
+                if (appContainer) appContainer.classList.add('hidden');
+            }
+        }, INTERVAL_MS);
+    })();
 
     initAuthUI(switchScreen, renderMembershipPlans);
 
