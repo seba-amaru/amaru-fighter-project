@@ -302,6 +302,21 @@
                         entrenamiento malo es el que no sucedió."</p>
                 </div>
 
+                <!-- Activity Feed (D) -->
+                <div id="activity-feed-container" style="margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <span
+                            style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-gray);">Actividad
+                            Reciente</span>
+                        <span style="font-size: 0.6rem; opacity: 0.4; cursor: pointer;" onclick="renderActivityFeed()">↻
+                            Actualizar</span>
+                    </div>
+                    <div id="activity-feed-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Dynamic activity items -->
+                    </div>
+                </div>
+
                 <!-- Premium Stats Grid -->
                 <div class="stats-grid" id="premium-stats-grid"
                     style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">

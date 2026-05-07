@@ -356,6 +356,13 @@ document.addEventListener('DOMContentLoaded', () => {
             triggerScreenAppear(target);
         }
 
+        // Show/hide bottom nav: hide on dashboard (has quick access), show elsewhere
+        const bottomNav = document.getElementById('bottom-nav');
+        if (bottomNav) {
+            bottomNav.style.transform = id === 'dashboard' ? 'translateY(100%)' : 'translateY(0)';
+            bottomNav.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        }
+
         if (id === 'dashboard') {
             updateAttendanceUI();
             renderDashboardNextClass();
@@ -363,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setRandomQuote();
             updateDashboardHeader();
             setupQuickAccessButtons();
+            renderActivityFeed();
         }
         if (id === 'schedule') renderSchedule();
         if (id === 'tournaments') renderTournaments();
@@ -1806,6 +1814,119 @@ document.addEventListener('DOMContentLoaded', () => {
             dashRankIcon.setAttribute('data-lucide', rankIcons[rankTitle] || 'shield');
         }
     };
+
+    const renderActivityFeed = () => {
+        const container = document.getElementById('activity-feed-list');
+        if (!container) return;
+
+        const activities = [];
+
+        // 1. Recent reservations
+        if (appState.allUserReservations && appState.allUserReservations.length > 0) {
+            const recentRes = [...appState.allUserReservations]
+                .sort((a, b) => new Date(b.reservation_date) - new Date(a.reservation_date))
+                .slice(0, 3);
+
+            recentRes.forEach(r => {
+                const date = new Date(r.reservation_date);
+                const daysAgo = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
+                const timeText = daysAgo === 0 ? 'Hoy' : daysAgo === 1 ? 'Ayer' : `Hace ${daysAgo} días`;
+                activities.push({
+                    icon: 'calendar-check',
+                    color: '#22c55e',
+                    bg: 'rgba(34,197,94,0.1)',
+                    border: 'rgba(34,197,94,0.2)',
+                    title: `Reserva confirmada`,
+                    desc: `${r.class_name || 'Clase'} — ${timeText}`,
+                    time: timeText
+                });
+            });
+        }
+
+        // 2. Recent attendance (simulated from attendance count)
+        if (appState.attendanceHistoryCount > 0) {
+            activities.push({
+                icon: 'check-circle',
+                color: '#a855f7',
+                bg: 'rgba(168,85,247,0.1)',
+                border: 'rgba(168,85,247,0.2)',
+                title: `Asistencia registrada`,
+                desc: `+25 XP obtenidos`,
+                time: 'Reciente'
+            });
+        }
+
+        // 3. Level up notification
+        if (appState.level > 0) {
+            activities.push({
+                icon: 'zap',
+                color: '#fbbf24',
+                bg: 'rgba(251,191,36,0.1)',
+                border: 'rgba(251,191,36,0.2)',
+                title: `¡Subiste de nivel!`,
+                desc: `Nivel ${appState.level} alcanzado`,
+                time: 'Reciente'
+            });
+        }
+
+        // 4. Upcoming tournament
+        if (appState.tournaments && appState.tournaments.length > 0) {
+            const nextTourney = appState.tournaments[0];
+            const daysLeft = Math.ceil((new Date(nextTourney.date) - new Date()) / (1000 * 60 * 60 * 24));
+            if (daysLeft > 0 && daysLeft <= 30) {
+                activities.push({
+                    icon: 'trophy',
+                    color: '#f97316',
+                    bg: 'rgba(249,115,22,0.1)',
+                    border: 'rgba(249,115,22,0.2)',
+                    title: `Torneo próximo`,
+                    desc: `${nextTourney.name} — ${daysLeft} días`,
+                    time: 'Próximamente'
+                });
+            }
+        }
+
+        // 5. Plan status
+        if (appState.membershipStatus === 'active') {
+            activities.push({
+                icon: 'shield-check',
+                color: '#06b6d4',
+                bg: 'rgba(6,182,212,0.1)',
+                border: 'rgba(6,182,212,0.2)',
+                title: `Plan activo`,
+                desc: `Membresía al día`,
+                time: 'Actual'
+            });
+        }
+
+        if (activities.length === 0) {
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; opacity: 0.4;">
+                    <i data-lucide="activity" style="width: 24px; height: 24px; margin-bottom: 8px;"></i>
+                    <p style="font-size: 0.75rem;">Sin actividad reciente</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = activities.map((a, i) => `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; cursor: pointer; transition: all 0.3s; animation: elegantFadeIn 0.4s ease ${i * 0.08}s both;"
+                    onmouseenter="this.style.background='rgba(255,255,255,0.05)'; this.style.transform='translateX(4px)';"
+                    onmouseleave="this.style.background='rgba(255,255,255,0.02)'; this.style.transform='translateX(0)';">
+                    <div style="width: 34px; height: 34px; border-radius: 10px; background: ${a.bg}; border: 1px solid ${a.border}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i data-lucide="${a.icon}" style="width: 16px; color: ${a.color};"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <p style="font-size: 0.8rem; font-weight: 700; color: white; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.title}</p>
+                        <p style="font-size: 0.7rem; color: var(--text-gray); margin: 2px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.desc}</p>
+                    </div>
+                    <span style="font-size: 0.6rem; color: var(--text-gray); opacity: 0.5; flex-shrink: 0;">${a.time}</span>
+                </div>
+            `).join('');
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+    };
+
+    window.renderActivityFeed = renderActivityFeed;
 
     const updateBadgesUI = () => {
         const container = document.getElementById('user-badges-container');
