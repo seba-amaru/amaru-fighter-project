@@ -361,6 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDashboardNextClass();
             renderDashboardNotifications();
             setRandomQuote();
+            updateDashboardHeader();
+            setupQuickAccessButtons();
         }
         if (id === 'schedule') renderSchedule();
         if (id === 'tournaments') renderTournaments();
@@ -1670,6 +1672,139 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update Badges (Request #2)
         updateBadgesUI();
+
+        // Update NEW Dashboard Premium Stats Grid (A+B+C improvements)
+        updateDashboardStats(derivedLevel, totalDisplayXP, maxLevel * xpPerLevel, progressPct, rankTitle);
+    };
+
+    // --- Dashboard Header & Quick Access (A+B+C improvements) ---
+    const updateDashboardHeader = () => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        // Avatar
+        const dashAvatar = document.getElementById('dash-avatar');
+        if (dashAvatar) dashAvatar.src = appState.photoURL || '../images/icon-192.png';
+
+        // Name
+        const dashName = document.getElementById('dash-name');
+        if (dashName) dashName.innerText = user.displayName || 'Atleta';
+
+        // Plan chip
+        const dashPlanChip = document.getElementById('dash-plan-chip');
+        if (dashPlanChip) {
+            const isActive = appState.membershipStatus === 'active' || appState.role === 'admin';
+            dashPlanChip.innerText = isActive ? 'Activo' : 'Inactivo';
+            dashPlanChip.style.background = isActive ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)';
+            dashPlanChip.style.color = isActive ? '#22c55e' : '#ef4444';
+            dashPlanChip.style.borderColor = isActive ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)';
+        }
+    };
+
+    const setupQuickAccessButtons = () => {
+        document.querySelectorAll('.quick-btn').forEach(btn => {
+            const targetScreen = btn.getAttribute('data-nav');
+            const action = btn.getAttribute('data-action');
+
+            btn.onmouseenter = () => { btn.style.background = 'rgba(255,255,255,0.08)'; btn.style.transform = 'translateY(-2px)'; };
+            btn.onmouseleave = () => { btn.style.background = 'rgba(255,255,255,0.03)'; btn.style.transform = 'translateY(0)'; };
+
+            btn.onclick = () => {
+                if (targetScreen) {
+                    switchScreen(targetScreen);
+                    if (action === 'reserve' && targetScreen === 'schedule') {
+                        // Scroll to today or highlight reserve action
+                        showToast("Selecciona una clase para reservar 🥋", "#22c55e");
+                    }
+                }
+            };
+        });
+    };
+
+    const updateDashboardStats = (level, currentXP, targetXP, progressPct, rankTitle) => {
+        // 1. Streak Weekly Dots
+        const streakDots = document.getElementById('streak-weekly-dots');
+        if (streakDots) {
+            const days = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+            const now = new Date();
+            const todayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1; // Monday-based index
+
+            // Get attendance dates for current week
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - todayIdx);
+            weekStart.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+
+            // We don't have weekly attendance data loaded yet, so we'll highlight based on streak
+            // In a real implementation, we'd check attendance records for each day
+            const streakCount = appState.currentStreak || 0;
+
+            streakDots.innerHTML = days.map((day, idx) => {
+                const isPastOrToday = idx <= todayIdx;
+                const isActive = isPastOrToday && idx >= (todayIdx - Math.min(streakCount - 1, todayIdx));
+                const bg = isActive ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)';
+                const border = isActive ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(255,255,255,0.08)';
+                const color = isActive ? '#22c55e' : 'var(--text-gray)';
+                return `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${bg}; border: ${border}; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: ${color}; transition: all 0.3s;">${day}</div>`;
+            }).join('');
+        }
+
+        const streakLabel = document.getElementById('streak-count-label');
+        if (streakLabel) streakLabel.innerText = `${appState.currentStreak || 0} días seguidos`;
+
+        // 2. XP Progress
+        const dashXpCurrent = document.getElementById('dash-xp-current');
+        const dashXpTarget = document.getElementById('dash-xp-target');
+        const dashXpBar = document.getElementById('dash-xp-bar');
+        const dashXpPercent = document.getElementById('dash-xp-percent');
+
+        if (dashXpCurrent) dashXpCurrent.innerText = currentXP;
+        if (dashXpTarget) dashXpTarget.innerText = targetXP;
+        if (dashXpBar) {
+            requestAnimationFrame(() => {
+                dashXpBar.style.width = `${progressPct}%`;
+            });
+        }
+        if (dashXpPercent) dashXpPercent.innerText = `${Math.floor(progressPct)}% para subir`;
+
+        // 3. Classes This Month
+        const dashClassesCount = document.getElementById('dash-classes-count');
+        const dashSparkline = document.getElementById('dash-classes-sparkline');
+        if (dashClassesCount) dashClassesCount.innerText = appState.currentMonthAttendance || 0;
+
+        if (dashSparkline) {
+            // Generate sparkline heights based on weekly data
+            const weeks = [0.3, 0.5, 0.4, 0.7]; // Default
+            if (appState.currentMonthAttendance > 0) {
+                // Approximate distribution
+                const w1 = Math.min(1, (appState.currentMonthAttendance * 0.2) / 5 + 0.2);
+                const w2 = Math.min(1, (appState.currentMonthAttendance * 0.3) / 5 + 0.2);
+                const w3 = Math.min(1, (appState.currentMonthAttendance * 0.25) / 5 + 0.2);
+                const w4 = Math.min(1, (appState.currentMonthAttendance * 0.25) / 5 + 0.2);
+                weeks[0] = w1; weeks[1] = w2; weeks[2] = w3; weeks[3] = w4;
+            }
+            dashSparkline.innerHTML = weeks.map(h => `
+                <div style="width: 6px; background: linear-gradient(to top, var(--accent-cyan), var(--accent-purple)); border-radius: 2px; height: ${Math.round(h * 100)}%; transition: height 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); opacity: 0.7;"></div>
+            `).join('');
+        }
+
+        // 4. Current Rank
+        const dashRankName = document.getElementById('dash-rank-name');
+        const dashRankLevel = document.getElementById('dash-rank-level');
+        const dashRankIcon = document.querySelector('#dash-rank-icon i');
+
+        if (dashRankName) {
+            dashRankName.innerText = rankTitle;
+            const rankColors = { 'Nomad': '#fbbf24', 'Warrior': '#f97316', 'Elite': '#a855f7', 'Legend': '#22c55e' };
+            dashRankName.style.color = rankColors[rankTitle] || '#fbbf24';
+        }
+        if (dashRankLevel) dashRankLevel.innerText = `Nivel ${level}`;
+        if (dashRankIcon) {
+            const rankIcons = { 'Nomad': 'shield', 'Warrior': 'sword', 'Elite': 'zap', 'Legend': 'crown' };
+            dashRankIcon.setAttribute('data-lucide', rankIcons[rankTitle] || 'shield');
+        }
     };
 
     const updateBadgesUI = () => {

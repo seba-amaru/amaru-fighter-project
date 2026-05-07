@@ -34,8 +34,8 @@
             if (window.location.hostname === 'localhost') {
                 console.log('Service Worker no registrado en localhost para evitar problemas de caché.');
                 // Unregister existing service workers on localhost
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                    for(let registration of registrations) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    for (let registration of registrations) {
                         registration.unregister();
                     }
                 });
@@ -43,24 +43,24 @@
                 window.addEventListener('load', () => {
                     // Use absolute path so it resolves correctly at any URL depth
                     navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })
-                    .then((reg) => {
-                        console.log('Service Worker Registrado: ', reg);
-                        // If there's an active worker, initialize messaging
-                        if (reg.active) {
-                            if (typeof initMessaging === 'function') initMessaging();
-                        } else {
-                            // Wait for it to become active
-                            reg.addEventListener('updatefound', () => {
-                                const newWorker = reg.installing;
-                                newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'activated') {
-                                        if (typeof initMessaging === 'function') initMessaging();
-                                    }
+                        .then((reg) => {
+                            console.log('Service Worker Registrado: ', reg);
+                            // If there's an active worker, initialize messaging
+                            if (reg.active) {
+                                if (typeof initMessaging === 'function') initMessaging();
+                            } else {
+                                // Wait for it to become active
+                                reg.addEventListener('updatefound', () => {
+                                    const newWorker = reg.installing;
+                                    newWorker.addEventListener('statechange', () => {
+                                        if (newWorker.state === 'activated') {
+                                            if (typeof initMessaging === 'function') initMessaging();
+                                        }
+                                    });
                                 });
-                            });
-                        }
-                    })
-                    .catch((err) => console.error('Error de Service Worker: ', err));
+                            }
+                        })
+                        .catch((err) => console.error('Error de Service Worker: ', err));
                 });
             }
         }
@@ -100,7 +100,9 @@
                         <input type="password" id="login-password" class="auth-input" placeholder="••••••••">
                     </div>
                     <div style="text-align: right; margin-top: 5px;">
-                        <span id="btn-forgot-password" style="font-size: 0.75rem; color: var(--accent-purple); cursor: pointer; font-weight: 700;">¿Olvidaste tu contraseña?</span>
+                        <span id="btn-forgot-password"
+                            style="font-size: 0.75rem; color: var(--accent-purple); cursor: pointer; font-weight: 700;">¿Olvidaste
+                            tu contraseña?</span>
                     </div>
                 </div>
                 <button id="btn-login" class="auth-btn">INICIAR SESIÓN</button>
@@ -220,69 +222,194 @@
 
             <!-- Dashboard Screen -->
             <section id="dashboard" class="screen active">
-                <header class="screen-header">
-                    <div class="user-welcome">
-                        <span class="greeting">¡Hola!</span>
-                        <h1 class="welcome-text">Listo para entrenar ⚡</h1>
-                        <div class="level-indicator">
-                            <div class="lvl-bar">
-                                <div class="lvl-fill" style="width: 65%;"></div>
-                            </div>
-                            <span>--</span>
+                <!-- Redesigned Header: Avatar + Info + Streak -->
+                <header class="screen-header" style="padding-bottom: 5px;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        <img id="dash-avatar" src="../images/icon-192.png"
+                            style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(139,92,246,0.4); box-shadow: 0 0 15px rgba(139,92,246,0.2);">
+                        <div>
+                            <span class="greeting"
+                                style="font-size: 0.75rem; opacity: 0.6; display: block; font-weight: 600;">¡Hola!</span>
+                            <h1 id="dash-name" style="font-size: 1rem; font-weight: 800; margin: 0; line-height: 1.2;">
+                                Atleta</h1>
                         </div>
                     </div>
-                    <div class="header-right">
-                        <div class="streak-badge">
-                            <i data-lucide="flame"></i>
-                            <span id="user-streak-text">0 Días</span>
+                    <div class="header-right" style="display: flex; align-items: center; gap: 10px;">
+                        <div id="dash-plan-chip"
+                            style="font-size: 0.6rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); text-transform: uppercase; letter-spacing: 0.5px;">
+                            Activo</div>
+                        <div class="streak-badge"
+                            style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); padding: 6px 12px; border-radius: 12px;">
+                            <i data-lucide="flame" style="color: #f97316; width: 16px; height: 16px;"></i>
+                            <span id="user-streak-text" style="font-size: 0.75rem; font-weight: 700;">0</span>
                         </div>
                         <button id="btn-dashboard-back-admin" class="btn-action-glow hidden"
-                            style="margin-left: 10px; background: #ef4444; border:none; width: auto; padding: 10px 15px; font-size: 0.75rem;">
-                            <i data-lucide="shield-check" style="width: 14px; margin-right:5px;"></i> PANEL ADMIN
+                            style="background: #ef4444; border:none; width: auto; padding: 8px 12px; font-size: 0.7rem;">
+                            <i data-lucide="shield-check" style="width: 12px; margin-right:4px;"></i> ADMIN
                         </button>
                     </div>
                 </header>
 
-                <div class="daily-motivation glass">
-                    <i data-lucide="quote" class="quote-icon"></i>
-                    <p id="motivational-quote">"El único entrenamiento malo es el que no sucedió."</p>
+                <!-- Quick Access Buttons -->
+                <div id="quick-access-row"
+                    style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0 16px;">
+                    <button data-nav="schedule" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="calendar" style="width: 18px; color: var(--accent-cyan);"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Agenda</span>
+                    </button>
+                    <button data-nav="schedule" data-action="reserve" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="plus-circle" style="width: 18px; color: #22c55e;"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Reservar</span>
+                    </button>
+                    <button data-nav="profile" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="user" style="width: 18px; color: var(--accent-purple);"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Perfil</span>
+                    </button>
+                    <button data-nav="tournaments" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="trophy" style="width: 18px; color: #fbbf24;"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Rank</span>
+                    </button>
                 </div>
 
-                <div id="dynamic-next-class" class="hero-card next-class">
+                <!-- Hero Next Class -->
+                <div id="dynamic-next-class" class="hero-card next-class" style="margin-bottom: 16px;">
                     <!-- Dynamic Next Class Content -->
                 </div>
 
-                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="stat-card glass"
-                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; position: relative; overflow: hidden;">
-                        <span id="completed-classes-count"
-                            style="font-size: 2.2rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 4px;">
-                            0 <span style="font-size: 1rem; color: var(--text-gray); font-weight: 600;">/ 20</span>
-                        </span>
-                        <span class="stat-label"
-                            style="font-size: 0.8rem; margin-top: 5px; color: var(--text-gray); text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">Clases
-                            Activas</span>
-                        <div style="position: absolute; bottom: -10px; right: -10px; opacity: 0.05;">
-                            <i data-lucide="activity" style="width: 80px; height: 80px;"></i>
-                        </div>
-                    </div>
-
-                    <div class="stat-card glass">
-                        <div class="progress-ring-container">
-                            <svg class="progress-ring" width="80" height="80">
-                                <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.1)" stroke-width="6"
-                                    fill="transparent" r="30" cx="40" cy="40" />
-                                <circle id="attendance-circle" class="progress-ring__circle"
-                                    stroke="var(--accent-purple)" stroke-width="6" stroke-dasharray="188.5"
-                                    stroke-dashoffset="188.5" fill="transparent" r="30" cx="40" cy="40" />
-                            </svg>
-                            <span id="attendance-percent" class="progress-value">0%</span>
-                        </div>
-                        <span class="stat-label">Tu Meta Mensual</span>
-                    </div>
+                <!-- Quote -->
+                <div class="daily-motivation glass" style="padding: 12px 16px; margin-bottom: 16px;">
+                    <p id="motivational-quote" style="font-size: 0.8rem; font-style: italic; margin: 0;">"El único
+                        entrenamiento malo es el que no sucedió."</p>
                 </div>
 
+                <!-- Premium Stats Grid -->
+                <div class="stats-grid" id="premium-stats-grid"
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                    <!-- 1. Streak Weekly -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 10px;">Racha
+                            Semanal</span>
+                        <div id="streak-weekly-dots"
+                            style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                L</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                M</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                M</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                J</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                V</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                S</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                D</div>
+                        </div>
+                        <span id="streak-count-label"
+                            style="font-size: 0.7rem; color: var(--text-gray); margin-top: 8px; display: block;">0 días
+                            seguidos</span>
+                    </div>
 
+                    <!-- 2. XP Progress -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 10px;">XP
+                            al Siguiente Nivel</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px;">
+                            <span id="dash-xp-current"
+                                style="font-size: 1.4rem; font-weight: 900; color: white;">0</span>
+                            <span style="font-size: 0.7rem; opacity: 0.4;">/ <span id="dash-xp-target">100</span>
+                                XP</span>
+                        </div>
+                        <div
+                            style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden;">
+                            <div id="dash-xp-bar"
+                                style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); border-radius: 10px; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                            </div>
+                        </div>
+                        <span id="dash-xp-percent"
+                            style="font-size: 0.65rem; color: var(--accent-cyan); font-weight: 700; margin-top: 6px; display: block;">0%
+                            para subir</span>
+                    </div>
+
+                    <!-- 3. Classes This Month -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 8px;">Clases
+                            Este Mes</span>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="dash-classes-count"
+                                style="font-size: 1.8rem; font-weight: 900; color: white;">0</span>
+                            <span style="font-size: 0.7rem; opacity: 0.4;">clases</span>
+                        </div>
+                        <div id="dash-classes-sparkline"
+                            style="display: flex; align-items: flex-end; gap: 3px; height: 24px; margin-top: 8px;">
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 30%; transition: height 0.5s;">
+                            </div>
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 50%; transition: height 0.5s;">
+                            </div>
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 40%; transition: height 0.5s;">
+                            </div>
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 70%; transition: height 0.5s;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Current Rank -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 8px;">Tu
+                            Rango</span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div id="dash-rank-icon"
+                                style="width: 36px; height: 36px; border-radius: 10px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); display: flex; align-items: center; justify-content: center;">
+                                <i data-lucide="shield" style="width: 18px; color: #fbbf24;"></i>
+                            </div>
+                            <div>
+                                <span id="dash-rank-name"
+                                    style="font-size: 0.9rem; font-weight: 800; color: #fbbf24; display: block;">Nomad</span>
+                                <span id="dash-rank-level" style="font-size: 0.65rem; opacity: 0.5;">Nivel 0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </section>
 
@@ -550,12 +677,15 @@
                     </div>
                 </div>
 
-                <div id="admin-revenue-section" class="attendance-viz glass mt-20 hidden" style="padding: 25px; border-radius: 20px;">
-                    <div class="viz-header" style="flex-direction: column; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
+                <div id="admin-revenue-section" class="attendance-viz glass mt-20 hidden"
+                    style="padding: 25px; border-radius: 20px;">
+                    <div class="viz-header"
+                        style="flex-direction: column; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
                         <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
                             <h3 style="font-size: 1.4rem; color: var(--accent-purple);">Evolución de Ingresos</h3>
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <select id="revenue-timeframe" style="background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3); padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; outline: none;">
+                                <select id="revenue-timeframe"
+                                    style="background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3); padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; outline: none;">
                                     <option value="mensual" style="color:black;">Comparar Meses</option>
                                     <option value="anual" style="color:black;">Comparar Años</option>
                                 </select>
@@ -564,11 +694,14 @@
                     </div>
 
                     <!-- AI Insights Box -->
-                    <div id="revenue-insights" class="glass" style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                        <h4 style="margin-bottom: 10px; display: flex; align-items: center; gap: 5px; color: var(--accent-purple); font-size: 0.9rem;">
+                    <div id="revenue-insights" class="glass"
+                        style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                        <h4
+                            style="margin-bottom: 10px; display: flex; align-items: center; gap: 5px; color: var(--accent-purple); font-size: 0.9rem;">
                             <i data-lucide="brain" style="width: 16px;"></i> Análisis Inteligente
                         </h4>
-                        <div id="insights-content" style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; flex-direction: column; gap: 8px;">
+                        <div id="insights-content"
+                            style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; flex-direction: column; gap: 8px;">
                             <!-- Dinámico -->
                         </div>
                     </div>
@@ -578,14 +711,20 @@
                         <div class="chart-container" style="flex: 1; min-height: 250px;">
                             <canvas id="revenueChart"></canvas>
                         </div>
-                        
+
                         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                            <div class="stat-mini glass" style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
-                                <span id="admin-total-label" style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">TOTAL PERIODO</span>
-                                <strong id="admin-total-month" style="font-size: 1.5rem; color: var(--accent-green);">$0</strong>
+                            <div class="stat-mini glass"
+                                style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
+                                <span id="admin-total-label"
+                                    style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">TOTAL
+                                    PERIODO</span>
+                                <strong id="admin-total-month"
+                                    style="font-size: 1.5rem; color: var(--accent-green);">$0</strong>
                             </div>
-                            <div class="stat-mini glass" style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
-                                <span id="admin-growth-label" style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">CRECIMIENTO</span>
+                            <div class="stat-mini glass"
+                                style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
+                                <span id="admin-growth-label"
+                                    style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">CRECIMIENTO</span>
                                 <strong id="admin-growth-value" style="font-size: 1.5rem;">0%</strong>
                             </div>
                         </div>
@@ -593,21 +732,28 @@
 
                     <!-- Breakdown -->
                     <div class="mt-20">
-                        <h4 style="font-size: 0.9rem; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Desglose de Ingresos (Periodo Actual)</h4>
+                        <h4
+                            style="font-size: 0.9rem; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
+                            Desglose de Ingresos (Periodo Actual)</h4>
                         <div id="revenue-breakdown" style="display: flex; flex-direction: column; gap: 10px;">
                             <!-- Dinámico -->
                         </div>
                     </div>
 
                     <!-- Export -->
-                    <div style="display: flex; gap: 8px; margin-top: 25px; align-items: center; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                        <select id="export-format-rev" style="background: rgba(255,255,255,0.05); color: var(--text-gray); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; outline: none;">
+                    <div
+                        style="display: flex; gap: 8px; margin-top: 25px; align-items: center; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                        <select id="export-format-rev"
+                            style="background: rgba(255,255,255,0.05); color: var(--text-gray); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; outline: none;">
                             <option value="csv" style="color: black;">Formato CSV</option>
                             <option value="xls" style="color: black;">Formato XLS</option>
                             <option value="pdf" style="color: black;">Formato PDF</option>
                         </select>
-                        <button id="btn-export-report" class="btn-primary" style="padding: 8px 15px; font-size: 0.75rem; border-radius: 8px;">
-                            <i data-lucide="download" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"></i> Exportar
+                        <button id="btn-export-report" class="btn-primary"
+                            style="padding: 8px 15px; font-size: 0.75rem; border-radius: 8px;">
+                            <i data-lucide="download"
+                                style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"></i>
+                            Exportar
                         </button>
                     </div>
                 </div>
@@ -685,21 +831,30 @@
         <div class="modal-content glass" style="max-width: 400px; text-align: center;">
             <div class="modal-header">
                 <h3>¡Límite Alcanzado!</h3>
-                <button class="btn-close-modal" onclick="document.getElementById('upsell-modal').classList.add('hidden')">×</button>
+                <button class="btn-close-modal"
+                    onclick="document.getElementById('upsell-modal').classList.add('hidden')">×</button>
             </div>
             <div class="upsell-body" style="padding: 20px 0;">
-                <i data-lucide="alert-triangle" style="width: 50px; height: 50px; color: var(--accent-yellow); margin-bottom: 15px;"></i>
+                <i data-lucide="alert-triangle"
+                    style="width: 50px; height: 50px; color: var(--accent-yellow); margin-bottom: 15px;"></i>
                 <p style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-gray);">
-                    Has agotado tu límite de clases (Diario o Mensual). ¡No pierdas el ritmo! Elige cómo deseas continuar tu entrenamiento:
+                    Has agotado tu límite de clases (Diario o Mensual). ¡No pierdas el ritmo! Elige cómo deseas
+                    continuar tu entrenamiento:
                 </p>
                 <div style="display: flex; flex-direction: column; gap: 15px;">
-                    <button class="btn-outline glow-primary" style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;" onclick="window.buyDailyPass()">
+                    <button class="btn-outline glow-primary"
+                        style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;"
+                        onclick="window.buyDailyPass()">
                         <span style="font-weight: bold; font-size: 1.1rem; color: white;">🎟️ Pase Diario / Extra</span>
                         <span style="font-size: 0.8rem; opacity: 0.8;">Compra 1 clase extra por $5.000</span>
                     </button>
-                    <button class="btn-primary glow-primary" style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;" onclick="window.upgradePlan()">
-                        <span style="font-weight: bold; font-size: 1.1rem; color: var(--bg-dark);">🚀 Subir de Plan (Upgrade)</span>
-                        <span style="font-size: 0.8rem; opacity: 0.8; color: var(--bg-dark);">Paga la diferencia y entrena sin límites</span>
+                    <button class="btn-primary glow-primary"
+                        style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;"
+                        onclick="window.upgradePlan()">
+                        <span style="font-weight: bold; font-size: 1.1rem; color: var(--bg-dark);">🚀 Subir de Plan
+                            (Upgrade)</span>
+                        <span style="font-size: 0.8rem; opacity: 0.8; color: var(--bg-dark);">Paga la diferencia y
+                            entrena sin límites</span>
                     </button>
                 </div>
             </div>
@@ -754,13 +909,20 @@
                 <div class="form-group">
                     <label>Días de la Semana</label>
                     <div id="cls-days-container" class="day-selector-premium">
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="1" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="2" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="3" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="4" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="5" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="6" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="0" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="1"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="2"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="3"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="4"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="5"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="6"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="0"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
                     </div>
                 </div>
 
@@ -792,7 +954,8 @@
                 </div>
                 <div class="form-group">
                     <label>Disciplina / Plan</label>
-                    <div class="discipline-selector-tabs" id="pay-discipline-tabs" style="display:flex; flex-wrap:wrap; gap:5px;">
+                    <div class="discipline-selector-tabs" id="pay-discipline-tabs"
+                        style="display:flex; flex-wrap:wrap; gap:5px;">
                         <!-- Dynamically populated from appState.plans -->
                     </div>
                     <input type="hidden" id="pay-concept" value="Primer Asalto">
@@ -863,13 +1026,20 @@
                 <div class="form-group">
                     <label>Días de Validez (Opcional)</label>
                     <div id="plan-days-container" class="day-selector-premium">
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="1" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="2" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="3" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="4" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="5" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="6" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="0" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="1"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="2"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="3"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="4"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="5"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="6"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="0"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
                     </div>
                     <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 5px;">Si no marcas ninguno, el
                         plan será válido para todos los días.</p>
@@ -886,30 +1056,38 @@
     <!-- Member Management Modal -->
     <div id="member-modal" class="overlay" style="z-index: 9999;">
         <div class="modal-content glass" style="max-width: 520px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header" style="position: sticky; top: 0; background: rgba(13,13,18,0.98); z-index: 2; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div class="modal-header"
+                style="position: sticky; top: 0; background: rgba(13,13,18,0.98); z-index: 2; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
                 <h3 id="member-modal-title">Nuevo Socio</h3>
                 <button class="btn-close-modal">×</button>
             </div>
 
             <!-- Member Profile Summary (shown only when editing) -->
-            <div id="mem-profile-summary" class="hidden" style="align-items:center; gap:14px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:12px;">
-                <img id="mem-avatar-preview" src="" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid rgba(139,92,246,0.4); box-shadow:0 0 15px rgba(139,92,246,0.15);">
+            <div id="mem-profile-summary" class="hidden"
+                style="align-items:center; gap:14px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:12px;">
+                <img id="mem-avatar-preview" src=""
+                    style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid rgba(139,92,246,0.4); box-shadow:0 0 15px rgba(139,92,246,0.15);">
                 <div style="flex:1;">
-                    <strong id="mem-display-name" style="font-size:1.05rem; display:block; letter-spacing:0.5px;">—</strong>
-                    <span id="mem-display-email" style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:2px;">—</span>
+                    <strong id="mem-display-name"
+                        style="font-size:1.05rem; display:block; letter-spacing:0.5px;">—</strong>
+                    <span id="mem-display-email"
+                        style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:2px;">—</span>
                     <div id="mem-display-badges" style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;"></div>
                 </div>
             </div>
 
             <!-- Tabs -->
             <div id="mem-modal-tabs" class="hidden" style="gap:6px; margin-bottom:16px; padding-bottom:2px;">
-                <button type="button" class="mem-tab active" data-tab="profile" style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:var(--accent-purple); color:white; border:1px solid var(--accent-purple); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                <button type="button" class="mem-tab active" data-tab="profile"
+                    style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:var(--accent-purple); color:white; border:1px solid var(--accent-purple); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
                     <i data-lucide="user" style="width:13px; height:13px;"></i> Perfil
                 </button>
-                <button type="button" class="mem-tab" data-tab="membership" style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                <button type="button" class="mem-tab" data-tab="membership"
+                    style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
                     <i data-lucide="credit-card" style="width:13px; height:13px;"></i> Membresía
                 </button>
-                <button type="button" class="mem-tab" data-tab="history" style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                <button type="button" class="mem-tab" data-tab="history"
+                    style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
                     <i data-lucide="history" style="width:13px; height:13px;"></i> Historial
                 </button>
             </div>
@@ -1015,13 +1193,19 @@
                     </div>
 
                     <!-- Membership Status Display -->
-                    <div id="mem-status-display" class="hidden" style="margin-top: 15px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                            <span style="font-size:0.7rem; font-weight:700; color:var(--text-gray); letter-spacing:0.5px;">PROGRESO DE MEMBRESÍA</span>
+                    <div id="mem-status-display" class="hidden"
+                        style="margin-top: 15px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                            <span
+                                style="font-size:0.7rem; font-weight:700; color:var(--text-gray); letter-spacing:0.5px;">PROGRESO
+                                DE MEMBRESÍA</span>
                             <span id="mem-days-left" style="font-size:0.7rem; font-weight:700;"></span>
                         </div>
                         <div style="height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
-                            <div id="mem-progress-bar" style="height:100%; background:var(--accent-purple); transition:width 0.5s; width:0%;"></div>
+                            <div id="mem-progress-bar"
+                                style="height:100%; background:var(--accent-purple); transition:width 0.5s; width:0%;">
+                            </div>
                         </div>
                     </div>
 
@@ -1035,29 +1219,39 @@
                             style="width: 100%; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center; gap: 10px;">
                             <i data-lucide="alert-circle"></i> ENVIAR A PAGOS PENDIENTES
                         </button>
-                        <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">Genera
+                        <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">
+                            Genera
                             un registro automático para cobrar la renovación.</p>
                     </div>
                 </div>
 
                 <!-- TAB: History -->
                 <div id="mem-tab-history" class="hidden">
-                    <div id="mem-attendance-stats" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
-                        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">TOTAL</span>
+                    <div id="mem-attendance-stats"
+                        style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+                        <div
+                            style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                            <span
+                                style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">TOTAL</span>
                             <strong id="mem-stat-total" style="font-size:1.2rem; color:var(--accent-cyan);">0</strong>
                         </div>
-                        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">ESTE MES</span>
+                        <div
+                            style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                            <span
+                                style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">ESTE
+                                MES</span>
                             <strong id="mem-stat-month" style="font-size:1.2rem; color:var(--accent-purple);">0</strong>
                         </div>
-                        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">PAGOS</span>
+                        <div
+                            style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                            <span
+                                style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">PAGOS</span>
                             <strong id="mem-stat-payments" style="font-size:1.2rem; color:#22c55e;">0</strong>
                         </div>
                     </div>
                     <div id="mem-attendance-list" style="max-height:300px; overflow-y:auto;">
-                        <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">Cargando historial...</p>
+                        <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">Cargando
+                            historial...</p>
                     </div>
                 </div>
 
