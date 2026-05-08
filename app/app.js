@@ -1638,8 +1638,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateRankUI = () => {
         const badge = document.getElementById('user-rank-status');
-        const fill = document.querySelector('.rank-bar-fill');
-        const info = document.querySelector('.rank-info-text');
 
         // Dynamic level calculation based on planTheme and XP
         let maxLevel = appState.planTheme === 'gold' ? 100 : appState.planTheme === 'silver' ? 30 : 10;
@@ -1652,37 +1650,132 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let rankTitle = derivedLevel < 10 ? 'Nomad' : derivedLevel < 30 ? 'Warrior' : derivedLevel < 50 ? 'Elite' : 'Legend';
-        appState.level = derivedLevel; // Local override based on XP
+        appState.level = derivedLevel;
 
-        if (appState.role === 'admin') {
-            if (badge) badge.innerText = `ADMINISTRADOR • Elite`;
-            if (fill) fill.style.width = `100%`;
-            if (info) info.innerHTML = `<span>MAX XP</span><strong>100%</strong>`;
-        } else {
-            if (badge) badge.innerText = `Nivel ${derivedLevel} • ${rankTitle}`;
-            if (fill) fill.style.width = `${progressPct}%`;
-            if (info) info.innerHTML = `<span>${totalDisplayXP} / ${maxLevel * xpPerLevel} XP Max</span><strong>${Math.floor(progressPct)}% Lvl Up</strong>`;
+        const rankColors = { 'Nomad': '#fbbf24', 'Warrior': '#f97316', 'Elite': '#a855f7', 'Legend': '#22c55e' };
+        const rankColor = rankColors[rankTitle] || '#fbbf24';
+
+        // Update Profile Hero
+        if (badge) {
+            badge.innerText = appState.role === 'admin' ? 'Admin' : rankTitle;
+            badge.style.color = appState.role === 'admin' ? '#ef4444' : rankColor;
+            badge.style.background = appState.role === 'admin' ? 'rgba(239,68,68,0.15)' : `${rankColor}22`;
+            badge.style.borderColor = appState.role === 'admin' ? 'rgba(239,68,68,0.3)' : `${rankColor}44`;
         }
 
-        // Update inline level in premium card
+        const profLevel = document.getElementById('profile-user-level');
+        if (profLevel) profLevel.innerText = appState.role === 'admin' ? 'Administrador' : `Nivel ${derivedLevel}`;
+
+        const profXpText = document.getElementById('profile-xp-text');
+        if (profXpText) profXpText.innerText = `${totalDisplayXP} / ${(derivedLevel + 1) * xpPerLevel} XP`;
+
+        const profRankBar = document.getElementById('profile-rank-bar');
+        if (profRankBar) {
+            requestAnimationFrame(() => {
+                profRankBar.style.width = `${progressPct}%`;
+            });
+        }
+
+        const profPlanChip = document.getElementById('profile-plan-chip');
+        if (profPlanChip) {
+            const isActive = appState.membershipStatus === 'active' || appState.role === 'admin';
+            profPlanChip.innerText = isActive ? 'Activo' : 'Inactivo';
+            profPlanChip.style.background = isActive ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)';
+            profPlanChip.style.color = isActive ? '#22c55e' : '#ef4444';
+            profPlanChip.style.borderColor = isActive ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)';
+        }
+
+        // Update Profile Stats Row
+        const statClasses = document.getElementById('prof-stat-classes');
+        const statStreak = document.getElementById('prof-stat-streak');
+        const statXP = document.getElementById('prof-stat-xp');
+        const statReserv = document.getElementById('prof-stat-reserv');
+
+        if (statClasses) statClasses.innerText = appState.attendanceHistoryCount || 0;
+        if (statStreak) statStreak.innerText = appState.currentStreak || 0;
+        if (statXP) statXP.innerText = totalDisplayXP;
+        if (statReserv) statReserv.innerText = appState.allUserReservations?.length || 0;
+
+        // Legacy elements (for backwards compatibility)
+        const fill = document.querySelector('.rank-bar-fill');
+        const info = document.querySelector('.rank-info-text');
+        if (fill) fill.style.width = `${progressPct}%`;
+        if (info) info.innerHTML = `<span>${totalDisplayXP} / ${maxLevel * xpPerLevel} XP Max</span><strong>${Math.floor(progressPct)}% Lvl Up</strong>`;
+
         const levelVal = document.querySelector('#profile-user-level span');
         if (levelVal) levelVal.innerText = appState.role === 'admin' ? 'MAX' : derivedLevel;
 
-        // Update Dashboard indicator too (Request #2)
         const dashLvlFill = document.querySelector('.lvl-fill');
         const dashLvlText = document.querySelector('.level-indicator span');
         if (dashLvlFill) dashLvlFill.style.width = appState.role === 'admin' ? '100%' : `${progressPct}%`;
         if (dashLvlText) dashLvlText.innerText = appState.role === 'admin' ? 'LVL MAX' : `NVL ${derivedLevel}`;
 
-        // Update Classes count (Request #2)
-        const classesVal = document.querySelector('.stat-box:nth-child(2) .stat-value');
-        if (classesVal) classesVal.innerText = appState.attendanceHistoryCount || 0;
-
-        // Update Badges (Request #2)
+        // Update all sections
         updateBadgesUI();
-
-        // Update NEW Dashboard Premium Stats Grid (A+B+C improvements)
         updateDashboardStats(derivedLevel, totalDisplayXP, maxLevel * xpPerLevel, progressPct, rankTitle);
+        renderProfileActivityTimeline();
+    };
+
+    const renderProfileActivityTimeline = () => {
+        const container = document.getElementById('profile-activity-timeline');
+        if (!container) return;
+
+        const activities = [];
+
+        // Add reservations as activity
+        if (appState.allUserReservations && appState.allUserReservations.length > 0) {
+            const recent = [...appState.allUserReservations]
+                .sort((a, b) => new Date(b.reservation_date) - new Date(a.reservation_date))
+                .slice(0, 5);
+
+            recent.forEach(r => {
+                const date = new Date(r.reservation_date);
+                const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' });
+                const dayNum = date.getDate();
+                activities.push({
+                    type: 'reserva',
+                    icon: 'calendar-check',
+                    color: '#22c55e',
+                    title: `Reserva: ${r.class_name || 'Clase'}`,
+                    desc: `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${dayNum}`,
+                    date: date
+                });
+            });
+        }
+
+        // Add level up
+        if (appState.level > 0) {
+            activities.push({
+                type: 'nivel',
+                icon: 'zap',
+                color: '#fbbf24',
+                title: `¡Nivel ${appState.level} alcanzado!`,
+                desc: 'Subiste de rango',
+                date: new Date()
+            });
+        }
+
+        // Sort by date
+        activities.sort((a, b) => b.date - a.date);
+
+        if (activities.length === 0) {
+            container.innerHTML = `<div style="padding: 20px; text-align: center; opacity: 0.4;"><p style="font-size: 0.75rem;">Sin actividad reciente</p></div>`;
+            return;
+        }
+
+        container.innerHTML = activities.map((a, i) => `
+            <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; ${i < activities.length - 1 ? 'border-bottom: 1px solid rgba(255,255,255,0.03);' : ''}">
+                <div style="width: 32px; height: 32px; border-radius: 10px; background: ${a.color}15; border: 1px solid ${a.color}30; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+                    <i data-lucide="${a.icon}" style="width: 14px; color: ${a.color};"></i>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <p style="font-size: 0.8rem; font-weight: 700; color: white; margin: 0;">${a.title}</p>
+                    <p style="font-size: 0.7rem; color: var(--text-gray); margin: 2px 0 0;">${a.desc}</p>
+                </div>
+            </div>
+        `).join('');
+
+        if (window.lucide) window.lucide.createIcons();
     };
 
     // --- Dashboard Header & Quick Access (A+B+C improvements) ---
@@ -1938,6 +2031,10 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'Guerrero', icon: 'zap', unlocked: appState.role === 'admin' || appState.level >= 10, desc: 'Alcanza Nivel 10', msg: 'Tus rivales tiemblan ante tu poder.' },
             { id: 'Elite', icon: 'crown', unlocked: appState.role === 'admin' || appState.level >= 50, desc: 'Alcanza Nivel 50', msg: '¡Eres una leyenda viviente en el tatami!' }
         ];
+
+        const unlockedCount = badges.filter(b => b.unlocked).length;
+        const badgesProgress = document.getElementById('badges-progress-text');
+        if (badgesProgress) badgesProgress.innerText = `${unlockedCount} / ${badges.length}`;
 
         container.innerHTML = badges.map(b => `
             <div class="badge-item ${b.unlocked ? '' : 'locked'}" title="${b.id}: ${b.desc}" ${b.unlocked ? `onclick="this.classList.toggle('flipped')"` : ''}>
@@ -2220,19 +2317,40 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const entries = await SupabaseService.getPayments(auth.currentUser.uid);
 
+            const paymentsCount = document.getElementById('payments-count');
+            if (paymentsCount) paymentsCount.innerText = `${entries.length} pago${entries.length !== 1 ? 's' : ''}`;
+
             container.innerHTML = entries.length === 0
-                ? '<li class="p-20 opacity-50 text-center">No hay pagos registrados.</li>'
-                : entries.map(p => `
-                    <li class="payment-premium-item glass" style="display:flex; justify-content:space-between; align-items:center; padding:15px; margin-bottom:10px; border-radius:15px;">
-                        <div class="pay-info">
-                            <strong style="display:block; font-size:1.1rem;">$${parseFloat(p.amount).toLocaleString()}</strong>
-                            <span style="font-size:0.75rem; color:var(--text-gray);">${p.concept || 'Plan Amaru'}</span>
+                ? `<div style="padding: 24px; text-align: center; opacity: 0.4;">
+                        <i data-lucide="receipt" style="width: 24px; height: 24px; margin-bottom: 8px;"></i>
+                        <p style="font-size: 0.75rem;">No hay pagos registrados</p>
+                    </div>`
+                : entries.map((p, i) => {
+                    const isApproved = p.status === 'approved' || p.status === 'active';
+                    const statusColor = isApproved ? '#22c55e' : '#eab308';
+                    const statusBg = isApproved ? 'rgba(34,197,94,0.1)' : 'rgba(234,179,8,0.1)';
+                    const statusBorder = isApproved ? 'rgba(34,197,94,0.2)' : 'rgba(234,179,8,0.2)';
+                    const statusText = isApproved ? 'Aprobado' : 'Pendiente';
+                    const statusIcon = isApproved ? 'check-circle' : 'clock';
+                    const dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '';
+
+                    return `
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; transition: all 0.3s; animation: elegantFadeIn 0.4s ease ${i * 0.08}s both;"
+                        onmouseenter="this.style.background='rgba(255,255,255,0.05)';"
+                        onmouseleave="this.style.background='rgba(255,255,255,0.02)';">
+                        <div style="width: 40px; height: 40px; border-radius: 12px; background: ${statusBg}; border: 1px solid ${statusBorder}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i data-lucide="${statusIcon}" style="width: 18px; color: ${statusColor};"></i>
                         </div>
-                        <span class="tag" style="background:${p.status === 'pending' ? 'rgba(234,179,8,0.2)' : 'rgba(34,197,94,0.2)'}; color:${p.status === 'pending' ? '#eab308' : '#22c55e'};">
-                            ${p.status === 'pending' ? 'Pendiente' : 'Aprobado'}
-                        </span>
-                    </li>
-                `).join('');
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="font-size: 0.85rem; font-weight: 700; color: white; margin: 0;">$${parseFloat(p.amount || 0).toLocaleString()}</p>
+                            <p style="font-size: 0.7rem; color: var(--text-gray); margin: 2px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.concept || 'Plan Amaru'} ${dateStr ? `• ${dateStr}` : ''}</p>
+                        </div>
+                        <span style="font-size: 0.6rem; font-weight: 800; padding: 4px 10px; border-radius: 8px; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusBorder}; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;">${statusText}</span>
+                    </div>
+                    `;
+                }).join('');
+
+            if (window.lucide) window.lucide.createIcons();
         } catch (error) {
             console.error("Error rendering payments:", error);
         }

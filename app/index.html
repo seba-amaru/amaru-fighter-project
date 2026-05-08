@@ -492,129 +492,210 @@
 
             <!-- Profile Screen -->
             <section id="profile" class="screen">
-                <div class="profile-main-card glass-premium">
-                    <div class="profile-header-premium">
-                        <div class="avatar-container-luxury">
-                            <div class="avatar-outer-glow"></div>
-                            <div class="avatar-inner-frame">
-                                <img id="profile-avatar" src="../images/unknow.png" alt="Atleta"
-                                    class="avatar-image-premium">
-                                <div class="avatar-glare"></div>
-                                <div class="avatar-actions-overlay">
-                                    <button id="btn-edit-avatar" title="Cambiar foto"><i
-                                            data-lucide="camera"></i></button>
-                                    <button id="btn-delete-avatar" title="Eliminar foto" class="delete"><i
-                                            data-lucide="trash-2"></i></button>
+                <!-- Profile Hero Header -->
+                <div id="profile-hero-card"
+                    style="position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 20px; background: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(6,182,212,0.08) 50%, rgba(0,0,0,0.3) 100%); border: 1px solid rgba(255,255,255,0.06);">
+                    <div
+                        style="position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%); pointer-events: none;">
+                    </div>
+                    <div
+                        style="position: absolute; bottom: -30%; left: -10%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%); pointer-events: none;">
+                    </div>
+
+                    <div style="position: relative; z-index: 2; padding: 24px 20px 20px; text-align: center;">
+                        <!-- Avatar -->
+                        <div style="position: relative; display: inline-block; margin-bottom: 12px;">
+                            <div
+                                style="position: absolute; inset: -4px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); opacity: 0.6; animation: pulse-glow 3s infinite;">
+                            </div>
+                            <img id="profile-avatar" src="../images/unknow.png" alt="Atleta"
+                                style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.1); position: relative; z-index: 2; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                            <button id="btn-edit-avatar"
+                                style="position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-purple); border: 2px solid rgba(0,0,0,0.5); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 3; font-size: 0.7rem;">
+                                <i data-lucide="camera" style="width: 14px;"></i>
+                            </button>
+                            <input type="file" id="avatar-input" accept="image/*" class="hidden">
+                        </div>
+
+                        <!-- Name & Rank -->
+                        <h2 id="profile-user-name"
+                            style="font-size: 1.3rem; font-weight: 800; margin: 0; letter-spacing: 0.5px;">Cargando...
+                        </h2>
+                        <div
+                            style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px;">
+                            <span id="user-rank-status"
+                                style="font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3);">Nomad</span>
+                            <span id="profile-plan-chip"
+                                style="font-size: 0.65rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3);">Activo</span>
+                        </div>
+
+                        <!-- Level Progress -->
+                        <div style="margin-top: 16px;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span id="profile-user-level"
+                                    style="font-size: 0.7rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px;">Nivel
+                                    0</span>
+                                <span id="profile-xp-text"
+                                    style="font-size: 0.65rem; color: var(--accent-cyan); font-weight: 700;">0 / 100
+                                    XP</span>
+                            </div>
+                            <div
+                                style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden;">
+                                <div id="profile-rank-bar"
+                                    style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); border-radius: 10px; transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
                                 </div>
                             </div>
-                            <input type="file" id="avatar-input" accept="image/*" class="hidden">
-                            <div id="user-rank-status" class="rank-badge">Cargando...</div>
                         </div>
-                        <h2 id="profile-user-name" class="user-name-premium">Cargando...</h2>
-                        <p id="profile-user-level"
-                            style="font-size: 0.9rem; font-weight: 700; color: #a0a0a0; margin-top: 5px; text-transform: uppercase;">
-                            NIVEL: <span style="color: white;">--</span></p>
-                        <div class="rank-container-premium">
-                            <div class="rank-bar-bg">
-                                <div class="rank-bar-fill" style="width: 75%;"></div>
-                            </div>
-                            <div class="rank-info-text">
-                                <span>3450 / 5000 XP</span>
-                                <strong>75%</strong>
-                            </div>
+
+                        <!-- Quick Actions -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px;">
+                            <button id="btn-view-plans"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; cursor: pointer; color: white; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                <i data-lucide="credit-card" style="width: 16px; color: var(--accent-purple);"></i>
+                                Planes
+                            </button>
+                            <button id="btn-profile-settings"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; cursor: pointer; color: white; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                <i data-lucide="settings" style="width: 16px; color: var(--accent-cyan);"></i>
+                                Ajustes
+                            </button>
+                            <button id="btn-logout"
+                                style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; padding: 10px; cursor: pointer; color: #ef4444; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                <i data-lucide="log-out" style="width: 16px;"></i>
+                                Salir
+                            </button>
                         </div>
-                        <div class="user-style-selection"
-                            style="margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 5px;">
-                            <span style="font-size: 0.75rem; color: var(--text-gray); font-weight: bold;">TU ESTILO DE
-                                COMBATE:</span>
-                            <select id="user-combat-style"
-                                style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 5px 10px; font-size: 0.85rem; font-weight: bold;">
-                                <option value="striker" style="color: black;">Striker</option>
-                                <option value="grappler" style="color: black;">Grappler</option>
-                                <option value="hybrid" style="color: black;">Híbrido</option>
-                            </select>
-                        </div>
-                        <button id="btn-back-admin" class="btn-primary hidden"
-                            style="margin-top: 15px; background: #ef4444; width: auto; padding: 12px 25px; font-size: 0.8rem; font-weight: 800;">
-                            <i data-lucide="shield-check" style="width: 16px; margin-right:8px;"></i> PANEL
-                            ADMINISTRATIVO
+
+                        <button id="btn-back-admin" class="hidden"
+                            style="margin-top: 12px; width: 100%; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 12px; padding: 10px; color: white; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <i data-lucide="shield-check" style="width: 14px;"></i> PANEL ADMINISTRATIVO
                         </button>
                     </div>
+                </div>
 
-                    <!-- Current Membership Progress (Integrated) -->
-                    <div id="current-membership-progress" class="glass"
-                        style="margin-top: 20px; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                <!-- Stats Row -->
+                <div id="profile-stats-row"
+                    style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-classes"
+                            style="font-size: 1.4rem; font-weight: 900; color: white; display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Clases</span>
+                    </div>
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-streak"
+                            style="font-size: 1.4rem; font-weight: 900; color: #f97316; display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Racha</span>
+                    </div>
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-xp"
+                            style="font-size: 1.4rem; font-weight: 900; color: var(--accent-cyan); display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">XP</span>
+                    </div>
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-reserv"
+                            style="font-size: 1.4rem; font-weight: 900; color: var(--accent-purple); display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Reservas</span>
+                    </div>
+                </div>
+
+                <!-- Membership Progress Card -->
+                <div id="current-membership-progress" class="glass"
+                    style="margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.06);">
+                    <p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">Cargando tu progreso de
+                        membresía...</p>
+                </div>
+
+                <!-- Activity Timeline -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="activity" style="width: 16px; color: var(--accent-cyan);"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Actividad Reciente</h3>
+                        </div>
+                        <span style="font-size: 0.6rem; color: var(--text-gray); opacity: 0.5;">Últimos 7 días</span>
+                    </div>
+                    <div id="profile-activity-timeline" style="display: flex; flex-direction: column; gap: 0;">
                         <!-- Rendered by JS -->
-                        <p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">Cargando tu progreso de
-                            membresía...</p>
-                    </div>
-
-                    <div id="btn-logout" class="glass"
-                        style="margin-top: 20px; text-align: center; border-color: #ef4444; color: #ef4444; cursor: pointer; padding: 12px; font-weight: 700; border-radius: 16px;">
-                        <i data-lucide="log-out" style="width: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                        CERRAR SESIÓN
-                    </div>
-
-
-                </div>
-
-                <!-- Badges Section (Request #2) -->
-                <div class="badges-section glass mt-20" style="padding: 20px; border-radius: 20px;">
-                    <div class="section-title"
-                        style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                        <i data-lucide="award" style="color: var(--accent-purple);"></i>
-                        <h3>Tus Medallas</h3>
-                    </div>
-                    <div class="badges-grid" id="user-badges-container"
-                        style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-                        <div class="badge-item locked" title="Guerrero Novato: Asiste a 5 clases">
-                            <div class="badge-icon"><i data-lucide="shield"></i></div>
-                        </div>
-                        <div class="badge-item locked" title="Asistencia Perfecta: Completa una semana">
-                            <div class="badge-icon"><i data-lucide="calendar-check"></i></div>
-                        </div>
-                        <div class="badge-item locked" title="Madrugador: Clase antes de las 9 AM">
-                            <div class="badge-icon"><i data-lucide="sun"></i></div>
-                        </div>
-                        <div class="badge-item locked" title="Leyenda: Alcanza el nivel 50">
-                            <div class="badge-icon"><i data-lucide="crown"></i></div>
-                        </div>
                     </div>
                 </div>
 
-                <div class="attendance-viz glass">
-                    <div class="viz-header">
-                        <h3>Actividad Mensual</h3>
-                        <i data-lucide="trending-up" class="icon-accent"></i>
+                <!-- Badges Section -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="award" style="width: 16px; color: #fbbf24;"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Tus Medallas</h3>
+                        </div>
+                        <span id="badges-progress-text" style="font-size: 0.6rem; color: var(--text-gray);">0 / 4</span>
                     </div>
-                    <div class="chart-container">
+                    <div id="user-badges-container"
+                        style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Monthly Activity Chart -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="bar-chart-3" style="width: 16px; color: var(--accent-purple);"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Actividad Mensual</h3>
+                        </div>
+                        <div id="profile-chart-legend" style="display: flex; gap: 12px;">
+                            <span
+                                style="font-size: 0.6rem; color: var(--text-gray); display: flex; align-items: center; gap: 4px;"><span
+                                    style="width: 8px; height: 8px; border-radius: 2px; background: var(--accent-cyan); display: inline-block;"></span>
+                                Asistencias</span>
+                            <span
+                                style="font-size: 0.6rem; color: var(--text-gray); display: flex; align-items: center; gap: 4px;"><span
+                                    style="width: 8px; height: 8px; border-radius: 2px; background: var(--accent-purple); display: inline-block;"></span>
+                                Reservas</span>
+                        </div>
+                    </div>
+                    <div style="height: 140px;">
                         <canvas id="attendanceChart"></canvas>
                     </div>
                 </div>
 
-                <div class="payment-section glass">
-                    <div class="section-title"
-                        style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center;">
-                        <h3>Membresías</h3>
-                        <div style="display:flex; gap: 8px;">
-                            <button class="btn-glass" id="btn-view-plans"
-                                style="padding: 6px 14px; font-size: 0.7rem; background: var(--accent-purple); color: var(--bg-dark); border: none; font-weight: bold; cursor:pointer;">
-                                Ver Planes
-                            </button>
+                <!-- Payments Section -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="receipt" style="width: 16px; color: #22c55e;"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Historial de Pagos</h3>
                         </div>
+                        <span id="payments-count" style="font-size: 0.6rem; color: var(--text-gray); opacity: 0.5;">0
+                            pagos</span>
                     </div>
-
-                    <h4 style="font-size: 0.8rem; margin-bottom: 15px; color: var(--text-gray);">Historial de Pagos</h4>
-                    <ul class="payment-premium-list" id="payment-history-list">
-                        <!-- Dynamic payments here -->
-                    </ul>
-                    <div style="margin-top: 40px; text-align: center; opacity: 0.6; font-size: 0.75rem;">
-                        <a href="/privacy.html" target="_blank"
-                            style="color: var(--text-gray); text-decoration: none;">Política de Privacidad</a>
-                        <p style="margin-top: 5px;">Amaru App v1.4.6</p>
+                    <div id="payment-history-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
 
+                <!-- Footer -->
+                <div style="text-align: center; opacity: 0.4; padding: 20px 0 40px;">
+                    <a href="/privacy.html" target="_blank"
+                        style="color: var(--text-gray); text-decoration: none; font-size: 0.7rem;">Política de
+                        Privacidad</a>
+                    <p style="margin-top: 6px; font-size: 0.65rem;">Amaru App v1.4.8</p>
+                </div>
             </section>
 
             <!-- Admin Screen -->
