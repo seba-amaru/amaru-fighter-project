@@ -504,9 +504,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Auth State Observer — Refactored for robustness v1.4.6
+    // Auth State Observer — Refactored for robustness v1.5.1
     let authInitialized = false;
     let currentUserId = null;
+    let lastSessionHandleFailed = false;
 
     const showAuthLoadingScreen = (message = 'CARGANDO DATOS...', showRetry = false, errorDetail = '') => {
         // MOBILE FIX: Don't overwrite the auth-screen HTML — use an overlay instead.
@@ -775,14 +776,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // CRITICAL FIX: Prevent duplicate processing for the same user.
-        // Supabase's _recoverAndRefresh triggers onAuthStateChange multiple times
-        // for the same session, which was overwriting a working UI with an error screen.
-        if (currentUserId === user.uid && appState.user) {
-            console.log('[Auth] Same user already logged in, skipping duplicate session handler');
+        // CRITICAL FIX v1.5.1: Only skip duplicate if we successfully loaded the profile before.
+        // If the previous attempt failed (timeout), we MUST allow retry.
+        if (currentUserId === user.uid && appState.user && !lastSessionHandleFailed) {
+            console.log('[Auth] Same user already logged in with successful profile load, skipping duplicate');
             return;
         }
 
+        // Reset failure flag for fresh attempt
+        lastSessionHandleFailed = true;
         appState.user = user;
         currentUserId = user.uid;
         console.log('[Auth] User found:', user.email, '- starting profile load...');
