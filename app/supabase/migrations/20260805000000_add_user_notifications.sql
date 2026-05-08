@@ -26,13 +26,13 @@ ALTER TABLE user_notifications ENABLE ROW LEVEL SECURITY;
 -- Users can only see their own notifications
 CREATE POLICY "Users see own notifications"
     ON user_notifications FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id);
 
 -- Users can update only their own notifications (mark as read)
 CREATE POLICY "Users mark own notifications read"
     ON user_notifications FOR UPDATE
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id)
+    WITH CHECK (auth.uid()::text = user_id);
 
 -- Admins can insert notifications to any user
 CREATE POLICY "Admins can send notifications"
@@ -40,7 +40,7 @@ CREATE POLICY "Admins can send notifications"
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM profiles
-            WHERE id = auth.uid() AND role = 'admin'
+            WHERE id = auth.uid()::text AND role = 'admin'
         )
     );
 
@@ -50,6 +50,6 @@ CREATE POLICY "Admins can delete notifications"
     USING (
         EXISTS (
             SELECT 1 FROM profiles
-            WHERE id = auth.uid() AND role = 'admin'
+            WHERE id = auth.uid()::text AND role = 'admin'
         )
     );
