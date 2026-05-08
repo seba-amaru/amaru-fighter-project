@@ -133,15 +133,16 @@ export const renderSchedule = async () => {
                         </div>
                     </div>
                     <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        ${appState.role === 'admin' ? `
+                        <button class="btn-view-attendees" data-class-id="${cls.id}" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-gray); padding:8px 14px; border-radius:10px; font-size:0.7rem; font-weight:700; cursor:pointer; min-width:100px;"
+                            onclick="event.stopPropagation();">
+                            <i data-lucide="eye" style="width:12px; margin-right:4px;"></i> Ver asistencia
+                        </button>` : `
                         <button class="btn-reserve-stitch ${isBooked ? 'booked' : ''}" data-id="${cls.id}" style="min-width:100px;"
                             onclick="event.stopPropagation();">
-                            ${appState.role === 'admin' ? 'EDITAR' : (isBooked ? 'CANCELAR' : 'RESERVAR')}
+                            ${isBooked ? 'CANCELAR' : 'RESERVAR'}
                         </button>
-                        ${appState.role === 'admin' ? `
-                        <button class="btn-view-attendees" data-class-id="${cls.id}" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-gray); padding:4px 10px; border-radius:8px; font-size:0.65rem; font-weight:700; cursor:pointer;"
-                            onclick="event.stopPropagation();">
-                            <i data-lucide="eye" style="width:10px; margin-right:3px;"></i> Ver asistencia
-                        </button>` : ''}
+                        `}
                     </div>
                 </div>
                 <div class="class-attendees-detail" id="attendees-${cls.id}" style="display:none; padding:12px 20px 16px; border-top:1px solid rgba(255,255,255,0.05);">
