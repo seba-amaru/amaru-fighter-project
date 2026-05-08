@@ -21,7 +21,6 @@ export const closeAllModals = () => {
 
 
 
-
 export const handlePaymentAction = async (id, status) => {
     try {
         await SupabaseService.updatePaymentStatus(id, status);
@@ -214,6 +213,27 @@ export const openPlanModal = (id = null, plans = []) => {
 
 window.currentEditingMemberId = null;
 let currentEditingUsers = [];
+
+const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+
+const switchMemberTab = (tabName) => {
+    document.querySelectorAll('.mem-tab').forEach(t => {
+        t.style.background = 'transparent';
+        t.style.color = 'var(--text-gray)';
+        t.style.borderColor = 'transparent';
+    });
+    const activeTab = document.querySelector(`.mem-tab[data-tab="${tabName}"]`);
+    if (activeTab) {
+        activeTab.style.background = 'var(--accent-purple)';
+        activeTab.style.color = 'white';
+        activeTab.style.borderColor = 'var(--accent-purple)';
+    }
+    ['profile', 'membership', 'attendance', 'payments', 'notes'].forEach(t => {
+        const el = document.getElementById(`mem-tab-${t}`);
+        if (el) el.classList.toggle('hidden', t !== tabName);
+    });
+};
+
 export const openMemberModal = async (id = null, users = []) => {
     try {
         window.currentEditingMemberId = id;
@@ -221,12 +241,9 @@ export const openMemberModal = async (id = null, users = []) => {
         const modal = document.getElementById('member-modal');
         if (!modal) { console.error("Modal 'member-modal' not found!"); return; }
 
-        // Close other modals first
         document.querySelectorAll('.overlay').forEach(ov => ov.classList.remove('active'));
-
-        // Show modal immediately
         modal.classList.add('active');
-        modal.style.display = 'flex'; // Extra force
+        modal.style.display = 'flex';
         window.lucide.createIcons();
 
         const title = document.getElementById('member-modal-title');
@@ -234,6 +251,7 @@ export const openMemberModal = async (id = null, users = []) => {
         const profileSummary = document.getElementById('mem-profile-summary');
         const tabsContainer = document.getElementById('mem-modal-tabs');
         const planSelect = document.getElementById('mem-plan');
+        const riskBanner = document.getElementById('mem-risk-banner');
 
         // Populate plans
         if (planSelect) {
@@ -244,28 +262,6 @@ export const openMemberModal = async (id = null, users = []) => {
                 planSelect.appendChild(opt);
             });
         }
-
-        // Tab switching logic
-        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-        const switchMemberTab = (tabName) => {
-            document.querySelectorAll('.mem-tab').forEach(t => {
-                t.style.background = 'rgba(255,255,255,0.05)';
-                t.style.color = 'var(--text-gray)';
-                t.style.borderColor = 'rgba(255,255,255,0.1)';
-            });
-            const activeTab = document.querySelector(`.mem-tab[data-tab="${tabName}"]`);
-            if (activeTab) {
-                activeTab.style.background = 'var(--accent-purple)';
-                activeTab.style.color = 'white';
-                activeTab.style.borderColor = 'var(--accent-purple)';
-            }
-            const tProfile = document.getElementById('mem-tab-profile');
-            const tMemb = document.getElementById('mem-tab-membership');
-            const tHist = document.getElementById('mem-tab-history');
-            if (tProfile) tProfile.classList.toggle('hidden', tabName !== 'profile');
-            if (tMemb) tMemb.classList.toggle('hidden', tabName !== 'membership');
-            if (tHist) tHist.classList.toggle('hidden', tabName !== 'history');
-        };
 
         document.querySelectorAll('.mem-tab').forEach(tab => {
             tab.onclick = (e) => { e.preventDefault(); switchMemberTab(tab.getAttribute('data-tab')); };
@@ -285,8 +281,19 @@ export const openMemberModal = async (id = null, users = []) => {
                 profileSummary.style.display = 'flex';
             }
 
+            // Avatar + Status Indicator
             const avatarPrev = document.getElementById('mem-avatar-preview');
             if (avatarPrev) avatarPrev.src = user.photo_url || (typeof unknowAvatar !== 'undefined' ? unknowAvatar : '');
+
+            const statusIndicator = document.getElementById('mem-status-indicator');
+            const expiryDate = user.membership_expiry ? new Date(user.membership_expiry) : null;
+            const now = new Date();
+            const daysLeft = expiryDate ? Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24)) : 0;
+            let statusColor = '#ef4444';
+            if (user.is_frozen) statusColor = '#3b82f6';
+            else if (daysLeft > 0) statusColor = '#22c55e';
+            else if (daysLeft > -30) statusColor = '#f97316';
+            if (statusIndicator) statusIndicator.style.background = statusColor;
 
             const dispName = document.getElementById('mem-display-name');
             if (dispName) dispName.textContent = user.full_name || 'Sin Nombre';
@@ -294,21 +301,65 @@ export const openMemberModal = async (id = null, users = []) => {
             const dispEmail = document.getElementById('mem-display-email');
             if (dispEmail) dispEmail.textContent = user.email || '';
 
-            // Badges
-            const badgesContainer = document.getElementById('mem-display-badges');
-            if (badgesContainer) {
-                const expiryDate = user.membership_expiry ? new Date(user.membership_expiry) : null;
-                const now = new Date();
-                const daysLeft = expiryDate ? Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24)) : 0;
-                let statusLabel = 'Inactivo'; let statusColor = '#ef4444';
-                if (user.is_frozen) { statusLabel = 'Congelado'; statusColor = '#3b82f6'; }
-                else if (daysLeft > 0) { statusLabel = 'Activo'; statusColor = '#22c55e'; }
-                else if (daysLeft > -30) { statusLabel = 'Moroso'; statusColor = '#f97316'; }
+            // Status Badge
+            const statusBadge = document.getElementById('mem-display-status-badge');
+            if (statusBadge) {
+                let statusLabel = 'Inactivo';
+                if (user.is_frozen) statusLabel = 'Congelado';
+                else if (daysLeft > 0) statusLabel = 'Activo';
+                else if (daysLeft > -30) statusLabel = 'Moroso';
+                statusBadge.textContent = statusLabel;
+                statusBadge.style.background = `${statusColor}20`;
+                statusBadge.style.color = statusColor;
+                statusBadge.style.borderColor = `${statusColor}40`;
+            }
 
-                badgesContainer.innerHTML = `
-                        <span style="font-size:0.6rem; background:${statusColor}20; color:${statusColor}; padding:2px 8px; border-radius:12px; font-weight:700; border:1px solid ${statusColor}40;">${statusLabel}</span>
-                        <span style="font-size:0.6rem; background:rgba(139,92,246,0.15); color:var(--accent-purple); padding:2px 8px; border-radius:12px; font-weight:700;">LVL ${user.level || 0}</span>
-                        <span style="font-size:0.6rem; background:rgba(255,255,255,0.05); color:var(--text-gray); padding:2px 8px; border-radius:12px; font-weight:700;">${user.membership_plans?.name || 'Sin Plan'}</span>`;
+            // Plan badge
+            const planBadge = document.getElementById('mem-display-plan');
+            if (planBadge) planBadge.textContent = user.membership_plans?.name || 'Sin Plan';
+
+            // Level badge
+            const levelBadge = document.getElementById('mem-display-level');
+            if (levelBadge) levelBadge.textContent = `LVL ${user.level || 0}`;
+
+            // Expiry badge
+            const expiryBadge = document.getElementById('mem-display-expiry');
+            if (expiryBadge) {
+                if (daysLeft > 0) expiryBadge.textContent = `${daysLeft} días restantes`;
+                else if (daysLeft > -30) expiryBadge.textContent = 'Moroso';
+                else expiryBadge.textContent = 'Expirado';
+                expiryBadge.style.color = daysLeft <= 5 ? '#ef4444' : '#fbbf24';
+                expiryBadge.style.background = daysLeft <= 5 ? 'rgba(239,68,68,0.1)' : 'rgba(251,191,36,0.1)';
+                expiryBadge.style.borderColor = daysLeft <= 5 ? 'rgba(239,68,68,0.2)' : 'rgba(251,191,36,0.2)';
+            }
+
+            // Risk Banner
+            if (riskBanner) {
+                const reasons = [];
+                if (daysLeft !== null && daysLeft <= 5 && daysLeft > 0) reasons.push(`Vence en ${daysLeft} días`);
+                if (daysLeft <= 0 && daysLeft > -30) reasons.push('Membresía vencida');
+                const lastAtt = user._lastAttendance;
+                const daysSinceAtt = lastAtt ? Math.floor((now - new Date(lastAtt)) / (1000 * 60 * 60 * 24)) : -1;
+                if (daysSinceAtt > 14) reasons.push(`Sin asistir ${daysSinceAtt} días`);
+                if (reasons.length > 0) {
+                    riskBanner.classList.remove('hidden');
+                    document.getElementById('mem-risk-text').textContent = `⚠️ ${reasons.join(' • ')}`;
+                } else {
+                    riskBanner.classList.add('hidden');
+                }
+            }
+
+            // Quick Actions
+            const quickActions = document.getElementById('mem-quick-actions');
+            if (quickActions) {
+                quickActions.style.display = 'flex';
+                document.getElementById('btn-mem-renew').onclick = () => quickRenewMember(user.id);
+                document.getElementById('btn-mem-freeze').onclick = () => toggleFreezeMember(user.id, !user.is_frozen);
+                document.getElementById('btn-mem-message').onclick = () => {
+                    const msg = prompt(`Mensaje para ${user.full_name}:`);
+                    if (msg) window.showToast(`Mensaje preparado para ${user.full_name} (integrar envío) ✉️`, "#8b5cf6");
+                };
+                document.getElementById('btn-mem-delete').onclick = () => deleteMember(user.id);
             }
 
             if (tabsContainer) {
@@ -316,22 +367,22 @@ export const openMemberModal = async (id = null, users = []) => {
                 tabsContainer.style.display = 'flex';
             }
 
-            // Set values safely
+            // Set form values
             setVal('mem-name', user.full_name);
+            setVal('mem-rut', user.rut);
             setVal('mem-email', user.email);
             setVal('mem-phone', user.phone);
             setVal('mem-level', user.level || 0);
             setVal('mem-xp', user.xp || 0);
             setVal('mem-entry-date', user.created_at ? user.created_at.split('T')[0] : '');
             setVal('mem-birthdate', user.birthdate);
+            setVal('mem-address', user.address);
             setVal('mem-emergency-contact', user.emergency_contact);
             setVal('mem-admin-notes', user.admin_notes);
             setVal('mem-plan', user.membership_plan_id);
 
             const memStatusSelect = document.getElementById('mem-status');
             if (memStatusSelect) {
-                const expiryDate = user.membership_expiry ? new Date(user.membership_expiry) : null;
-                const daysLeft = expiryDate ? Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24)) : 0;
                 if (user.is_frozen) memStatusSelect.value = 'frozen';
                 else if (user.membership_status === 'active' && daysLeft > 0) memStatusSelect.value = 'active';
                 else memStatusSelect.value = 'inactive';
@@ -341,26 +392,48 @@ export const openMemberModal = async (id = null, users = []) => {
             setVal('mem-class-limit', user.membership_limit || 2);
             setVal('mem-surcharge', user.surcharge_pct || 30);
 
-            // Progress bar
+            // Progress bar v2
             const statusDisplay = document.getElementById('mem-status-display');
             if (statusDisplay) {
-                const expiryDate = user.membership_expiry ? new Date(user.membership_expiry) : null;
-                if (expiryDate) {
+                if (expiryDate && user.membership_status === 'active') {
                     statusDisplay.classList.remove('hidden');
-                    const now = new Date();
                     const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
                     const daysLeftEl = document.getElementById('mem-days-left');
                     const progressBar = document.getElementById('mem-progress-bar');
+                    const startEl = document.getElementById('mem-progress-start');
+                    const endEl = document.getElementById('mem-progress-end');
+
                     if (daysLeftEl) {
                         daysLeftEl.textContent = daysLeft > 0 ? `${daysLeft} días restantes` : 'Expirado';
-                        daysLeftEl.style.color = daysLeft <= 5 ? '#ef4444' : '#22c55e';
+                        daysLeftEl.style.color = daysLeft <= 5 ? '#ef4444' : (daysLeft <= 10 ? '#fbbf24' : '#22c55e');
                     }
                     if (progressBar) {
-                        const progress = Math.max(0, Math.min(100, ((30 - daysLeft) / 30) * 100));
+                        const planDays = 30;
+                        const progress = Math.max(0, Math.min(100, ((planDays - daysLeft) / planDays) * 100));
                         progressBar.style.width = `${progress}%`;
-                        progressBar.style.background = daysLeft <= 5 ? '#ef4444' : 'var(--accent-purple)';
+                        progressBar.style.background = daysLeft <= 5
+                            ? 'linear-gradient(90deg, #ef4444, #f97316)'
+                            : 'linear-gradient(90deg, var(--accent-purple), var(--accent-cyan))';
+                    }
+                    if (startEl) {
+                        const startDate = new Date(expiryDate);
+                        startDate.setDate(startDate.getDate() - 30);
+                        startEl.textContent = startDate.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+                    }
+                    if (endEl) {
+                        endEl.textContent = expiryDate.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
                     }
                 } else { statusDisplay.classList.add('hidden'); }
+            }
+
+            // Extension buttons
+            const btnExtend7 = document.getElementById('btn-mem-extend-7');
+            const btnExtend30 = document.getElementById('btn-mem-extend-30');
+            if (btnExtend7) {
+                btnExtend7.onclick = () => extendMembership(user.id, 7);
+            }
+            if (btnExtend30) {
+                btnExtend30.onclick = () => extendMembership(user.id, 30);
             }
 
             // Pass tools
@@ -381,7 +454,9 @@ export const openMemberModal = async (id = null, users = []) => {
                 }
             }
 
-            loadMemberHistory(user.id);
+            // Load data for tabs
+            loadMemberAttendance(user.id);
+            loadMemberPayments(user.id);
             switchMemberTab('profile');
         } else {
             if (title) title.innerText = "Nuevo Socio";
@@ -391,6 +466,10 @@ export const openMemberModal = async (id = null, users = []) => {
             setVal('mem-level', 0);
             if (profileSummary) profileSummary.classList.add('hidden');
             if (tabsContainer) tabsContainer.classList.add('hidden');
+            const riskBannerEl = document.getElementById('mem-risk-banner');
+            if (riskBannerEl) riskBannerEl.classList.add('hidden');
+            const quickActions = document.getElementById('mem-quick-actions');
+            if (quickActions) quickActions.style.display = 'none';
             switchMemberTab('profile');
         }
     } catch (err) {
@@ -399,43 +478,193 @@ export const openMemberModal = async (id = null, users = []) => {
     }
 };
 
-// Load member history (attendance + payments)
-export const loadMemberHistory = async (uid) => {
+// Extend membership by N days
+const extendMembership = async (uid, days) => {
+    try {
+        const user = currentEditingUsers.find(u => u.id === uid);
+        const currentExpiry = user?.membership_expiry ? new Date(user.membership_expiry) : new Date();
+        if (currentExpiry < new Date()) currentExpiry.setTime(Date.now());
+        currentExpiry.setDate(currentExpiry.getDate() + days);
+        await SupabaseService.updateProfile(uid, {
+            membership_expiry: currentExpiry.toISOString(),
+            membership_status: 'active',
+            is_frozen: false
+        });
+        window.showToast(`Membresía extendida +${days} días ✅`, "#22c55e");
+        const updatedUsers = await window.supabase.from('profiles').select('*');
+        if (updatedUsers.data) {
+            currentEditingUsers = updatedUsers.data;
+            const updatedUser = updatedUsers.data.find(u => u.id === uid);
+            if (updatedUser) openMemberModal(uid, updatedUsers.data);
+        }
+    } catch (err) {
+        console.error(err);
+        window.showToast("Error al extender membresía ❌", "#ef4444");
+    }
+};
+
+const quickRenewMember = async (uid) => {
+    const user = currentEditingUsers.find(u => u.id === uid);
+    if (!user || !user.membership_plan_id) {
+        window.showToast('El socio no tiene un plan asignado para renovar.', '#ef4444');
+        return;
+    }
+    if (!confirm(`¿Renovar el plan de ${user.full_name} por 1 mes más?`)) return;
+    try {
+        const newExpiry = new Date();
+        newExpiry.setMonth(newExpiry.getMonth() + 1);
+        await window.supabase.from('profiles').update({
+            membership_expiry: newExpiry.toISOString(),
+            membership_status: 'active',
+            is_frozen: false
+        }).eq('id', uid);
+        window.showToast('Plan renovado exitosamente ✅', '#22c55e');
+        const updatedUsers = await window.supabase.from('profiles').select('*');
+        if (updatedUsers.data) openMemberModal(uid, updatedUsers.data);
+    } catch (err) {
+        console.error(err);
+        window.showToast('Error al renovar plan.', '#ef4444');
+    }
+};
+
+const toggleFreezeMember = async (uid, freeze) => {
+    try {
+        await window.supabase.from('profiles').update({ is_frozen: freeze }).eq('id', uid);
+        window.showToast(freeze ? 'Membresía congelada 🧊' : 'Membresía descongelada ✅', freeze ? '#3b82f6' : '#22c55e');
+        const updatedUsers = await window.supabase.from('profiles').select('*');
+        if (updatedUsers.data) openMemberModal(uid, updatedUsers.data);
+    } catch (err) {
+        console.error(err);
+        window.showToast('Error al cambiar estado ❌', '#ef4444');
+    }
+};
+
+// Load member attendance data + heatmap
+export const loadMemberAttendance = async (uid) => {
     const listContainer = document.getElementById('mem-attendance-list');
     const statTotal = document.getElementById('mem-stat-total');
     const statMonth = document.getElementById('mem-stat-month');
-    const statPayments = document.getElementById('mem-stat-payments');
-    listContainer.innerHTML = '<p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;"><i data-lucide="loader" class="spin" style="width:16px;height:16px;"></i> Cargando...</p>';
+    const statWeek = document.getElementById('mem-stat-week');
+    const heatmapContainer = document.getElementById('mem-attendance-heatmap');
+
+    if (listContainer) listContainer.innerHTML = '<p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;"><i data-lucide="loader" class="spin" style="width:16px;height:16px;"></i> Cargando...</p>';
     window.lucide.createIcons();
+
     try {
-        const [attendance, payments] = await Promise.all([SupabaseService.getAttendance(uid), SupabaseService.getPayments(uid)]);
-        const now = new Date(); const currentMonth = now.getMonth(); const currentYear = now.getFullYear();
+        const attendance = await SupabaseService.getAttendance(uid);
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
         const totalAtt = attendance ? attendance.length : 0;
         const monthAtt = attendance ? attendance.filter(a => { const d = new Date(a.attended_at); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).length : 0;
-        statTotal.textContent = totalAtt; statMonth.textContent = monthAtt; statPayments.textContent = payments ? payments.length : 0;
 
-        const timeline = [];
-        if (attendance) attendance.forEach(a => { timeline.push({ type: 'attendance', date: new Date(a.attended_at), label: a.class_name || 'Clase', icon: 'calendar-check' }); });
-        if (payments) payments.forEach(p => { timeline.push({ type: 'payment', date: new Date(p.created_at), label: `$${p.amount || 0} — ${p.concept || 'Pago'}`, icon: p.status === 'approved' ? 'check-circle' : 'clock', color: p.status === 'approved' ? '#22c55e' : '#fbbf24', status: p.status }); });
-        timeline.sort((a, b) => b.date - a.date);
+        // Week count (last 7 days)
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAtt = attendance ? attendance.filter(a => new Date(a.attended_at) >= weekAgo).length : 0;
 
-        if (timeline.length === 0) {
-            listContainer.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-gray);"><i data-lucide="inbox" style="width:40px; height:40px; opacity:0.3; margin-bottom:10px;"></i><p style="font-size:0.85rem;">Sin actividad registrada</p></div>';
-        } else {
-            listContainer.innerHTML = timeline.slice(0, 50).map(item => {
-                const dateStr = item.date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
-                const timeStr = item.date.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                const color = item.color || (item.type === 'attendance' ? 'var(--accent-cyan)' : '#22c55e');
-                const bgColor = item.type === 'attendance' ? 'rgba(6,182,212,0.08)' : 'rgba(34,197,94,0.08)';
-                const typeLabel = item.type === 'attendance' ? 'Asistencia' : (item.status === 'approved' ? 'Pago Aprobado' : 'Pago Pendiente');
-                return `<div style="display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; margin-bottom:6px; background:${bgColor}; border:1px solid rgba(255,255,255,0.04);">
-                        <div style="width:32px; height:32px; border-radius:8px; background:${color}15; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i data-lucide="${item.icon}" style="width:14px; height:14px; color:${color};"></i></div>
-                        <div style="flex:1; min-width:0;"><strong style="font-size:0.78rem; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.label}</strong><span style="font-size:0.65rem; color:var(--text-gray);">${typeLabel}</span></div>
-                        <div style="text-align:right; flex-shrink:0;"><span style="font-size:0.7rem; color:var(--text-gray); display:block;">${dateStr}</span><span style="font-size:0.6rem; color:rgba(255,255,255,0.3);">${timeStr}</span></div></div>`;
+        if (statTotal) statTotal.textContent = totalAtt;
+        if (statMonth) statMonth.textContent = monthAtt;
+        if (statWeek) statWeek.textContent = weekAtt;
+
+        // Render heatmap (last 28 days)
+        if (heatmapContainer) {
+            const days = [];
+            for (let i = 27; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const dStr = d.toISOString().split('T')[0];
+                const count = attendance ? attendance.filter(a => a.attended_at && a.attended_at.startsWith(dStr)).length : 0;
+                days.push({ date: d, count });
+            }
+            heatmapContainer.innerHTML = days.map(d => {
+                const opacity = d.count === 0 ? 0.05 : (d.count === 1 ? 0.3 : (d.count === 2 ? 0.6 : 1));
+                const tooltip = `${d.date.toLocaleDateString('es-CL')} — ${d.count} asistencia${d.count !== 1 ? 's' : ''}`;
+                return `<div title="${tooltip}" style="aspect-ratio:1; border-radius:4px; background:rgba(139,92,246,${opacity}); cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>`;
             }).join('');
         }
+
+        // Render attendance list
+        if (attendance && attendance.length > 0) {
+            const sorted = [...attendance].sort((a, b) => new Date(b.attended_at) - new Date(a.attended_at));
+            if (listContainer) {
+                listContainer.innerHTML = sorted.slice(0, 50).map(a => {
+                    const date = new Date(a.attended_at);
+                    const dateStr = date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const timeStr = date.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                    const dayName = date.toLocaleDateString('es-CL', { weekday: 'short' });
+                    return `<div style="display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; margin-bottom:6px; background:rgba(6,182,212,0.06); border:1px solid rgba(255,255,255,0.04);">
+                        <div style="width:36px; height:36px; border-radius:8px; background:var(--accent-cyan)15; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i data-lucide="calendar-check" style="width:14px; color:var(--accent-cyan);"></i></div>
+                        <div style="flex:1; min-width:0;"><strong style="font-size:0.85rem; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.class_name || 'Clase'}</strong><span style="font-size:0.7rem; color:var(--text-gray);">${dayName} — ${dateStr}</span></div>
+                        <span style="font-size:0.7rem; color:rgba(255,255,255,0.4); flex-shrink:0;">${timeStr}</span>
+                    </div>`;
+                }).join('');
+            }
+        } else {
+            if (listContainer) {
+                listContainer.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-gray);"><i data-lucide="inbox" style="width:40px; height:40px; opacity:0.3; margin-bottom:10px;"></i><p style="font-size:0.85rem;">Sin asistencias registradas</p></div>';
+            }
+        }
         window.lucide.createIcons();
-    } catch (err) { console.error("Error loading member history:", err); listContainer.innerHTML = '<p style="text-align:center; color:#ef4444; font-size:0.8rem; padding:20px;">Error al cargar historial</p>'; }
+    } catch (err) {
+        console.error("Error loading member attendance:", err);
+        if (listContainer) listContainer.innerHTML = '<p style="text-align:center; color:#ef4444; font-size:0.8rem; padding:20px;">Error al cargar asistencias</p>';
+    }
+};
+
+// Load member payments data
+export const loadMemberPayments = async (uid) => {
+    const listContainer = document.getElementById('mem-payments-list');
+    const statTotal = document.getElementById('mem-pay-total');
+    const statPending = document.getElementById('mem-pay-pending');
+    const statAmount = document.getElementById('mem-pay-amount');
+
+    if (listContainer) listContainer.innerHTML = '<p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;"><i data-lucide="loader" class="spin" style="width:16px;height:16px;"></i> Cargando...</p>';
+    window.lucide.createIcons();
+
+    try {
+        const payments = await SupabaseService.getPayments(uid);
+        const totalPayments = payments ? payments.length : 0;
+        const pendingPayments = payments ? payments.filter(p => p.status === 'pending').length : 0;
+        const totalAmount = payments ? payments.filter(p => p.status === 'approved').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) : 0;
+
+        if (statTotal) statTotal.textContent = totalPayments;
+        if (statPending) statPending.textContent = pendingPayments;
+        if (statAmount) statAmount.textContent = `$${totalAmount.toLocaleString('es-CL')}`;
+
+        if (payments && payments.length > 0) {
+            const sorted = [...payments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            if (listContainer) {
+                listContainer.innerHTML = sorted.map(p => {
+                    const date = new Date(p.created_at);
+                    const dateStr = date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const isApproved = p.status === 'approved';
+                    const color = isApproved ? '#22c55e' : '#fbbf24';
+                    const bgColor = isApproved ? 'rgba(34,197,94,0.06)' : 'rgba(251,191,36,0.06)';
+                    const icon = isApproved ? 'check-circle' : 'clock';
+                    const statusLabel = isApproved ? 'Aprobado' : 'Pendiente';
+                    const amount = parseFloat(p.amount) || 0;
+                    return `<div style="display:flex; align-items:center; gap:12px; padding:12px; border-radius:10px; margin-bottom:6px; background:${bgColor}; border:1px solid rgba(255,255,255,0.04);">
+                        <div style="width:36px; height:36px; border-radius:8px; background:${color}15; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i data-lucide="${icon}" style="width:14px; color:${color};"></i></div>
+                        <div style="flex:1; min-width:0;">
+                            <strong style="font-size:0.85rem; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.concept || 'Pago'}</strong>
+                            <span style="font-size:0.7rem; color:var(--text-gray);">${statusLabel} — ${dateStr}</span>
+                        </div>
+                        <div style="text-align:right; flex-shrink:0;">
+                            <span style="font-size:0.9rem; font-weight:800; color:${color}; display:block;">$${amount.toLocaleString('es-CL')}</span>
+                            <span style="font-size:0.6rem; color:rgba(255,255,255,0.3);">${p.method || 'Transferencia'}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        } else {
+            if (listContainer) {
+                listContainer.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-gray);"><i data-lucide="inbox" style="width:40px; height:40px; opacity:0.3; margin-bottom:10px;"></i><p style="font-size:0.85rem;">Sin pagos registrados</p></div>';
+            }
+        }
+        window.lucide.createIcons();
+    } catch (err) {
+        console.error("Error loading member payments:", err);
+        if (listContainer) listContainer.innerHTML = '<p style="text-align:center; color:#ef4444; font-size:0.8rem; padding:20px;">Error al cargar pagos</p>';
+    }
 };
 
 export const deleteMember = async (id) => {
@@ -444,12 +673,14 @@ export const deleteMember = async (id) => {
             await SupabaseService.softDeleteUser(id);
             window.showToast("Socio eliminado correctamente 🗑️", "#ef4444");
             renderAdminMembers();
+            closeAllModals();
         } catch (err) {
             console.error(err);
             window.showToast("Error al eliminar socio ❌", "#ef4444");
         }
     }
 };
+
 
 
 
@@ -470,12 +701,14 @@ export const initModals = () => {
         memberForm.onsubmit = async (e) => {
             e.preventDefault();
             const nameVal = document.getElementById('mem-name').value.trim();
+            const rutVal = document.getElementById('mem-rut')?.value.trim() || '';
             const emailVal = document.getElementById('mem-email').value.trim();
             const phoneVal = document.getElementById('mem-phone').value.trim();
             const levelVal = parseInt(document.getElementById('mem-level').value) || 0;
             const xpVal = parseInt(document.getElementById('mem-xp').value) || 0;
             const entryDateVal = document.getElementById('mem-entry-date').value;
             const birthdateVal = document.getElementById('mem-birthdate').value;
+            const addressVal = document.getElementById('mem-address')?.value.trim() || '';
             const emergencyVal = document.getElementById('mem-emergency-contact').value.trim();
             const notesVal = document.getElementById('mem-admin-notes').value.trim();
             const planId = document.getElementById('mem-plan').value;
@@ -491,11 +724,13 @@ export const initModals = () => {
 
             const memberData = {
                 full_name: nameVal,
+                rut: rutVal || null,
                 email: emailVal,
                 phone: phoneVal || null,
                 level: levelVal,
                 xp: xpVal,
                 birthdate: birthdateVal || null,
+                address: addressVal || null,
                 emergency_contact: emergencyVal || null,
                 admin_notes: notesVal || null,
                 membership_plan_id: planId || null,
@@ -550,6 +785,17 @@ export const initModals = () => {
             }
         };
     }
+
+    // Guardar y Notificar button
+    const btnSaveNotify = document.getElementById('btn-mem-save-notify');
+    if (btnSaveNotify) {
+        btnSaveNotify.onclick = () => {
+            const form = document.getElementById('member-form');
+            if (form) {
+                form.dataset.notify = 'true';
+                form.dispatchEvent(new Event('submit'));
+                form.dataset.notify = '';
+            }
+        };
+    }
 };
-
-

@@ -1220,210 +1220,368 @@
             </form>
         </div>
     </div>
-    <!-- Member Management Modal -->
+    <!-- Member Management Modal v2.0 -->
     <div id="member-modal" class="overlay" style="z-index: 9999;">
-        <div class="modal-content glass" style="max-width: 520px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-content glass" style="max-width: 720px; max-height: 92vh; overflow-y: auto; padding: 0;">
+            <!-- Sticky Header v2 -->
             <div class="modal-header"
-                style="position: sticky; top: 0; background: rgba(13,13,18,0.98); z-index: 2; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <h3 id="member-modal-title">Nuevo Socio</h3>
-                <button class="btn-close-modal">×</button>
+                style="position: sticky; top: 0; background: rgba(13,13,18,0.98); z-index: 10; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="member-modal-title" style="font-size:1.1rem; letter-spacing:0.5px;">Nuevo Socio</h3>
+                <button class="btn-close-modal" style="font-size:1.5rem; line-height:1;">×</button>
             </div>
 
-            <!-- Member Profile Summary (shown only when editing) -->
-            <div id="mem-profile-summary" class="hidden"
-                style="align-items:center; gap:14px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:12px;">
-                <img id="mem-avatar-preview" src=""
-                    style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid rgba(139,92,246,0.4); box-shadow:0 0 15px rgba(139,92,246,0.15);">
-                <div style="flex:1;">
-                    <strong id="mem-display-name"
-                        style="font-size:1.05rem; display:block; letter-spacing:0.5px;">—</strong>
-                    <span id="mem-display-email"
-                        style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:2px;">—</span>
-                    <div id="mem-display-badges" style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;"></div>
-                </div>
-            </div>
-
-            <!-- Tabs -->
-            <div id="mem-modal-tabs" class="hidden" style="gap:6px; margin-bottom:16px; padding-bottom:2px;">
-                <button type="button" class="mem-tab active" data-tab="profile"
-                    style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:var(--accent-purple); color:white; border:1px solid var(--accent-purple); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
-                    <i data-lucide="user" style="width:13px; height:13px;"></i> Perfil
-                </button>
-                <button type="button" class="mem-tab" data-tab="membership"
-                    style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
-                    <i data-lucide="credit-card" style="width:13px; height:13px;"></i> Membresía
-                </button>
-                <button type="button" class="mem-tab" data-tab="history"
-                    style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
-                    <i data-lucide="history" style="width:13px; height:13px;"></i> Historial
-                </button>
-            </div>
-
-            <form id="member-form">
-                <!-- TAB: Profile -->
-                <div id="mem-tab-profile">
-                    <div class="form-group">
-                        <label>Nombre Completo</label>
-                        <input type="text" id="mem-name" placeholder="Ej: Juan Pérez" required>
-                    </div>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" id="mem-email" placeholder="email@ejemplo.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Teléfono</label>
-                            <input type="tel" id="mem-phone" placeholder="+56 9 1234 5678">
+            <div style="padding: 0 24px 24px 24px;">
+                <!-- Member Profile Summary v2 (shown only when editing) -->
+                <div id="mem-profile-summary" class="hidden"
+                    style="display:flex; align-items:center; gap:16px; padding:18px 0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:14px;">
+                    <div style="position:relative;">
+                        <img id="mem-avatar-preview" src=""
+                            style="width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid rgba(139,92,246,0.4); box-shadow:0 0 20px rgba(139,92,246,0.2);">
+                        <div id="mem-status-indicator"
+                            style="position:absolute; bottom:2px; right:2px; width:14px; height:14px; border-radius:50%; background:#22c55e; border:2px solid rgba(13,13,18,0.98);">
                         </div>
                     </div>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Nivel</label>
-                            <input type="number" id="mem-level" placeholder="1" min="0">
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <strong id="mem-display-name"
+                                style="font-size:1.15rem; display:block; letter-spacing:0.3px;">—</strong>
+                            <span id="mem-display-status-badge"
+                                style="font-size:0.65rem; background:rgba(34,197,94,0.15); color:#22c55e; padding:2px 10px; border-radius:12px; font-weight:700; border:1px solid rgba(34,197,94,0.3);">Activo</span>
                         </div>
-                        <div class="form-group">
-                            <label>XP</label>
-                            <input type="number" id="mem-xp" placeholder="0" min="0">
+                        <span id="mem-display-email"
+                            style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:3px;">—</span>
+                        <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; align-items:center;">
+                            <span id="mem-display-plan"
+                                style="font-size:0.7rem; background:rgba(139,92,246,0.1); color:var(--accent-purple); padding:2px 10px; border-radius:12px; font-weight:700;">Sin
+                                Plan</span>
+                            <span id="mem-display-level"
+                                style="font-size:0.7rem; background:rgba(255,255,255,0.05); color:var(--text-gray); padding:2px 10px; border-radius:12px; font-weight:700;">LVL
+                                0</span>
+                            <span id="mem-display-expiry"
+                                style="font-size:0.7rem; background:rgba(251,191,36,0.1); color:#fbbf24; padding:2px 10px; border-radius:12px; font-weight:700;">—</span>
                         </div>
                     </div>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Fecha de Ingreso</label>
-                            <input type="date" id="mem-entry-date" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha de Nacimiento</label>
-                            <input type="date" id="mem-birthdate">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Contacto de Emergencia</label>
-                        <input type="text" id="mem-emergency-contact" placeholder="Nombre - +56 9 xxxx xxxx">
-                    </div>
-                    <div class="form-group">
-                        <label>Notas del Administrador</label>
-                        <textarea id="mem-admin-notes" placeholder="Notas internas sobre este socio..." rows="2"
-                            style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%; resize: vertical; font-family: inherit; font-size: 0.85rem;"></textarea>
-                    </div>
-
-                    <!-- Password Reset (Supabase) -->
-                    <div id="admin-pass-tools" class="hidden"
-                        style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 15px;">
-                        <label
-                            style="font-size: 0.7rem; color: var(--text-gray); margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">SEGURIDAD
-                            DE CUENTA</label>
-                        <button type="button" id="btn-admin-reset-pass" class="btn-glass"
-                            style="width: 100%; border-color: #eab308; color: #eab308; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <i data-lucide="mail"></i> REESTABLECER CONTRASEÑA
+                    <!-- Quick Actions -->
+                    <div id="mem-quick-actions" style="display:flex; gap:6px; flex-shrink:0;">
+                        <button type="button" id="btn-mem-renew" class="btn-glass-small" title="Renovar membresía"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:#22c55e; color:#22c55e;">
+                            <i data-lucide="refresh-cw" style="width:13px;"></i>
                         </button>
-                        <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">Se
-                            enviará un email al socio para crear una nueva clave.</p>
+                        <button type="button" id="btn-mem-freeze" class="btn-glass-small" title="Congelar/Descongelar"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:#3b82f6; color:#3b82f6;">
+                            <i data-lucide="snowflake" style="width:13px;"></i>
+                        </button>
+                        <button type="button" id="btn-mem-message" class="btn-glass-small" title="Enviar mensaje"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:var(--accent-purple); color:var(--accent-purple);">
+                            <i data-lucide="message-square" style="width:13px;"></i>
+                        </button>
+                        <button type="button" id="btn-mem-delete" class="btn-glass-small" title="Eliminar socio"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:#ef4444; color:#ef4444;">
+                            <i data-lucide="trash-2" style="width:13px;"></i>
+                        </button>
                     </div>
                 </div>
 
-                <!-- TAB: Membership -->
-                <div id="mem-tab-membership" class="hidden">
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label>Plan de Membresía</label>
-                        <select id="mem-plan"
-                            style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%;">
-                            <option value="" style="color: black;">Sin Plan (Inactivo)</option>
-                            <!-- Populated dynamically via JS -->
-                        </select>
-                    </div>
+                <!-- Risk Alert Banner -->
+                <div id="mem-risk-banner" class="hidden"
+                    style="margin-bottom:14px; padding:10px 14px; border-radius:10px; border:1px solid rgba(239,68,68,0.2); background:rgba(239,68,68,0.08); display:flex; align-items:center; gap:10px;">
+                    <i data-lucide="alert-triangle" style="width:16px; color:#ef4444; flex-shrink:0;"></i>
+                    <span id="mem-risk-text" style="font-size:0.8rem; color:#ef4444; font-weight:600;"></span>
+                </div>
 
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Estado</label>
-                            <select id="mem-status"
-                                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%;">
-                                <option value="active" style="color: black;">Activo ✅</option>
-                                <option value="inactive" style="color: black;">Inactivo ❌</option>
-                                <option value="frozen" style="color: black;">Congelado 🧊</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Vencimiento</label>
-                            <input type="date" id="mem-expiry">
-                        </div>
-                    </div>
+                <!-- Tabs v2 -->
+                <div id="mem-modal-tabs" class="hidden"
+                    style="display:flex; gap:4px; margin-bottom:16px; padding:4px; background:rgba(255,255,255,0.03); border-radius:10px; border:1px solid rgba(255,255,255,0.06);">
+                    <button type="button" class="mem-tab active" data-tab="profile"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:var(--accent-purple); color:white; border:1px solid var(--accent-purple); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="user" style="width:13px; height:13px;"></i> Perfil
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="membership"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="credit-card" style="width:13px; height:13px;"></i> Membresía
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="attendance"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="calendar-check" style="width:13px; height:13px;"></i> Asistencia
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="payments"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="wallet" style="width:13px; height:13px;"></i> Pagos
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="notes"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="file-text" style="width:13px; height:13px;"></i> Notas
+                    </button>
+                </div>
 
-                    <div class="grid-2" style="margin-top: 10px;">
-                        <div class="form-group">
-                            <label>Límite Mensual de Clases</label>
-                            <input type="number" id="mem-class-limit" placeholder="2" min="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Recargo (%)</label>
-                            <input type="number" id="mem-surcharge" placeholder="30" min="0" max="100">
-                        </div>
-                    </div>
-
-                    <!-- Membership Status Display -->
-                    <div id="mem-status-display" class="hidden"
-                        style="margin-top: 15px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                            <span
-                                style="font-size:0.7rem; font-weight:700; color:var(--text-gray); letter-spacing:0.5px;">PROGRESO
-                                DE MEMBRESÍA</span>
-                            <span id="mem-days-left" style="font-size:0.7rem; font-weight:700;"></span>
-                        </div>
-                        <div style="height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
-                            <div id="mem-progress-bar"
-                                style="height:100%; background:var(--accent-purple); transition:width 0.5s; width:0%;">
+                <form id="member-form">
+                    <!-- TAB: Profile -->
+                    <div id="mem-tab-profile">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Nombre Completo *</label>
+                                <input type="text" id="mem-name" placeholder="Ej: Juan Pérez" required>
+                            </div>
+                            <div class="form-group">
+                                <label>RUT / Documento</label>
+                                <input type="text" id="mem-rut" placeholder="12.345.678-9">
                             </div>
                         </div>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Email *</label>
+                                <input type="email" id="mem-email" placeholder="email@ejemplo.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="mem-phone" placeholder="+56 9 1234 5678">
+                            </div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Fecha de Nacimiento</label>
+                                <input type="date" id="mem-birthdate">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Ingreso *</label>
+                                <input type="date" id="mem-entry-date" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="mem-address" placeholder="Calle, número, comuna">
+                        </div>
+                        <div class="form-group">
+                            <label>Contacto de Emergencia</label>
+                            <input type="text" id="mem-emergency-contact" placeholder="Nombre - Parentesco - Teléfono">
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Nivel</label>
+                                <input type="number" id="mem-level" placeholder="0" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>XP</label>
+                                <input type="number" id="mem-xp" placeholder="0" min="0">
+                            </div>
+                        </div>
+
+                        <!-- Password Reset (Supabase) -->
+                        <div id="admin-pass-tools" class="hidden"
+                            style="margin-top: 12px; padding: 14px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                            <label
+                                style="font-size: 0.7rem; color: var(--text-gray); margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">SEGURIDAD
+                                DE CUENTA</label>
+                            <button type="button" id="btn-admin-reset-pass" class="btn-glass"
+                                style="width: 100%; border-color: #eab308; color: #eab308; display: flex; align-items: center; justify-content: center; gap: 10px; font-size:0.8rem;">
+                                <i data-lucide="mail" style="width:14px;"></i> REESTABLECER CONTRASEÑA
+                            </button>
+                            <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">
+                                Se
+                                enviará un email al socio para crear una nueva clave.</p>
+                        </div>
                     </div>
 
-                    <!-- Payment Tools -->
-                    <div id="admin-payment-tools" class="hidden"
-                        style="margin-top: 15px; padding: 15px; background: rgba(239, 68, 68, 0.05); border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2); margin-bottom: 15px;">
-                        <label
-                            style="font-size: 0.7rem; color: #ef4444; margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">
-                            ESTADO DE MEMBRESÍA: INACTIVO / SIN PLAN</label>
-                        <button type="button" id="btn-admin-req-payment" class="btn-glass"
-                            style="width: 100%; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <i data-lucide="alert-circle"></i> ENVIAR A PAGOS PENDIENTES
+                    <!-- TAB: Membership -->
+                    <div id="mem-tab-membership" class="hidden">
+                        <div class="form-group">
+                            <label>Plan de Membresía</label>
+                            <select id="mem-plan"
+                                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%; font-size:0.85rem;">
+                                <option value="" style="color: black;">Sin Plan (Inactivo)</option>
+                            </select>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Estado</label>
+                                <select id="mem-status"
+                                    style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%; font-size:0.85rem;">
+                                    <option value="active" style="color: black;">Activo ✅</option>
+                                    <option value="inactive" style="color: black;">Inactivo ❌</option>
+                                    <option value="frozen" style="color: black;">Congelado 🧊</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Vencimiento</label>
+                                <input type="date" id="mem-expiry">
+                            </div>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Límite Mensual de Clases</label>
+                                <input type="number" id="mem-class-limit" placeholder="2" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Recargo (%)</label>
+                                <input type="number" id="mem-surcharge" placeholder="30" min="0" max="100">
+                            </div>
+                        </div>
+
+                        <!-- Membership Progress Card -->
+                        <div id="mem-status-display" class="hidden"
+                            style="margin-top: 14px; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                                <span
+                                    style="font-size:0.7rem; font-weight:700; color:var(--text-gray); letter-spacing:0.5px;">PROGRESO
+                                    DE MEMBRESÍA</span>
+                                <span id="mem-days-left"
+                                    style="font-size:0.8rem; font-weight:800; color:var(--accent-purple);"></span>
+                            </div>
+                            <div
+                                style="height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">
+                                <div id="mem-progress-bar"
+                                    style="height:100%; background:linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); transition:width 0.6s ease; width:0%; border-radius:4px;">
+                                </div>
+                            </div>
+                            <div
+                                style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.65rem; color:var(--text-gray);">
+                                <span id="mem-progress-start">Inicio</span>
+                                <span id="mem-progress-end">Vencimiento</span>
+                            </div>
+                        </div>
+
+                        <!-- Membership Actions -->
+                        <div id="mem-membership-actions"
+                            style="margin-top: 14px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <button type="button" id="btn-mem-extend-7" class="btn-glass"
+                                style="font-size:0.75rem; padding:10px;">
+                                <i data-lucide="plus" style="width:12px; vertical-align:middle; margin-right:4px;"></i>
+                                +7 días
+                            </button>
+                            <button type="button" id="btn-mem-extend-30" class="btn-glass"
+                                style="font-size:0.75rem; padding:10px;">
+                                <i data-lucide="plus" style="width:12px; vertical-align:middle; margin-right:4px;"></i>
+                                +30 días
+                            </button>
+                        </div>
+
+                        <!-- Payment Tools -->
+                        <div id="admin-payment-tools" class="hidden"
+                            style="margin-top: 14px; padding: 14px; background: rgba(239, 68, 68, 0.05); border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                            <label
+                                style="font-size: 0.7rem; color: #ef4444; margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">
+                                ESTADO: INACTIVO / SIN PLAN</label>
+                            <button type="button" id="btn-admin-req-payment" class="btn-glass"
+                                style="width: 100%; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center; gap: 10px; font-size:0.8rem;">
+                                <i data-lucide="alert-circle" style="width:14px;"></i> ENVIAR A PAGOS PENDIENTES
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Attendance -->
+                    <div id="mem-tab-attendance" class="hidden">
+                        <div id="mem-attendance-stats"
+                            style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">TOTAL</span>
+                                <strong id="mem-stat-total"
+                                    style="font-size:1.3rem; color:var(--accent-cyan);">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">ESTE
+                                    MES</span>
+                                <strong id="mem-stat-month"
+                                    style="font-size:1.3rem; color:var(--accent-purple);">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">SEMANA</span>
+                                <strong id="mem-stat-week" style="font-size:1.3rem; color:#fbbf24;">0</strong>
+                            </div>
+                        </div>
+                        <!-- Attendance Heatmap Legend -->
+                        <div
+                            style="display:flex; align-items:center; gap:8px; margin-bottom:10px; padding:8px 12px; background:rgba(255,255,255,0.02); border-radius:8px; border:1px solid rgba(255,255,255,0.04);">
+                            <span style="font-size:0.7rem; color:var(--text-gray);">Frecuencia:</span>
+                            <div style="display:flex; gap:3px;">
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:rgba(255,255,255,0.05);"></span>
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:rgba(139,92,246,0.3);"></span>
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:rgba(139,92,246,0.6);"></span>
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:var(--accent-purple);"></span>
+                            </div>
+                        </div>
+                        <div id="mem-attendance-heatmap"
+                            style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; margin-bottom:14px;">
+                        </div>
+                        <div id="mem-attendance-list" style="max-height:280px; overflow-y:auto;">
+                            <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">
+                                Cargando historial...</p>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Payments -->
+                    <div id="mem-tab-payments" class="hidden">
+                        <div id="mem-payments-summary"
+                            style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">TOTAL
+                                    PAGOS</span>
+                                <strong id="mem-pay-total" style="font-size:1.3rem; color:#22c55e;">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">PENDIENTES</span>
+                                <strong id="mem-pay-pending" style="font-size:1.3rem; color:#fbbf24;">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">MONTO
+                                    TOTAL</span>
+                                <strong id="mem-pay-amount"
+                                    style="font-size:1.1rem; color:var(--accent-purple);">$0</strong>
+                            </div>
+                        </div>
+                        <div id="mem-payments-list" style="max-height:320px; overflow-y:auto;">
+                            <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">
+                                Cargando pagos...</p>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Notes -->
+                    <div id="mem-tab-notes" class="hidden">
+                        <div class="form-group">
+                            <label>Notas del Administrador</label>
+                            <textarea id="mem-admin-notes" placeholder="Escribe notas internas sobre este socio..."
+                                rows="6"
+                                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 14px; border-radius: 12px; width: 100%; resize: vertical; font-family: inherit; font-size: 0.85rem; line-height:1.5;"></textarea>
+                        </div>
+                        <div id="mem-notes-history" style="margin-top:12px; max-height:200px; overflow-y:auto;">
+                            <p style="text-align:center; color:var(--text-gray); font-size:0.75rem; padding:12px;">Las
+                                notas se guardan junto con el perfil del socio.</p>
+                        </div>
+                    </div>
+
+                    <!-- Sticky Footer Actions -->
+                    <div
+                        style="position: sticky; bottom: 0; background: rgba(13,13,18,0.95); padding-top: 16px; margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.06); display:flex; gap:10px; align-items:center;">
+                        <button type="submit" class="btn-primary" style="flex:1; padding:12px; font-size:0.85rem;">
+                            <i data-lucide="save" style="width:14px; vertical-align:middle; margin-right:6px;"></i>
+                            GUARDAR CAMBIOS
                         </button>
-                        <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">
-                            Genera
-                            un registro automático para cobrar la renovación.</p>
+                        <button type="button" id="btn-mem-save-notify" class="btn-glass"
+                            style="padding:12px 16px; font-size:0.8rem; border-color:var(--accent-cyan); color:var(--accent-cyan); white-space:nowrap;">
+                            <i data-lucide="send" style="width:14px; vertical-align:middle; margin-right:4px;"></i>
+                            Guardar y Notificar
+                        </button>
                     </div>
-                </div>
-
-                <!-- TAB: History -->
-                <div id="mem-tab-history" class="hidden">
-                    <div id="mem-attendance-stats"
-                        style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
-                        <div
-                            style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span
-                                style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">TOTAL</span>
-                            <strong id="mem-stat-total" style="font-size:1.2rem; color:var(--accent-cyan);">0</strong>
-                        </div>
-                        <div
-                            style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span
-                                style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">ESTE
-                                MES</span>
-                            <strong id="mem-stat-month" style="font-size:1.2rem; color:var(--accent-purple);">0</strong>
-                        </div>
-                        <div
-                            style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span
-                                style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">PAGOS</span>
-                            <strong id="mem-stat-payments" style="font-size:1.2rem; color:#22c55e;">0</strong>
-                        </div>
-                    </div>
-                    <div id="mem-attendance-list" style="max-height:300px; overflow-y:auto;">
-                        <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">Cargando
-                            historial...</p>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-primary" style="margin-top: 18px;">GUARDAR SOCIO 🥋</button>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
     <!-- Tournament Management Modal -->
