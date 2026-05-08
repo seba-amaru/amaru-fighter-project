@@ -47,13 +47,13 @@ export const SupabaseService = {
      */
     async getProfile(uid) {
         try {
-            
+
             const { data, error } = await window.supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', uid)
                 .maybeSingle();
-            
+
             if (error) {
                 if (error.code !== 'PGRST116') {
                     console.warn(`[Supabase] getProfile error (ID: ${uid}): ${error.message}`);
@@ -67,7 +67,7 @@ export const SupabaseService = {
                     .select('name')
                     .eq('id', data.membership_plan_id)
                     .maybeSingle();
-                
+
                 if (!planError && plan) {
                     data.membership_plans = plan;
                 }
@@ -377,13 +377,13 @@ export const SupabaseService = {
         const { error: uploadError } = await window.supabase.storage
             .from('avatars')
             .upload(fileName, file, { upsert: true });
-        
+
         if (uploadError) throw uploadError;
 
         const { data } = window.supabase.storage
             .from('avatars')
             .getPublicUrl(fileName);
-            
+
         return data.publicUrl;
     },
 
@@ -392,17 +392,17 @@ export const SupabaseService = {
         const { error: uploadError } = await window.supabase.storage
             .from('payments')
             .upload(fileName, file, { upsert: true });
-        
+
         if (uploadError) throw uploadError;
 
         const { data } = window.supabase.storage
             .from('payments')
             .getPublicUrl(fileName);
-            
+
         return data.publicUrl;
     },
 
-    // --- NOTIFICATIONS ---
+    // --- GLOBAL NOTIFICATIONS ---
     async getNotifications() {
         const { data, error } = await window.supabase.from('global_notifications').select('*').order('created_at', { ascending: false });
         if (error) throw error;
@@ -417,6 +417,65 @@ export const SupabaseService = {
 
     async deleteNotification(id) {
         const { error } = await window.supabase.from('global_notifications').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+    },
+
+    // --- USER NOTIFICATIONS (In-App Messaging) ---
+    async getUserNotifications(userId) {
+        const { data, error } = await window.supabase
+            .from('user_notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+    },
+
+    async getUnreadCount(userId) {
+        const { count, error } = await window.supabase
+            .from('user_notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+        if (error) throw error;
+        return count || 0;
+    },
+
+    async sendUserNotification(userId, title, message, type = 'direct') {
+        const senderId = window.appState?.user?.uid || null;
+        const { data, error } = await window.supabase
+            .from('user_notifications')
+            .insert([{ user_id: userId, sender_id: senderId, title, message, type }])
+            .select();
+        if (error) throw error;
+        return data;
+    },
+
+    async markNotificationRead(id) {
+        const { error } = await window.supabase
+            .from('user_notifications')
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq('id', id);
+        if (error) throw error;
+        return true;
+    },
+
+    async markAllNotificationsRead(userId) {
+        const { error } = await window.supabase
+            .from('user_notifications')
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+        if (error) throw error;
+        return true;
+    },
+
+    async deleteUserNotification(id) {
+        const { error } = await window.supabase
+            .from('user_notifications')
+            .delete()
+            .eq('id', id);
         if (error) throw error;
         return true;
     }

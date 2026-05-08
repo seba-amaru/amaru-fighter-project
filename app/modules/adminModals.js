@@ -355,9 +355,22 @@ export const openMemberModal = async (id = null, users = []) => {
                 quickActions.style.display = 'flex';
                 document.getElementById('btn-mem-renew').onclick = () => quickRenewMember(user.id);
                 document.getElementById('btn-mem-freeze').onclick = () => toggleFreezeMember(user.id, !user.is_frozen);
-                document.getElementById('btn-mem-message').onclick = () => {
+                document.getElementById('btn-mem-message').onclick = async () => {
                     const msg = prompt(`Mensaje para ${user.full_name}:`);
-                    if (msg) window.showToast(`Mensaje preparado para ${user.full_name} (integrar envío) ✉️`, "#8b5cf6");
+                    if (!msg) return;
+                    try {
+                        window.showToast(`Enviando mensaje...`, "#f59e0b");
+                        await window.SupabaseService.sendUserNotification(
+                            user.id,
+                            'Mensaje directo del equipo Amaru',
+                            msg,
+                            'direct'
+                        );
+                        window.showToast(`Mensaje enviado a ${user.full_name} ✅`, "#22c55e");
+                    } catch (err) {
+                        console.error('[adminModals] Error enviando mensaje:', err);
+                        window.showToast('Error al enviar mensaje. Intenta de nuevo.', "#ef4444");
+                    }
                 };
                 document.getElementById('btn-mem-delete').onclick = () => deleteMember(user.id);
             }

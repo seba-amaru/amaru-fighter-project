@@ -841,14 +841,34 @@ const renderComunicacionesView = (container) => {
     // Send button
     const sendBtn = container.querySelector('#btn-send-comm');
     if (sendBtn) {
-        sendBtn.onclick = () => {
+        sendBtn.onclick = async () => {
             const msg = messageArea?.value?.trim();
             if (!msg) {
                 window.showToast('Escribe un mensaje antes de enviar', '#ef4444');
                 return;
             }
-            // Simulated send — in production, integrate with email/push service
-            window.showToast(`Mensaje preparado para ${filtered.length} socios. (Integrar con servicio de envío)`, '#22c55e');
+            const title = templateSelect?.value
+                ? templateSelect.options[templateSelect.selectedIndex].text
+                : 'Mensaje del equipo Amaru';
+            try {
+                window.showToast(`Enviando a ${filtered.length} socios...`, '#f59e0b');
+                let sent = 0;
+                for (const user of filtered) {
+                    const personalized = msg.replace(/{nombre}/g, user.full_name || 'Atleta');
+                    await window.SupabaseService.sendUserNotification(
+                        user.id,
+                        title,
+                        personalized,
+                        'mass'
+                    );
+                    sent++;
+                }
+                window.showToast(`${sent} notificaciones enviadas ✅`, '#22c55e');
+                messageArea.value = '';
+            } catch (err) {
+                console.error('[Comunicaciones] Error enviando:', err);
+                window.showToast('Error al enviar notificaciones. Intenta de nuevo.', '#ef4444');
+            }
         };
     }
 };

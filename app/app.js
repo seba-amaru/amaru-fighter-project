@@ -703,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            // Fetch Notifications
+            // Fetch Global Notifications
             if (appState.role === 'admin') {
                 appState.notifications = await withTimeout(SupabaseService.getNotifications(), 8000, 'Notificaciones admin');
             } else {
@@ -712,6 +712,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.warn("[Background] Error loading notifications:", err.message);
+        }
+
+        try {
+            // Fetch Personal In-App Notifications
+            appState.userNotifications = await withTimeout(
+                SupabaseService.getUserNotifications(user.uid),
+                8000,
+                'Notificaciones personales'
+            );
+            updateNotificationBadge();
+        } catch (err) {
+            console.warn("[Background] Error loading user notifications:", err.message);
         }
 
         try {
@@ -2093,6 +2105,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide) window.lucide.createIcons();
     };
 
+    window.markNotifRead = async (id) => {
+        try {
+            await SupabaseService.markNotificationRead(id);
+            if (appState.userNotifications) {
+                const notif = appState.userNotifications.find(n => n.id === id);
+                if (notif) notif.is_read = true;
+            }
+            updateNotificationBadge();
+            renderNotifications();
+        } catch (err) {
+            console.error('[markNotifRead] Error:', err);
+        }
+    };
+
     window.renderActivityFeed = renderActivityFeed;
 
     const updateBadgesUI = () => {
@@ -2137,11 +2163,60 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 
+    const updateNotificationBadge = () => {
+        const badge = document.getElementById('nav-notif-badge');
+        const userNotifs = appState.userNotifications || [];
+        const unread = userNotifs.filter(n => !n.is_read).length;
+        if (badge) {
+            if (unread > 0) {
+                badge.textContent = unread > 99 ? '99+' : unread;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    };
+
     const renderNotifications = () => {
         const container = document.getElementById('notifications-list');
         if (!container) return;
 
         const notificationsHTML = [];
+
+        // 0. Personal In-App Notifications (NEW)
+        const personalNotifs = (appState.userNotifications || []).map(n => {
+            const isUnread = !n.is_read;
+            const typeColor = n.type === 'mass' ? '#f59e0b' : n.type === 'direct' ? '#8b5cf6' : 'var(--accent-cyan)';
+            const typeLabel = n.type === 'mass' ? 'Comunicación' : n.type === 'direct' ? 'Mensaje Directo' : 'Sistema';
+            const icon = n.type === 'mass' ? 'megaphone' : n.type === 'direct' ? 'message-circle' : 'bell';
+            const date = new Date(n.created_at);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            let timeText;
+            if (diffMins < 1) timeText = 'Recién ahora';
+            else if (diffMins < 60) timeText = `Hace ${diffMins} min`;
+            else if (diffHours < 24) timeText = `Hace ${diffHours} h`;
+            else if (diffDays < 7) timeText = `Hace ${diffDays} d`;
+            else timeText = date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+
+            return `
+            <div class="notification-item glass ${isUnread ? 'critical' : ''}" data-notif-id="${n.id}" style="border-left-color: ${typeColor}; cursor: pointer; ${isUnread ? 'background: rgba(139,92,246,0.04);' : ''}"
+                onclick="markNotifRead('${n.id}')">
+                <div class="notif-icon ${isUnread ? 'pulse' : ''}" style="color: ${typeColor};">
+                    <i data-lucide="${icon}"></i>
+                </div>
+                <div class="notif-content">
+                    <h4>${n.title} ${isUnread ? '<span style="font-size:0.6rem; background:#ef4444; color:white; padding:2px 6px; border-radius:8px; margin-left:6px; vertical-align:middle;">NUEVO</span>' : ''}</h4>
+                    <p>${n.message}</p>
+                    <span class="notif-time">${typeLabel} — ${timeText}</span>
+                </div>
+                ${isUnread ? `<div class="critical-badge" style="background:${typeColor}">NUEVO</div>` : ''}
+            </div>
+            `;
+        });
 
         // 1. Plan Expiry Notification
         if (appState.membershipExpiry) {
