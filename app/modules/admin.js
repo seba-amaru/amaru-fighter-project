@@ -1208,9 +1208,16 @@ export const renderAdminAttendance = async () => {
                             },
                             background: '#1f1f2e', color: '#fff'
                         });
-                        await SupabaseService.createReservation(formValues.user, formValues.classId, formValues.className, formValues.date);
-                        window.showToast("✅ Asistencia manual registrada con éxito", "#22c55e");
-                        renderAdminAttendance();
+                        try {
+                            await SupabaseService.createReservation(formValues.user, formValues.classId, formValues.className, formValues.date);
+                            Swal.close();
+                            window.showToast("✅ Asistencia manual registrada con éxito", "#22c55e");
+                            renderAdminAttendance();
+                        } catch (err) {
+                            Swal.close();
+                            console.error("Error registrando asistencia manual:", err);
+                            window.showToast("Error al registrar asistencia: " + (err.message || 'Error desconocido'), "#ef4444");
+                        }
                     }
                 } catch (e) {
                     console.error(e);
