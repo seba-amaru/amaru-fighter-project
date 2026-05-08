@@ -754,8 +754,15 @@ document.addEventListener('DOMContentLoaded', () => {
         setupRealtimeSubscriptions(user, profile);
     };
 
+    let authLoadTimeoutId = null;
+
     const handleAuthSession = async (session) => {
         console.log('[Auth] handleAuthSession called. Session exists:', !!session, 'User exists:', !!session?.user);
+
+        // Always clear any existing loading overlay and safety timeout on fresh attempt
+        hideAuthLoadingScreen();
+        if (authLoadTimeoutId) { clearTimeout(authLoadTimeoutId); authLoadTimeoutId = null; }
+
         const supabaseUser = session?.user;
         let user = null;
         if (supabaseUser) {
@@ -791,6 +798,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show loading screen with timeout fail-safe
         showAuthLoadingScreen('CARGANDO DATOS...');
+
+        // SAFETY FALLBACK: Force-hide overlay after 35s no matter what
+        authLoadTimeoutId = setTimeout(() => {
+            console.warn('[Auth] Safety timeout triggered — forcing overlay hide');
+            hideAuthLoadingScreen();
+            showToast('Carga completada (timeout de seguridad)', '#eab308');
+        }, 35000);
         const loadStartTime = Date.now();
         const LOAD_TIMEOUT = 15000; // 15 seconds max
 
@@ -916,6 +930,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnBackDash = document.getElementById('btn-dashboard-back-admin');
             if (btnBackProfile) btnBackProfile.onclick = () => setAdminMode(true);
             if (btnBackDash) btnBackDash.onclick = () => setAdminMode(true);
+
+            // Mark session handle as successful
+            lastSessionHandleFailed = false;
+            hideAuthLoadingScreen();
 
             // Check membership status
             if (appState.role !== 'admin' && profile.membership_status !== 'active') {
