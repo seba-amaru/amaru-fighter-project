@@ -83,6 +83,7 @@ export const renderRevenueSection = async () => {
     window.lucide && window.lucide.createIcons();
 
     currentRevenueData = await fetchRevenueData();
+    await getDiscounts(); // Preload discounts for payment rows
     renderRevenueDashboard();
 };
 
@@ -262,6 +263,19 @@ const renderRevenueDashboard = () => {
     attachListeners(selPayments);
 };
 
+// ─── Descuentos cache ───────────────────────────────────────────────────────
+let _discountsCache = null;
+const getDiscounts = async () => {
+    if (_discountsCache) return _discountsCache;
+    try {
+        const { data } = await window.supabase.from('discounts').select('*');
+        _discountsCache = data || [];
+        return _discountsCache;
+    } catch (e) {
+        return [];
+    }
+};
+
 // ─── Construir filas de pagos ───────────────────────────────────────────────
 const buildPaymentRows = (payments) => {
     const search = (document.getElementById('rev-search-input')?.value || '').toLowerCase();
@@ -301,10 +315,22 @@ const buildPaymentRows = (payments) => {
         const name = p.profiles?.full_name || 'Usuario sin nombre';
         const email = p.profiles?.email || '';
         const planName = p.plan?.name || p.concept || '—';
-        const amount = parseFloat(p.amount) || 0;
+        const rawAmount = parseFloat(p.amount) || 0;
         const date = formatDateShort(p.created_at);
         const method = p.payment_method || 'manual';
         const methodLabel = method === 'mercadopago' ? 'Mercado Pago' : method === 'webpay' ? 'Webpay' : 'Transferencia/Manual';
+
+        // Apply discount if user has active promo
+        const userPromo = p.profiles?.active_promo;
+        let finalAmount = rawAmount;
+        let discountHtml = '';
+        if (userPromo && _discountsCache) {
+            const discount = _discountsCache.find(d => d.code === userPromo);
+            if (discount && discount.percent > 0) {
+                finalAmount = rawAmount * (1 - discount.percent / 100);
+                discountHtml = `<span class="tag" style="background:rgba(251,191,36,0.1); color:#fbbf24; font-size:0.6rem; padding:1px 6px; border:1px solid rgba(251,191,36,0.2);">-${discount.percent}% ${userPromo}</span>`;
+            }
+        }
 
         return `
             <div class="admin-item-card glass" style="flex-direction:row; align-items:center; gap:12px; padding:12px 15px; border:1px solid rgba(255,255,255,0.05); border-left:3px solid var(--accent-purple); animation: slideInUp 0.3s ease ${idx * 0.03}s both;">
@@ -315,11 +341,13 @@ const buildPaymentRows = (payments) => {
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <strong style="font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</strong>
                         <span class="tag" style="background:rgba(139,92,246,0.15); color:var(--accent-purple); font-size:0.65rem; padding:2px 8px;">${planName}</span>
+                        ${discountHtml}
                     </div>
                     <span style="font-size:0.7rem; color:var(--text-gray); opacity:0.7;">${email}</span>
                 </div>
                 <div style="text-align:right; flex-shrink:0;">
-                    <strong style="font-size:1rem; color:white; display:block;">${formatCurrency(amount)}</strong>
+                    <strong style="font-size:1rem; color:white; display:block;">${formatCurrency(finalAmount)}</strong>
+                    ${userPromo ? `<span style="font-size:0.6rem; color:var(--text-gray); text-decoration:line-through; opacity:0.5;">${formatCurrency(rawAmount)}</span>` : ''}
                     <span style="font-size:0.65rem; color:var(--text-gray);">${date}</span>
                 </div>
                 <div style="text-align:right; flex-shrink:0; min-width:90px;">

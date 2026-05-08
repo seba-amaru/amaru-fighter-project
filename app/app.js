@@ -934,6 +934,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Mark session handle as successful
             lastSessionHandleFailed = false;
             hideAuthLoadingScreen();
+            if (authLoadTimeoutId) { clearTimeout(authLoadTimeoutId); authLoadTimeoutId = null; }
 
             // Check membership status
             if (appState.role !== 'admin' && profile.membership_status !== 'active') {
