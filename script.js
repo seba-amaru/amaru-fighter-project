@@ -1,4 +1,4 @@
-import supabase from './src/supabase-config.js';
+import supabase from './app/supabase-config.js';
 import { createIcons, icons } from 'lucide';
 
 

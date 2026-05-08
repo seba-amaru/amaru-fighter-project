@@ -508,6 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let authInitialized = false;
     let currentUserId = null;
     let lastSessionHandleFailed = false;
+    let isHandlingSession = false;
 
     const showAuthLoadingScreen = (message = 'CARGANDO DATOS...', showRetry = false, errorDetail = '') => {
         // MOBILE FIX: Don't overwrite the auth-screen HTML — use an overlay instead.
@@ -759,300 +760,312 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleAuthSession = async (session) => {
         console.log('[Auth] handleAuthSession called. Session exists:', !!session, 'User exists:', !!session?.user);
 
-        // Always clear any existing loading overlay and safety timeout on fresh attempt
-        hideAuthLoadingScreen();
-        if (authLoadTimeoutId) { clearTimeout(authLoadTimeoutId); authLoadTimeoutId = null; }
-
-        const supabaseUser = session?.user;
-        let user = null;
-        if (supabaseUser) {
-            user = { ...supabaseUser, uid: supabaseUser.id, email: supabaseUser.email };
-        }
-
-        const authScreen = document.getElementById('auth-screen');
-        const appContainer = document.getElementById('app-container');
-
-        if (!user) {
-            console.log('[Auth] No user in session, showing auth screen');
-            authScreen.classList.remove('hidden');
-            triggerScreenAppear(authScreen);
-            appContainer.classList.add('hidden');
-            authInitialized = false;
-            currentUserId = null;
-            appState.user = null;
+        // CONCURRENCY GUARD: Prevent multiple simultaneous executions of handleAuthSession
+        // which can happen when onAuthStateChange and getSession() polling race.
+        if (isHandlingSession) {
+            console.log('[Auth] handleAuthSession already running, skipping concurrent call');
             return;
         }
-
-        // CRITICAL FIX v1.5.1: Only skip duplicate if we successfully loaded the profile before.
-        // If the previous attempt failed (timeout), we MUST allow retry.
-        if (currentUserId === user.uid && appState.user && !lastSessionHandleFailed) {
-            console.log('[Auth] Same user already logged in with successful profile load, skipping duplicate');
-            return;
-        }
-
-        // Reset failure flag for fresh attempt
-        lastSessionHandleFailed = true;
-        appState.user = user;
-        currentUserId = user.uid;
-        console.log('[Auth] User found:', user.email, '- starting profile load...');
-
-        // Show loading screen with timeout fail-safe
-        showAuthLoadingScreen('CARGANDO DATOS...');
-
-        // SAFETY FALLBACK: Force-hide overlay after 35s no matter what
-        authLoadTimeoutId = setTimeout(() => {
-            console.warn('[Auth] Safety timeout triggered — forcing overlay hide');
-            hideAuthLoadingScreen();
-            showToast('Carga completada (timeout de seguridad)', '#eab308');
-        }, 35000);
-        const loadStartTime = Date.now();
-        const LOAD_TIMEOUT = 15000; // 15 seconds max
-
-        let profile = null;
-        let loadError = null;
+        isHandlingSession = true;
 
         try {
-            // Step 1: Get profile with generous timeout (30s) and 1 retry
-            // Localhost/development connections to Supabase can be slow
-            profile = await withRetry(
-                () => withTimeout(SupabaseService.getProfile(user.uid), 30000, 'Perfil'),
-                { maxRetries: 1, delayMs: 2000, context: 'Cargar perfil' }
-            );
-
-            if (!profile) {
-                debugMsg("Profile not found in Supabase. Creating...");
-                await withRetry(
-                    () => withTimeout(SupabaseService.createProfile(user), 30000, 'Crear perfil'),
-                    { maxRetries: 1, delayMs: 2000, context: 'Crear perfil' }
-                );
-                profile = await withTimeout(SupabaseService.getProfile(user.uid), 30000, 'Perfil recién creado');
-            }
-
-            // Mercado Pago callback check
-            if (sessionStorage.getItem('mp_payment_success') === 'true') {
-                sessionStorage.removeItem('mp_payment_success');
-                try {
-                    const payments = await SupabaseService.getPayments(user.uid);
-                    const pendingPayment = payments.find(p => p.status === 'pending');
-                    if (pendingPayment) {
-                        await SupabaseService.updatePaymentStatus(pendingPayment.id, 'approved', 'mercadopago');
-                        showToast("Pago validado automáticamente ✨", "#22c55e");
-                        const expiry = new Date();
-                        expiry.setMonth(expiry.getMonth() + 1);
-                        await SupabaseService.updateProfile(user.uid, {
-                            membership_status: 'active',
-                            membership_expiry: expiry.toISOString().split('T')[0]
-                        });
-                        profile = await SupabaseService.getProfile(user.uid);
-                    }
-                } catch (err) {
-                    console.error("Error confirmando pago:", err);
-                }
-            }
-
-            // Update core state
-            appState.role = profile.role || 'athlete';
-            appState.isAdminMode = appState.role === 'admin';
-            appState.level = profile.level || 0;
-            appState.xp = profile.xp || 0;
-            appState.membershipLimit = profile.membership_limit || 2;
-            appState.membershipStatus = profile.membership_status || 'inactive';
-            appState.planTheme = profile.membership_plans?.theme || 'bronze';
-            appState.plan = profile.membership_plan_id;
-            appState.photoURL = profile.photo_url || '../images/icon-192.png';
-
-            // UI Updates - basic info
-            const greetingSpan = document.querySelector('.greeting');
-            if (greetingSpan) {
-                greetingSpan.textContent = `¡Hola, ${profile.full_name || user.displayName || 'Atleta'}!`;
-            }
-
-            const planNameEl = document.getElementById('profile-plan-name');
-            const planStatusEl = document.getElementById('profile-plan-status');
-            const planRemainingEl = document.getElementById('profile-plan-remaining');
-            const planProgressEl = document.getElementById('profile-plan-progress');
-
-            if (planNameEl) {
-                planNameEl.textContent = profile.membership_plans?.name || (profile.membership_status === 'active' ? 'PLAN ACTIVO' : 'SIN PLAN');
-                if (profile.membership_expiry) {
-                    const expiryDate = new Date(profile.membership_expiry);
-                    const today = new Date();
-                    if (expiryDate > today) {
-                        planStatusEl.textContent = 'ACTIVO';
-                        planStatusEl.style.background = '#22c55e';
-                        const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-                        planRemainingEl.textContent = `${diffDays} Días restantes`;
-                        const progress = Math.max(0, Math.min(100, ((30 - diffDays) / 30) * 100));
-                        if (planProgressEl) planProgressEl.style.width = `${progress}%`;
-                    } else {
-                        planStatusEl.textContent = 'INACTIVO';
-                        planStatusEl.style.background = '#ef4444';
-                        planRemainingEl.textContent = 'Renovación requerida';
-                    }
-                }
-            }
-
-            updateRankUI();
-
-            // Style selector
-            const styleSelect = document.getElementById('user-combat-style');
-            if (styleSelect) {
-                styleSelect.value = profile.combat_style || 'striker';
-                styleSelect.onchange = async (e) => {
-                    const newStyle = e.target.value;
-                    window.showLoading("Guardando estilo...");
-                    try {
-                        await SupabaseService.updateProfile(user.uid, { combat_style: newStyle });
-                        window.hideLoading();
-                        showToast("¡Estilo actualizado!", "#22c55e");
-                    } catch (err) {
-                        console.error(err);
-                        showToast("Error al guardar estilo", "#ef4444");
-                    }
-                };
-            }
-
-            // Final UI Config
-            const navAdmin = document.getElementById('nav-admin');
-            const athleteNavs = document.querySelectorAll('.nav-item:not(#nav-admin)');
-
-            if (appState.role === 'admin') {
-                athleteNavs.forEach(nav => nav.classList.remove('hidden'));
-            } else {
-                if (navAdmin) navAdmin.classList.add('hidden');
-            }
-
-            updateAdminUIVisibility();
-            renderDateCarousel();
-
-            // Admin Entry Point Listeners
-            const btnBackProfile = document.getElementById('btn-back-admin');
-            const btnBackDash = document.getElementById('btn-dashboard-back-admin');
-            if (btnBackProfile) btnBackProfile.onclick = () => setAdminMode(true);
-            if (btnBackDash) btnBackDash.onclick = () => setAdminMode(true);
-
-            // Mark session handle as successful
-            lastSessionHandleFailed = false;
+            // Always clear any existing loading overlay and safety timeout on fresh attempt
             hideAuthLoadingScreen();
             if (authLoadTimeoutId) { clearTimeout(authLoadTimeoutId); authLoadTimeoutId = null; }
 
-            // Check membership status
-            if (appState.role !== 'admin' && profile.membership_status !== 'active') {
+            const supabaseUser = session?.user;
+            let user = null;
+            if (supabaseUser) {
+                user = { ...supabaseUser, uid: supabaseUser.id, email: supabaseUser.email };
+            }
+
+            const authScreen = document.getElementById('auth-screen');
+            const appContainer = document.getElementById('app-container');
+
+            if (!user) {
+                console.log('[Auth] No user in session, showing auth screen');
+                authScreen.classList.remove('hidden');
+                triggerScreenAppear(authScreen);
                 appContainer.classList.add('hidden');
+                authInitialized = false;
+                currentUserId = null;
+                appState.user = null;
+                return;
+            }
 
-                const now = new Date();
-                const systemMonthYear = `${now.getMonth()}-${now.getFullYear()}`;
-                const savedMonthYear = profile.proRataMonthYear || "";
+            // CRITICAL FIX v1.5.1: Only skip duplicate if we successfully loaded the profile before.
+            // If the previous attempt failed (timeout), we MUST allow retry.
+            if (currentUserId === user.uid && appState.user && !lastSessionHandleFailed) {
+                console.log('[Auth] Same user already logged in with successful profile load, skipping duplicate');
+                return;
+            }
 
-                if (profile.proRataPreference && savedMonthYear === systemMonthYear) {
-                    appState.proRataPreference = profile.proRataPreference;
-                } else if (profile.proRataPreference) {
-                    debugMsg("Pro-rata preference from previous month reset.");
-                    appState.proRataPreference = null;
-                    if (typeof db !== 'undefined' && db.collection) {
-                        db.collection('users').doc(user.uid).set({
-                            proRataPreference: null,
-                            proRataMonthYear: null,
-                            proRataSelectionDate: null,
-                            proRataExpiredInMonth: true
-                        }, { merge: true }).catch(e => console.error("Error resetting data:", e));
+            // Reset failure flag for fresh attempt
+            lastSessionHandleFailed = true;
+            appState.user = user;
+            currentUserId = user.uid;
+            console.log('[Auth] User found:', user.email, '- starting profile load...');
+
+            // Show loading screen with timeout fail-safe
+            showAuthLoadingScreen('CARGANDO DATOS...');
+
+            // SAFETY FALLBACK: Force-hide overlay after 40s no matter what
+            authLoadTimeoutId = setTimeout(() => {
+                console.warn('[Auth] Safety timeout triggered — forcing overlay hide');
+                hideAuthLoadingScreen();
+                showToast('Carga completada (timeout de seguridad)', '#eab308');
+            }, 40000);
+            const loadStartTime = Date.now();
+            const LOAD_TIMEOUT = 15000; // 15 seconds max
+
+            let profile = null;
+            let loadError = null;
+
+            try {
+                // Step 1: Get profile with timeout (10s) and 2 retries.
+                // Reduced from 30s to detect GoTrueClient deadlock / network issues faster.
+                profile = await withRetry(
+                    () => withTimeout(SupabaseService.getProfile(user.uid), 10000, 'Perfil'),
+                    { maxRetries: 2, delayMs: 1500, context: 'Cargar perfil' }
+                );
+
+                if (!profile) {
+                    debugMsg("Profile not found in Supabase. Creating...");
+                    await withRetry(
+                        () => withTimeout(SupabaseService.createProfile(user), 10000, 'Crear perfil'),
+                        { maxRetries: 2, delayMs: 1500, context: 'Crear perfil' }
+                    );
+                    profile = await withTimeout(SupabaseService.getProfile(user.uid), 10000, 'Perfil recién creado');
+                }
+
+                // Mercado Pago callback check
+                if (sessionStorage.getItem('mp_payment_success') === 'true') {
+                    sessionStorage.removeItem('mp_payment_success');
+                    try {
+                        const payments = await SupabaseService.getPayments(user.uid);
+                        const pendingPayment = payments.find(p => p.status === 'pending');
+                        if (pendingPayment) {
+                            await SupabaseService.updatePaymentStatus(pendingPayment.id, 'approved', 'mercadopago');
+                            showToast("Pago validado automáticamente ✨", "#22c55e");
+                            const expiry = new Date();
+                            expiry.setMonth(expiry.getMonth() + 1);
+                            await SupabaseService.updateProfile(user.uid, {
+                                membership_status: 'active',
+                                membership_expiry: expiry.toISOString().split('T')[0]
+                            });
+                            profile = await SupabaseService.getProfile(user.uid);
+                        }
+                    } catch (err) {
+                        console.error("Error confirmando pago:", err);
                     }
                 }
 
-                if (profile.proRataExpiredInMonth) {
-                    showToast("⚠️ Tu opción proporcional anterior expiró al terminar el mes. Se ha restablecido a pago de mes completo.", "#8b5cf6");
-                    window.supabase.from('profiles').update({ pro_rata_expired_in_month: null }).eq('id', user.uid).catch(e => console.error("Error clearing expiration flag:", e));
+                // Update core state
+                appState.role = profile.role || 'athlete';
+                appState.isAdminMode = appState.role === 'admin';
+                appState.level = profile.level || 0;
+                appState.xp = profile.xp || 0;
+                appState.membershipLimit = profile.membership_limit || 2;
+                appState.membershipStatus = profile.membership_status || 'inactive';
+                appState.planTheme = profile.membership_plans?.theme || 'bronze';
+                appState.plan = profile.membership_plan_id;
+                appState.photoURL = profile.photo_url || '../images/icon-192.png';
+
+                // UI Updates - basic info
+                const greetingSpan = document.querySelector('.greeting');
+                if (greetingSpan) {
+                    greetingSpan.textContent = `¡Hola, ${profile.full_name || user.displayName || 'Atleta'}!`;
                 }
 
-                renderMembershipPlans();
+                const planNameEl = document.getElementById('profile-plan-name');
+                const planStatusEl = document.getElementById('profile-plan-status');
+                const planRemainingEl = document.getElementById('profile-plan-remaining');
+                const planProgressEl = document.getElementById('profile-plan-progress');
 
-                const systemDay = now.getDate();
-                if (!appState.proRataPreference && systemDay >= 15) {
-                    const prScreen = document.getElementById('pro-rata-info-screen');
-                    const msScreen = document.getElementById('membership-selection-screen');
-                    if (prScreen) { prScreen.classList.remove('hidden'); triggerScreenAppear(prScreen); }
-                    if (msScreen) msScreen.classList.add('hidden');
+                if (planNameEl) {
+                    planNameEl.textContent = profile.membership_plans?.name || (profile.membership_status === 'active' ? 'PLAN ACTIVO' : 'SIN PLAN');
+                    if (profile.membership_expiry) {
+                        const expiryDate = new Date(profile.membership_expiry);
+                        const today = new Date();
+                        if (expiryDate > today) {
+                            planStatusEl.textContent = 'ACTIVO';
+                            planStatusEl.style.background = '#22c55e';
+                            const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                            planRemainingEl.textContent = `${diffDays} Días restantes`;
+                            const progress = Math.max(0, Math.min(100, ((30 - diffDays) / 30) * 100));
+                            if (planProgressEl) planProgressEl.style.width = `${progress}%`;
+                        } else {
+                            planStatusEl.textContent = 'INACTIVO';
+                            planStatusEl.style.background = '#ef4444';
+                            planRemainingEl.textContent = 'Renovación requerida';
+                        }
+                    }
+                }
 
-                    const updateDbPreference = async (pref) => {
+                updateRankUI();
+
+                // Style selector
+                const styleSelect = document.getElementById('user-combat-style');
+                if (styleSelect) {
+                    styleSelect.value = profile.combat_style || 'striker';
+                    styleSelect.onchange = async (e) => {
+                        const newStyle = e.target.value;
+                        window.showLoading("Guardando estilo...");
                         try {
-                            appState.proRataPreference = pref;
-                            if (typeof db !== 'undefined' && db.collection) {
-                                await db.collection('users').doc(user.uid).set({
-                                    proRataPreference: pref,
-                                    proRataMonthYear: systemMonthYear,
-                                    proRataSelectionDate: now.toISOString()
-                                }, { merge: true });
-                            }
-                            renderMembershipPlans();
-                            if (prScreen) prScreen.classList.add('hidden');
-                            if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
-                        } catch (e) {
-                            console.error("Error saving preference:", e);
-                            showToast("Error al guardar preferencia", "#ef4444");
+                            await SupabaseService.updateProfile(user.uid, { combat_style: newStyle });
+                            window.hideLoading();
+                            showToast("¡Estilo actualizado!", "#22c55e");
+                        } catch (err) {
+                            console.error(err);
+                            showToast("Error al guardar estilo", "#ef4444");
                         }
                     };
-
-                    document.getElementById('btn-option-proportional').onclick = () => updateDbPreference('proportional');
-                    document.getElementById('btn-option-full').onclick = () => updateDbPreference('full');
-                } else {
-                    document.getElementById('pro-rata-info-screen').classList.add('hidden');
-                    const msScreen = document.getElementById('membership-selection-screen');
-                    if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
                 }
-            } else {
-                // SHOW APP IMMEDIATELY
-                authScreen.classList.add('hidden');
-                appContainer.classList.remove('hidden');
 
-                if (window.location.hash === '#payments') {
-                    switchScreen('profile');
-                    document.getElementById('payment-modal')?.classList.add('active');
+                // Final UI Config
+                const navAdmin = document.getElementById('nav-admin');
+                const athleteNavs = document.querySelectorAll('.nav-item:not(#nav-admin)');
+
+                if (appState.role === 'admin') {
+                    athleteNavs.forEach(nav => nav.classList.remove('hidden'));
                 } else {
-                    const targetScreen = appState.isAdminMode ? 'admin-panel' : 'dashboard';
-                    switchScreen(targetScreen);
+                    if (navAdmin) navAdmin.classList.add('hidden');
+                }
 
-                    if (appState.isAdminMode) {
-                        const area = document.getElementById('admin-content-area');
-                        if (area) {
-                            area.innerHTML = `<div class="p-20 text-center glass" style="border-radius: 12px; margin-top: 20px;">
+                updateAdminUIVisibility();
+                renderDateCarousel();
+
+                // Admin Entry Point Listeners
+                const btnBackProfile = document.getElementById('btn-back-admin');
+                const btnBackDash = document.getElementById('btn-dashboard-back-admin');
+                if (btnBackProfile) btnBackProfile.onclick = () => setAdminMode(true);
+                if (btnBackDash) btnBackDash.onclick = () => setAdminMode(true);
+
+                // Mark session handle as successful
+                lastSessionHandleFailed = false;
+                hideAuthLoadingScreen();
+                if (authLoadTimeoutId) { clearTimeout(authLoadTimeoutId); authLoadTimeoutId = null; }
+
+                // Check membership status
+                if (appState.role !== 'admin' && profile.membership_status !== 'active') {
+                    appContainer.classList.add('hidden');
+
+                    const now = new Date();
+                    const systemMonthYear = `${now.getMonth()}-${now.getFullYear()}`;
+                    const savedMonthYear = profile.proRataMonthYear || "";
+
+                    if (profile.proRataPreference && savedMonthYear === systemMonthYear) {
+                        appState.proRataPreference = profile.proRataPreference;
+                    } else if (profile.proRataPreference) {
+                        debugMsg("Pro-rata preference from previous month reset.");
+                        appState.proRataPreference = null;
+                        if (typeof db !== 'undefined' && db.collection) {
+                            db.collection('users').doc(user.uid).set({
+                                proRataPreference: null,
+                                proRataMonthYear: null,
+                                proRataSelectionDate: null,
+                                proRataExpiredInMonth: true
+                            }, { merge: true }).catch(e => console.error("Error resetting data:", e));
+                        }
+                    }
+
+                    if (profile.proRataExpiredInMonth) {
+                        showToast("⚠️ Tu opción proporcional anterior expiró al terminar el mes. Se ha restablecido a pago de mes completo.", "#8b5cf6");
+                        window.supabase.from('profiles').update({ pro_rata_expired_in_month: null }).eq('id', user.uid).catch(e => console.error("Error clearing expiration flag:", e));
+                    }
+
+                    renderMembershipPlans();
+
+                    const systemDay = now.getDate();
+                    if (!appState.proRataPreference && systemDay >= 15) {
+                        const prScreen = document.getElementById('pro-rata-info-screen');
+                        const msScreen = document.getElementById('membership-selection-screen');
+                        if (prScreen) { prScreen.classList.remove('hidden'); triggerScreenAppear(prScreen); }
+                        if (msScreen) msScreen.classList.add('hidden');
+
+                        const updateDbPreference = async (pref) => {
+                            try {
+                                appState.proRataPreference = pref;
+                                if (typeof db !== 'undefined' && db.collection) {
+                                    await db.collection('users').doc(user.uid).set({
+                                        proRataPreference: pref,
+                                        proRataMonthYear: systemMonthYear,
+                                        proRataSelectionDate: now.toISOString()
+                                    }, { merge: true });
+                                }
+                                renderMembershipPlans();
+                                if (prScreen) prScreen.classList.add('hidden');
+                                if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
+                            } catch (e) {
+                                console.error("Error saving preference:", e);
+                                showToast("Error al guardar preferencia", "#ef4444");
+                            }
+                        };
+
+                        document.getElementById('btn-option-proportional').onclick = () => updateDbPreference('proportional');
+                        document.getElementById('btn-option-full').onclick = () => updateDbPreference('full');
+                    } else {
+                        document.getElementById('pro-rata-info-screen').classList.add('hidden');
+                        const msScreen = document.getElementById('membership-selection-screen');
+                        if (msScreen) { msScreen.classList.remove('hidden'); triggerScreenAppear(msScreen); }
+                    }
+                } else {
+                    // SHOW APP IMMEDIATELY
+                    authScreen.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+
+                    if (window.location.hash === '#payments') {
+                        switchScreen('profile');
+                        document.getElementById('payment-modal')?.classList.add('active');
+                    } else {
+                        const targetScreen = appState.isAdminMode ? 'admin-panel' : 'dashboard';
+                        switchScreen(targetScreen);
+
+                        if (appState.isAdminMode) {
+                            const area = document.getElementById('admin-content-area');
+                            if (area) {
+                                area.innerHTML = `<div class="p-20 text-center glass" style="border-radius: 12px; margin-top: 20px;">
                                 <i data-lucide="shield-check" style="width: 48px; height: 48px; color: var(--accent-purple); margin-bottom: 10px;"></i>
                                 <h3>Panel de Control</h3>
                                 <p style="color: var(--text-gray); font-size: 0.9rem;">Selecciona una opción del menú superior para comenzar.</p>
                             </div>`;
-                            if (window.lucide) window.lucide.createIcons();
+                                if (window.lucide) window.lucide.createIcons();
+                            }
                         }
                     }
+
+                    // Load heavy data in background AFTER UI is visible
+                    loadUserDataInBackground(user, profile);
+
+                    // Messaging init (non-blocking)
+                    initMessaging(user.uid).catch(() => { });
                 }
 
-                // Load heavy data in background AFTER UI is visible
-                loadUserDataInBackground(user, profile);
-
-                // Messaging init (non-blocking)
-                initMessaging(user.uid).catch(() => { });
+            } catch (err) {
+                loadError = err;
+                console.error("[Auth] Critical error during login:", err);
+                const isNetErr = isNetworkError(err);
+                showAuthLoadingScreen(
+                    'Error al cargar',
+                    true,
+                    isNetErr ? 'Parece que hay un problema de conexión. Verifica tu red e intenta de nuevo.' : (err.message || 'Error desconocido al iniciar sesión.')
+                );
+                return; // Don't proceed - wait for retry
             }
 
-        } catch (err) {
-            loadError = err;
-            console.error("[Auth] Critical error during login:", err);
-            const isNetErr = isNetworkError(err);
-            showAuthLoadingScreen(
-                'Error al cargar',
-                true,
-                isNetErr ? 'Parece que hay un problema de conexión. Verifica tu red e intenta de nuevo.' : (err.message || 'Error desconocido al iniciar sesión.')
-            );
-            return; // Don't proceed - wait for retry
+            // Final UI updates
+            const profileName = document.getElementById('profile-user-name');
+            const navUserName = document.getElementById('nav-user-name');
+            const displayName = user.displayName || (appState.role === 'admin' ? 'Administrador' : 'Atleta');
+
+            if (profileName) profileName.innerText = displayName;
+            if (navUserName) navUserName.innerText = displayName;
+
+            const avatarImg = document.getElementById('profile-avatar');
+            if (avatarImg) avatarImg.src = appState.photoURL || '../images/icon-192.png';
+        } finally {
+            isHandlingSession = false;
         }
-
-        // Final UI updates
-        const profileName = document.getElementById('profile-user-name');
-        const navUserName = document.getElementById('nav-user-name');
-        const displayName = user.displayName || (appState.role === 'admin' ? 'Administrador' : 'Atleta');
-
-        if (profileName) profileName.innerText = displayName;
-        if (navUserName) navUserName.innerText = displayName;
-
-        const avatarImg = document.getElementById('profile-avatar');
-        if (avatarImg) avatarImg.src = appState.photoURL || '../images/icon-192.png';
     };
 
     window.supabase.auth.onAuthStateChange(async (event, session) => {
