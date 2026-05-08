@@ -509,33 +509,73 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUserId = null;
 
     const showAuthLoadingScreen = (message = 'CARGANDO DATOS...', showRetry = false, errorDetail = '') => {
-        const authScreen = document.getElementById('auth-screen');
-        if (!authScreen) return;
-        authScreen.innerHTML = `
-            <div id="auth-loading-container" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-dark, #0d0d12); padding: 20px;">
-                <div style="width: 220px; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 25px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
-                    <div id="auth-load-bar" style="height: 100%; background: linear-gradient(90deg, var(--accent-cyan, #00f0ff), var(--neon-blue, #0055ff)); border-radius: 10px; animation: cyberLoad 1.5s infinite ease-in-out alternate; width: 60%; box-shadow: 0 0 10px var(--accent-cyan, #00f0ff);"></div>
+        // MOBILE FIX: Don't overwrite the auth-screen HTML — use an overlay instead.
+        // This allows the user to interact with the login form if loading hangs.
+        let overlay = document.getElementById('auth-loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'auth-loading-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; z-index: 9999;
+                background: rgba(13,13,18,0.95); backdrop-filter: blur(20px);
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                padding: 20px; transition: opacity 0.4s ease;
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        overlay.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; max-width: 320px; width: 100%;">
+                <div style="width: 60px; height: 60px; border-radius: 20px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; animation: pulseIcon 2s infinite;">
+                    <i data-lucide="loader-2" style="width: 28px; color: var(--accent-purple); animation: spin 1s linear infinite;"></i>
                 </div>
-                <p id="auth-load-text" style="color: rgba(255,255,255,0.8); font-size: 0.85rem; font-weight: 600; letter-spacing: 2px; animation: pulseText 1.5s infinite alternate; font-family: 'Inter', sans-serif; text-align: center;">${message}</p>
-                ${errorDetail ? `<p style="color: #ef4444; font-size: 0.75rem; margin-top: 10px; text-align: center; max-width: 300px; opacity: 0.8;">${errorDetail}</p>` : ''}
-                ${showRetry ? `<button id="btn-auth-retry" style="margin-top: 20px; padding: 10px 24px; background: rgba(139,92,246,0.2); border: 1px solid var(--accent-purple); color: white; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 0.8rem; transition: all 0.3s;">🔄 Reintentar</button>` : ''}
+                <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; font-weight: 700; letter-spacing: 1px; text-align: center; margin-bottom: 8px;">${message}</p>
+                ${errorDetail ? `<p style="color: #ef4444; font-size: 0.75rem; text-align: center; opacity: 0.8; margin-bottom: 12px;">${errorDetail}</p>` : ''}
+                <div style="width: 200px; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 20px;">
+                    <div style="height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); border-radius: 10px; animation: loadBar 1.5s infinite ease-in-out; width: 60%;"></div>
+                </div>
+                ${showRetry ? `<button id="btn-auth-retry" style="padding: 10px 24px; background: rgba(139,92,246,0.2); border: 1px solid var(--accent-purple); color: white; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 0.8rem; transition: all 0.3s; margin-bottom: 10px;">🔄 Reintentar</button>` : ''}
+                <button id="btn-auth-skip" style="padding: 8px 20px; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-gray); border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.7rem; transition: all 0.3s;">Saltar carga →</button>
                 <style>
-                @keyframes cyberLoad { 0% { transform: translateX(-100%); } 100% { transform: translateX(150%); } }
-                @keyframes pulseText { 0% { opacity: 0.4; } 100% { opacity: 1; } }
+                @keyframes loadBar { 0% { transform: translateX(-100%); } 100% { transform: translateX(150%); } }
+                @keyframes pulseIcon { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 </style>
             </div>`;
+
+        overlay.style.opacity = '1';
+        overlay.style.pointerEvents = 'auto';
 
         const retryBtn = document.getElementById('btn-auth-retry');
         if (retryBtn) {
             retryBtn.onmouseover = () => { retryBtn.style.background = 'var(--accent-purple)'; };
             retryBtn.onmouseout = () => { retryBtn.style.background = 'rgba(139,92,246,0.2)'; };
             retryBtn.onclick = () => {
-                authScreen.innerHTML = '';
-                // Force re-trigger by reloading auth state
                 window.supabase.auth.getSession().then(({ data }) => {
                     handleAuthSession(data.session);
                 });
             };
+        }
+
+        const skipBtn = document.getElementById('btn-auth-skip');
+        if (skipBtn) {
+            skipBtn.onmouseover = () => { skipBtn.style.borderColor = 'rgba(255,255,255,0.3)'; skipBtn.style.color = 'white'; };
+            skipBtn.onmouseout = () => { skipBtn.style.borderColor = 'rgba(255,255,255,0.1)'; skipBtn.style.color = 'var(--text-gray)'; };
+            skipBtn.onclick = () => {
+                hideAuthLoadingScreen();
+                showToast("Carga omitida. Algunos datos pueden no estar disponibles.", "#eab308");
+            };
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+    };
+
+    const hideAuthLoadingScreen = () => {
+        const overlay = document.getElementById('auth-loading-overlay');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+            setTimeout(() => { overlay.remove(); }, 400);
         }
     };
 
