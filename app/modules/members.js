@@ -784,6 +784,25 @@ const renderComunicacionesView = (container) => {
                     <option value="class_cancel">🚫 Clase cancelada</option>
                 </select>
                 <textarea id="comm-message" rows="6" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:12px; border-radius:8px; font-size:0.85rem; outline:none; resize:vertical;" placeholder="Escribe tu mensaje aquí..."></textarea>
+
+                <div style="margin-top:12px; margin-bottom:8px;">
+                    <label style="font-size:0.75rem; font-weight:700; color:var(--text-gray); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px;">Canal de envío</label>
+                    <div style="display:flex; gap:8px;">
+                        <label style="flex:1; display:flex; align-items:center; gap:6px; padding:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; cursor:pointer; font-size:0.8rem;" onclick="this.querySelector('input').checked=true; document.querySelectorAll('.channel-label').forEach(l=>l.style.borderColor='rgba(255,255,255,0.08)'); this.style.borderColor='var(--accent-purple)';">
+                            <input type="radio" name="comm-channel" value="inapp" checked style="accent-color:var(--accent-purple);">
+                            <span>📱 In-App</span>
+                        </label>
+                        <label style="flex:1; display:flex; align-items:center; gap:6px; padding:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; cursor:pointer; font-size:0.8rem;" onclick="this.querySelector('input').checked=true; document.querySelectorAll('.channel-label').forEach(l=>l.style.borderColor='rgba(255,255,255,0.08)'); this.style.borderColor='var(--accent-purple)';">
+                            <input type="radio" name="comm-channel" value="email" style="accent-color:var(--accent-purple);">
+                            <span>✉️ Email</span>
+                        </label>
+                        <label style="flex:1; display:flex; align-items:center; gap:6px; padding:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; cursor:pointer; font-size:0.8rem;" onclick="this.querySelector('input').checked=true; document.querySelectorAll('.channel-label').forEach(l=>l.style.borderColor='rgba(255,255,255,0.08)'); this.style.borderColor='var(--accent-purple)';">
+                            <input type="radio" name="comm-channel" value="both" style="accent-color:var(--accent-purple);">
+                            <span>🔄 Ambos</span>
+                        </label>
+                    </div>
+                </div>
+
                 <button id="btn-send-comm" class="btn-primary w-full mt-10" style="padding:12px;">
                     <i data-lucide="send" style="width:16px; vertical-align:middle; margin-right:6px;"></i> Enviar a ${filtered.length} socios
                 </button>
@@ -847,23 +866,65 @@ const renderComunicacionesView = (container) => {
                 window.showToast('Escribe un mensaje antes de enviar', '#ef4444');
                 return;
             }
+            const channel = container.querySelector('input[name="comm-channel"]:checked')?.value || 'inapp';
             const title = templateSelect?.value
                 ? templateSelect.options[templateSelect.selectedIndex].text
                 : 'Mensaje del equipo Amaru';
+
+            const emails = [];
+            const hasEmailChannel = channel === 'email' || channel === 'both';
+
+            // Preparar emails
+            if (hasEmailChannel) {
+                filtered.forEach(user => {
+                    if (user.email && user.email.includes('@')) emails.push(user.email);
+                });
+            }
+
             try {
-                window.showToast(`Enviando a ${filtered.length} socios...`, '#f59e0b');
-                let sent = 0;
-                for (const user of filtered) {
-                    const personalized = msg.replace(/{nombre}/g, user.full_name || 'Atleta');
-                    await window.SupabaseService.sendUserNotification(
-                        user.id,
-                        title,
-                        personalized,
-                        'mass'
-                    );
-                    sent++;
+                window.showToast(`Enviando a ${filtered.length} socios vía ${channel}...`, '#f59e0b');
+                let sentInApp = 0;
+                let sentEmail = 0;
+
+                // In-App
+                if (channel === 'inapp' || channel === 'both') {
+                    for (const user of filtered) {
+                        const personalized = msg.replace(/{nombre}/g, user.full_name || 'Atleta');
+                        try {
+                            await window.SupabaseService.sendUserNotification(
+                                user.id, title, personalized, 'mass'
+                            );
+                            sentInApp++;
+                        } catch (e) {
+                            console.warn(`[Comunicaciones] Fallo In-App para ${user.id}:`, e.message);
+                        }
+                    }
                 }
-                window.showToast(`${sent} notificaciones enviadas ✅`, '#22c55e');
+
+                // Email
+                if (hasEmailChannel && emails.length > 0) {
+                    try {
+                        const result = await window.SupabaseService.sendBulkEmail(
+                            emails, title, msg.replace(/{nombre}/g, 'Atleta'), null
+                        );
+                        sentEmail = result?.totalSent || 0;
+                        if (result?.totalFailed > 0) {
+                            console.warn('[Comunicaciones] Emails fallados:', result.failed);
+                        }
+                    } catch (emailErr) {
+                        console.error('[Comunicaciones] Error enviando emails:', emailErr);
+                    }
+                }
+
+                let statusMsg = '';
+                if (channel === 'both') {
+                    statusMsg = `${sentInApp} In-App + ${sentEmail} Email ✅`;
+                } else if (channel === 'email') {
+                    statusMsg = `${sentEmail} emails enviados ✅`;
+                } else {
+                    statusMsg = `${sentInApp} notificaciones enviadas ✅`;
+                }
+                window.showToast(statusMsg, '#22c55e');
                 messageArea.value = '';
             } catch (err) {
                 console.error('[Comunicaciones] Error enviando:', err);

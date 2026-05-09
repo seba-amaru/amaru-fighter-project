@@ -356,16 +356,29 @@ export const openMemberModal = async (id = null, users = []) => {
                 document.getElementById('btn-mem-renew').onclick = () => quickRenewMember(user.id);
                 document.getElementById('btn-mem-freeze').onclick = () => toggleFreezeMember(user.id, !user.is_frozen);
                 document.getElementById('btn-mem-message').onclick = async () => {
+                    const channel = prompt(`Enviar mensaje a ${user.full_name}\n\nElige canal:\n1 = 📱 In-App\n2 = ✉️ Email\n3 = 🔄 Ambos`);
+                    if (!channel) return;
+                    const choice = channel.trim();
+                    const sendInApp = choice === '1' || choice === '3';
+                    const sendEmail = choice === '2' || choice === '3';
+                    if (!sendInApp && !sendEmail) {
+                        window.showToast('Opción inválida. Usa 1, 2 o 3.', '#ef4444');
+                        return;
+                    }
                     const msg = prompt(`Mensaje para ${user.full_name}:`);
                     if (!msg) return;
                     try {
                         window.showToast(`Enviando mensaje...`, "#f59e0b");
-                        await window.SupabaseService.sendUserNotification(
-                            user.id,
-                            'Mensaje directo del equipo Amaru',
-                            msg,
-                            'direct'
-                        );
+                        if (sendInApp) {
+                            await window.SupabaseService.sendUserNotification(
+                                user.id, 'Mensaje directo del equipo Amaru', msg, 'direct'
+                            );
+                        }
+                        if (sendEmail && user.email && user.email.includes('@')) {
+                            await window.SupabaseService.sendBulkEmail(
+                                [user.email], 'Mensaje de Amaru', msg, null
+                            );
+                        }
                         window.showToast(`Mensaje enviado a ${user.full_name} ✅`, "#22c55e");
                     } catch (err) {
                         console.error('[adminModals] Error enviando mensaje:', err);

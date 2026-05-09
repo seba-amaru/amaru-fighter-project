@@ -21,7 +21,6 @@ export const SupabaseService = {
                 .update({ id: user.uid })
                 .eq('id', existing.id);
             if (updateError) throw updateError;
-            // Return early as the existing profile is now bound to the new ID
             return this.getProfile(user.uid);
         }
 
@@ -40,14 +39,8 @@ export const SupabaseService = {
         return data;
     },
 
-    /**
-     * Fetches a profile by User ID, including their current membership plan.
-     * @param {string} uid - The unique user identifier.
-     * @returns {Promise<Object|null>} The profile data or null if not found.
-     */
     async getProfile(uid) {
         try {
-
             const { data, error } = await window.supabase
                 .from('profiles')
                 .select('*')
@@ -174,10 +167,6 @@ export const SupabaseService = {
         return data;
     },
 
-    /**
-     * Fetches all scheduled classes ordered by time.
-     * @returns {Promise<Array>} List of classes.
-     */
     async getClasses() {
         const { data, error } = await window.supabase
             .from('classes')
@@ -200,10 +189,6 @@ export const SupabaseService = {
         return data;
     },
 
-    /**
-     * Fetches all active membership plans.
-     * @returns {Promise<Array>} List of membership plans.
-     */
     async getPlans() {
         const { data, error } = await window.supabase
             .from('membership_plans')
@@ -312,14 +297,6 @@ export const SupabaseService = {
         return data;
     },
 
-    /**
-     * Creates a new class reservation for a user.
-     * @param {string} uid - The user's ID.
-     * @param {string} classId - The class identifier.
-     * @param {string} className - The name of the class.
-     * @param {string} date - The date of the reservation (YYYY-MM-DD).
-     * @returns {Promise<Object>} The reservation result.
-     */
     async createReservation(uid, classId, className, date) {
         const { data, error } = await window.supabase
             .from('reservations')
@@ -478,5 +455,19 @@ export const SupabaseService = {
             .eq('id', id);
         if (error) throw error;
         return true;
+    },
+
+    // --- EMAIL (Resend via Edge Function) ---
+    async sendBulkEmail(emails, subject, text, html) {
+        const { data, error } = await window.supabase.functions.invoke('send-email', {
+            body: {
+                to: emails,
+                subject,
+                text,
+                html: html || text.replace(/\n/g, '<br>')
+            }
+        });
+        if (error) throw error;
+        return data;
     }
 };
