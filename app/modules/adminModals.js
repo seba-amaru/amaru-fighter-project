@@ -5,6 +5,11 @@ import { renderAdminClasses, renderAdminPlans } from './admin.js';
 import { renderAdminMembers } from './members.js';
 import { renderAdminPayments } from './payments.js';
 
+const formatCurrency = (n) => {
+    if (n === undefined || n === null) return '$0';
+    return '$' + Math.round(n).toLocaleString('es-CL');
+};
+
 window.currentEditingMemberId = null;
 
 // --- Global Modal Close Utility ---
@@ -544,6 +549,26 @@ const quickRenewMember = async (uid) => {
             membership_status: 'active',
             is_frozen: false
         }).eq('id', uid);
+
+        // Auto-register payment for renewal
+        const plan = (window.appState.plans || []).find(p => p.id === user.membership_plan_id);
+        const amount = plan?.price || plan?.monthly || 0;
+        if (amount > 0) {
+            const now = new Date();
+            const monthName = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][now.getMonth()];
+            const { error: payErr } = await window.supabase.from('payments').insert({
+                user_id: uid,
+                amount,
+                concept: `Renovación ${plan?.name || 'Membresía'}`,
+                status: 'approved',
+                payment_method: 'efectivo',
+                coverage_month: `${monthName} ${now.getFullYear()}`,
+                created_at: new Date().toISOString()
+            });
+            if (payErr) console.warn('[AdminModals] Renewal payment insert failed:', payErr);
+            else window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+        }
+
         window.showToast('Plan renovado exitosamente ✅', '#22c55e');
         const updatedUsers = await window.supabase.from('profiles').select('*');
         if (updatedUsers.data) openMemberModal(uid, updatedUsers.data);
@@ -805,7 +830,35 @@ export const initModals = () => {
 
             try {
                 if (window.currentEditingMemberId) {
+                    // Get previous state to detect activation without payment
+                    const prevUser = currentEditingUsers.find(u => u.id === window.currentEditingMemberId);
+                    const wasInactive = !prevUser || prevUser.membership_status !== 'active';
+                    const nowActive = memberData.membership_status === 'active';
+                    const nowHasPlan = !!memberData.membership_plan_id;
+
                     await SupabaseService.updateProfile(window.currentEditingMemberId, memberData);
+
+                    // Auto-register payment if user became active with a plan
+                    if (wasInactive && nowActive && nowHasPlan) {
+                        const plan = (window.appState.plans || []).find(p => p.id === memberData.membership_plan_id);
+                        const amount = plan?.price || plan?.monthly || 0;
+                        if (amount > 0) {
+                            const now = new Date();
+                            const monthName = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][now.getMonth()];
+                            const { error: payErr } = await window.supabase.from('payments').insert({
+                                user_id: window.currentEditingMemberId,
+                                amount,
+                                concept: plan?.name || 'Membresía',
+                                status: 'approved',
+                                payment_method: 'efectivo',
+                                coverage_month: `${monthName} ${now.getFullYear()}`,
+                                created_at: new Date().toISOString()
+                            });
+                            if (payErr) console.warn('[AdminModals] Auto-payment insert failed:', payErr);
+                            else window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+                        }
+                    }
+
                     window.showToast("Datos de socio actualizados ✅", "#22c55e");
                 } else {
                     window.showToast("Creando nuevo socio... 🥋", "#8b5cf6");
@@ -837,6 +890,28 @@ export const initModals = () => {
                     if (!funcData || !funcData.success) {
                         throw new Error(funcData?.error || 'Error al crear socio via Edge Function');
                     }
+
+                    // Auto-register payment for new active members with a plan
+                    if (funcData.userId && statusVal === 'active' && planId) {
+                        const plan = (window.appState.plans || []).find(p => p.id === planId);
+                        const amount = plan?.price || plan?.monthly || 0;
+                        if (amount > 0) {
+                            const now = new Date();
+                            const monthName = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][now.getMonth()];
+                            const { error: payErr } = await window.supabase.from('payments').insert({
+                                user_id: funcData.userId,
+                                amount,
+                                concept: plan?.name || 'Membresía',
+                                status: 'approved',
+                                payment_method: 'efectivo',
+                                coverage_month: `${monthName} ${now.getFullYear()}`,
+                                created_at: new Date().toISOString()
+                            });
+                            if (payErr) console.warn('[AdminModals] Auto-payment insert failed:', payErr);
+                            else window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+                        }
+                    }
+
                     window.showToast("Socio creado exitosamente ✅", "#22c55e");
                 }
                 document.getElementById('member-modal').classList.remove('active');
