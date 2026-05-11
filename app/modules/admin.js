@@ -1,5 +1,8 @@
 import { exportToFormat, exportUserData } from '../utils/exportUtils.js';
 import unknowAvatar from '../images/unknow.png';
+
+/* global Chart */
+
 const Swal = window.Swal;
 let coverageMonthStr = '';
 
@@ -569,9 +572,9 @@ export const renderAdminPlans = async () => {
                 <div style="width:100px; height:32px; background:rgba(255,255,255,0.08); border-radius:8px; animation:skeletonPulse 1.5s infinite;"></div>
             </div>
             <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
-                <div style="height:180px; background:rgba(255,255,255,0.04); border-radius:16px; animation:skeletonPulse 1.5s infinite;"></div>
-                <div style="height:180px; background:rgba(255,255,255,0.04); border-radius:16px; animation:skeletonPulse 1.5s infinite;"></div>
-                <div style="height:180px; background:rgba(255,255,255,0.04); border-radius:16px; animation:skeletonPulse 1.5s infinite;"></div>
+                <div style="height:220px; background:rgba(255,255,255,0.04); border-radius:16px; animation:skeletonPulse 1.5s infinite;"></div>
+                <div style="height:220px; background:rgba(255,255,255,0.04); border-radius:16px; animation:skeletonPulse 1.5s infinite;"></div>
+                <div style="height:220px; background:rgba(255,255,255,0.04); border-radius:16px; animation:skeletonPulse 1.5s infinite;"></div>
             </div>
             <style>@keyframes skeletonPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }</style>
         </div>`;
@@ -588,55 +591,96 @@ export const renderAdminPlans = async () => {
             const activeUsers = planUsers.filter(u => u.membership_status === 'active');
             const monthlyRevenue = activeUsers.length * Number(p.price || 0);
             const capacityUsed = p.monthly > 0 ? Math.round((activeUsers.length / Math.max(1, p.monthly)) * 100) : 0;
+            const arpu = activeUsers.length > 0 ? monthlyRevenue / activeUsers.length : 0;
 
             return {
                 ...p,
                 _userCount: planUsers.length,
                 _activeCount: activeUsers.length,
                 _monthlyRevenue: monthlyRevenue,
-                _capacityUsed: Math.min(capacityUsed, 100)
+                _capacityUsed: Math.min(capacityUsed, 100),
+                _arpu: arpu,
+                _features: Array.isArray(p.features) ? p.features : (p.features ? String(p.features).split(',').map(f => f.trim()).filter(f => f) : [])
             };
         });
 
+        // Find most popular plan by active users
+        const mostPopularPlan = planMetrics.length > 0
+            ? planMetrics.reduce((max, p) => p._activeCount > max._activeCount ? p : max, planMetrics[0])
+            : null;
+
         const themeColors = {
-            bronze: { bg: 'rgba(205, 127, 50, 0.1)', border: 'rgba(205, 127, 50, 0.3)', accent: '#cd7f32', icon: 'shield' },
-            silver: { bg: 'rgba(192, 192, 192, 0.1)', border: 'rgba(192, 192, 192, 0.3)', accent: '#c0c0c0', icon: 'shield-check' },
-            gold: { bg: 'rgba(255, 215, 0, 0.08)', border: 'rgba(255, 215, 0, 0.25)', accent: '#ffd700', icon: 'crown' }
+            bronze: { bg: 'rgba(205, 127, 50, 0.1)', border: 'rgba(205, 127, 50, 0.3)', accent: '#cd7f32', icon: 'shield', gradient: 'linear-gradient(135deg, rgba(205,127,50,0.15), rgba(205,127,50,0.05))' },
+            silver: { bg: 'rgba(192, 192, 192, 0.1)', border: 'rgba(192, 192, 192, 0.3)', accent: '#c0c0c0', icon: 'shield-check', gradient: 'linear-gradient(135deg, rgba(192,192,192,0.15), rgba(192,192,192,0.05))' },
+            gold: { bg: 'rgba(255, 215, 0, 0.08)', border: 'rgba(255, 215, 0, 0.25)', accent: '#ffd700', icon: 'crown', gradient: 'linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,215,0,0.04))' }
         };
 
         const totalRevenue = planMetrics.reduce((a, p) => a + p._monthlyRevenue, 0);
         const totalUsers = planMetrics.reduce((a, p) => a + p._activeCount, 0);
+        const avgArpu = totalUsers > 0 ? totalRevenue / totalUsers : 0;
+
+        // Sort plans by active users desc for the donut chart
+        const sortedForChart = [...planMetrics].sort((a, b) => b._activeCount - a._activeCount);
 
         getAdminContent().innerHTML = `
             <div class="glass-premium p-20" id="plans-main">
                 <style>
                     @keyframes planFadeIn {
-                        from { opacity: 0; transform: translateY(16px) scale(0.97); }
+                        from { opacity: 0; transform: translateY(20px) scale(0.96); }
                         to { opacity: 1; transform: translateY(0) scale(1); }
                     }
+                    @keyframes planGlow {
+                        0%, 100% { box-shadow: 0 0 0 rgba(139,92,246,0); }
+                        50% { box-shadow: 0 0 20px rgba(139,92,246,0.15); }
+                    }
                     .plan-block-card {
-                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                        transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
                         cursor: grab;
+                    }
+                    .plan-block-card:hover {
+                        transform: translateY(-4px);
                     }
                     .plan-block-card:active { cursor: grabbing; }
                     .plan-block-card.drag-over {
                         border-color: var(--accent-purple) !important;
-                        transform: scale(1.02);
-                        box-shadow: 0 0 30px rgba(139,92,246,0.2);
+                        transform: scale(1.03);
+                        box-shadow: 0 0 40px rgba(139,92,246,0.25);
                     }
                     .plan-block-card.dragging {
-                        opacity: 0.5;
+                        opacity: 0.4;
                     }
+                    .plan-feature-chip {
+                        display: inline-flex; align-items: center; gap: 4px;
+                        font-size: 0.6rem; background: rgba(255,255,255,0.04);
+                        border: 1px solid rgba(255,255,255,0.08);
+                        padding: 2px 8px; border-radius: 20px;
+                        color: var(--text-gray);
+                    }
+                    .plan-view-toggle.active {
+                        background: var(--accent-purple) !important;
+                        color: white !important;
+                        border-color: var(--accent-purple) !important;
+                    }
+                    .compare-row:hover { background: rgba(255,255,255,0.03); }
                 </style>
+
+                <!-- Header -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
                     <div>
-                        <h2 style="font-size:1.4rem; font-weight:900; margin:0;">Planes de Membresía</h2>
-                        <p style="font-size:0.75rem; opacity:0.4; margin-top:2px;">${plans.length} planes activos • $${totalRevenue.toLocaleString()}/mes estimado</p>
+                        <h2 style="font-size:1.4rem; font-weight:900; margin:0;">💎 Planes de Membresía</h2>
+                        <p style="font-size:0.75rem; opacity:0.4; margin-top:2px;">${plans.length} planes • $${totalRevenue.toLocaleString()}/mes • ARPU $${Math.round(avgArpu).toLocaleString()}</p>
                     </div>
-                    <button class="btn-action-glow" id="btn-add-plan-admin"><i data-lucide="plus"></i> Plan</button>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:4px 12px;">
+                            <i data-lucide="search" style="width:14px; color:var(--text-gray);"></i>
+                            <input type="text" id="plan-search-input" placeholder="Buscar plan..." style="background:transparent; border:none; color:white; font-size:0.8rem; outline:none; width:140px;">
+                        </div>
+                        <button class="btn-action-glow" id="btn-add-plan-admin"><i data-lucide="plus"></i> Plan</button>
+                    </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:25px;">
+                <!-- KPIs -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:25px;">
                     <div class="stat-mini-premium" style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.2); padding:15px; border-radius:16px; text-align:center;">
                         <strong style="display:block; font-size:1.5rem; font-weight:900; color:var(--accent-purple);">${totalUsers}</strong>
                         <span style="font-size:0.65rem; opacity:0.4; text-transform:uppercase; font-weight:700;">SOCIOS ACTIVOS</span>
@@ -649,65 +693,213 @@ export const renderAdminPlans = async () => {
                         <strong style="display:block; font-size:1.5rem; font-weight:900; color:#fbbf24;">${plans.length}</strong>
                         <span style="font-size:0.65rem; opacity:0.4; text-transform:uppercase; font-weight:700;">PLANES</span>
                     </div>
+                    <div class="stat-mini-premium" style="background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.2); padding:15px; border-radius:16px; text-align:center;">
+                        <strong style="display:block; font-size:1.5rem; font-weight:900; color:var(--accent-cyan);">$${Math.round(avgArpu).toLocaleString()}</strong>
+                        <span style="font-size:0.65rem; opacity:0.4; text-transform:uppercase; font-weight:700;">ARPU PROMEDIO</span>
+                    </div>
                 </div>
 
-                <div id="plans-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
-                    ${planMetrics.map((p, idx) => {
+                <!-- Charts & Distribution -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-bottom:25px;">
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:16px;">
+                        <h4 style="font-size:0.8rem; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="pie-chart" style="width:14px; color:var(--accent-purple);"></i> Distribución de Socios
+                        </h4>
+                        <div style="height:160px; display:flex; align-items:center; justify-content:center;">
+                            <canvas id="plans-distribution-chart"></canvas>
+                        </div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:16px;">
+                        <h4 style="font-size:0.8rem; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="bar-chart-2" style="width:14px; color:#22c55e;"></i> Ingreso por Plan
+                        </h4>
+                        <div style="height:160px; display:flex; align-items:center; justify-content:center;">
+                            <canvas id="plans-revenue-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Toggle -->
+                <div style="display:flex; gap:8px; margin-bottom:16px; align-items:center;">
+                    <span style="font-size:0.7rem; color:var(--text-gray); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Vista:</span>
+                    <button class="plan-view-toggle active btn-glass-small" data-view="cards" style="font-size:0.75rem; padding:6px 14px;">
+                        <i data-lucide="layout-grid" style="width:12px; margin-right:4px;"></i> Tarjetas
+                    </button>
+                    <button class="plan-view-toggle btn-glass-small" data-view="compare" style="font-size:0.75rem; padding:6px 14px;">
+                        <i data-lucide="columns" style="width:12px; margin-right:4px;"></i> Comparar
+                    </button>
+                    <div style="flex:1;"></div>
+                    <span style="font-size:0.65rem; color:var(--text-gray); opacity:0.6;"><i data-lucide="move" style="width:10px; vertical-align:middle;"></i> Arrastra para reordenar</span>
+                </div>
+
+                <!-- Cards View -->
+                <div id="plans-cards-view">
+                    <div id="plans-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:16px;">
+                        ${planMetrics.map((p, idx) => {
             const theme = themeColors[p.theme] || themeColors.bronze;
-            const popularBadge = p.popular ? `<span style="position:absolute; top:-8px; right:12px; background:linear-gradient(135deg, #8b5cf6, #a855f7); color:white; font-size:0.6rem; font-weight:800; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 15px rgba(139,92,246,0.4);">Popular</span>` : '';
+            const isMostPopular = mostPopularPlan && p.id === mostPopularPlan.id;
+            const popularBadge = p.popular || isMostPopular
+                ? `<span style="position:absolute; top:-8px; right:12px; background:linear-gradient(135deg, #8b5cf6, #a855f7); color:white; font-size:0.6rem; font-weight:800; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 15px rgba(139,92,246,0.4); display:flex; align-items:center; gap:4px;"><i data-lucide="flame" style="width:10px;"></i> ${isMostPopular && !p.popular ? 'Más Popular' : 'Popular'}</span>`
+                : '';
+            const featuresHtml = p._features.length > 0
+                ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:14px;">${p._features.slice(0, 4).map(f => `<span class="plan-feature-chip"><i data-lucide="check" style="width:8px; color:${theme.accent};"></i> ${f}</span>`).join('')}${p._features.length > 4 ? `<span class="plan-feature-chip">+${p._features.length - 4}</span>` : ''}</div>`
+                : '';
+            const descriptionHtml = p.description
+                ? `<p style="font-size:0.7rem; color:var(--text-gray); margin-bottom:12px; line-height:1.4; opacity:0.7;">${p.description}</p>`
+                : '';
             return `
-                        <div class="plan-block-card" draggable="true" data-plan-id="${p.id}" data-idx="${idx}"
-                             style="position:relative; background:${theme.bg}; border:1px solid ${theme.border}; border-radius:20px; padding:22px; opacity:0; animation: planFadeIn 0.5s ease forwards ${idx * 0.08}s;">
-                            ${popularBadge}
-                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-                                <div style="width:44px; height:44px; border-radius:12px; background:${theme.bg}; border:1px solid ${theme.border}; display:flex; align-items:center; justify-content:center;">
-                                    <i data-lucide="${theme.icon}" style="width:22px; color:${theme.accent};"></i>
+                            <div class="plan-block-card" draggable="true" data-plan-id="${p.id}" data-idx="${idx}" data-name="${p.name.toLowerCase()}"
+                                 style="position:relative; background:${theme.gradient}; border:1px solid ${theme.border}; border-radius:20px; padding:22px; opacity:0; animation: planFadeIn 0.5s ease forwards ${idx * 0.08}s;">
+                                ${popularBadge}
+                                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                                    <div style="width:48px; height:48px; border-radius:14px; background:${theme.bg}; border:1px solid ${theme.border}; display:flex; align-items:center; justify-content:center;">
+                                        <i data-lucide="${theme.icon}" style="width:24px; color:${theme.accent};"></i>
+                                    </div>
+                                    <div style="flex:1; min-width:0;">
+                                        <h4 style="margin:0; font-size:1.1rem; font-weight:800; color:${theme.accent}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</h4>
+                                        <span style="font-size:0.7rem; opacity:0.5; font-weight:600;">${p.monthly || 0} clases/mes • Límite ${p.limit || '∞'}</span>
+                                    </div>
+                                    <div style="text-align:right; flex-shrink:0;">
+                                        <div style="font-size:1.4rem; font-weight:900;">$${Number(p.price || 0).toLocaleString()}</div>
+                                        <div style="font-size:0.6rem; opacity:0.4; text-transform:uppercase; font-weight:700;">/MES</div>
+                                    </div>
                                 </div>
-                                <div style="flex:1;">
-                                    <h4 style="margin:0; font-size:1.05rem; font-weight:800; color:${theme.accent};">${p.name}</h4>
-                                    <span style="font-size:0.75rem; opacity:0.5; font-weight:600;">${p.monthly || 0} clases/mes</span>
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-size:1.3rem; font-weight:900;">$${Number(p.price || 0).toLocaleString()}</div>
-                                    <div style="font-size:0.6rem; opacity:0.4; text-transform:uppercase; font-weight:700;">/MES</div>
-                                </div>
-                            </div>
 
-                            <div style="margin-bottom:16px;">
-                                <div style="display:flex; justify-content:space-between; font-size:0.7rem; margin-bottom:5px; opacity:0.7;">
-                                    <span>Ocupación del plan</span>
-                                    <span style="font-weight:700;">${p._capacityUsed}%</span>
-                                </div>
-                                <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:10px; overflow:hidden;">
-                                    <div style="height:100%; width:${p._capacityUsed}%; background:linear-gradient(90deg, ${theme.accent}, ${theme.accent}88); border-radius:10px; transition:width 1s cubic-bezier(0.34,1.56,0.64,1);"></div>
-                                </div>
-                            </div>
+                                ${descriptionHtml}
+                                ${featuresHtml}
 
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
-                                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:10px; text-align:center;">
-                                    <span style="display:block; font-size:0.6rem; opacity:0.4; text-transform:uppercase; font-weight:700; margin-bottom:4px;">Socios</span>
-                                    <strong style="font-size:1.1rem; color:white;">${p._activeCount}</strong>
+                                <div style="margin-bottom:14px;">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; margin-bottom:5px; opacity:0.7;">
+                                        <span>Ocupación</span>
+                                        <span style="font-weight:700;">${p._capacityUsed}%</span>
+                                    </div>
+                                    <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:10px; overflow:hidden;">
+                                        <div style="height:100%; width:${p._capacityUsed}%; background:linear-gradient(90deg, ${theme.accent}, ${theme.accent}88); border-radius:10px; transition:width 1s cubic-bezier(0.34,1.56,0.64,1);"></div>
+                                    </div>
                                 </div>
-                                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:10px; text-align:center;">
-                                    <span style="display:block; font-size:0.6rem; opacity:0.4; text-transform:uppercase; font-weight:700; margin-bottom:4px;">Ingreso</span>
-                                    <strong style="font-size:1.1rem; color:#22c55e;">$${p._monthlyRevenue.toLocaleString()}</strong>
-                                </div>
-                            </div>
 
-                            <div style="display:flex; gap:8px;">
-                                <button class="edit-plan-btn btn-glass-small" data-id="${p.id}" style="flex:1; justify-content:center;">
-                                    <i data-lucide="edit-3" style="width:14px; margin-right:4px;"></i> Editar
-                                </button>
-                                <button class="delete-plan-btn btn-glass-small delete" data-id="${p.id}" style="width:40px; justify-content:center;">
-                                    <i data-lucide="trash-2" style="width:14px;"></i>
-                                </button>
-                            </div>
-                        </div>`;
+                                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px;">
+                                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:8px; text-align:center;">
+                                        <span style="display:block; font-size:0.55rem; opacity:0.4; text-transform:uppercase; font-weight:700; margin-bottom:2px;">Socios</span>
+                                        <strong style="font-size:1rem; color:white;">${p._activeCount}</strong>
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:8px; text-align:center;">
+                                        <span style="display:block; font-size:0.55rem; opacity:0.4; text-transform:uppercase; font-weight:700; margin-bottom:2px;">Ingreso</span>
+                                        <strong style="font-size:1rem; color:#22c55e;">$${p._monthlyRevenue.toLocaleString()}</strong>
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:8px; text-align:center;">
+                                        <span style="display:block; font-size:0.55rem; opacity:0.4; text-transform:uppercase; font-weight:700; margin-bottom:2px;">ARPU</span>
+                                        <strong style="font-size:1rem; color:var(--accent-cyan);">$${Math.round(p._arpu).toLocaleString()}</strong>
+                                    </div>
+                                </div>
+
+                                <div style="display:flex; gap:6px;">
+                                    <button class="edit-plan-btn btn-glass-small" data-id="${p.id}" style="flex:1; justify-content:center; font-size:0.7rem;">
+                                        <i data-lucide="edit-3" style="width:12px; margin-right:3px;"></i> Editar
+                                    </button>
+                                    <button class="view-plan-users-btn btn-glass-small" data-plan="${p.name}" style="flex:1; justify-content:center; font-size:0.7rem; border-color:var(--accent-purple); color:var(--accent-purple);">
+                                        <i data-lucide="users" style="width:12px; margin-right:3px;"></i> Socios
+                                    </button>
+                                    <button class="delete-plan-btn btn-glass-small delete" data-id="${p.id}" style="width:36px; justify-content:center;">
+                                        <i data-lucide="trash-2" style="width:12px;"></i>
+                                    </button>
+                                </div>
+                            </div>`;
         }).join('')}
+                    </div>
+                </div>
+
+                <!-- Compare View (Hidden by default) -->
+                <div id="plans-compare-view" class="hidden" style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem; min-width:600px;">
+                        <thead>
+                            <tr style="background:rgba(255,255,255,0.04); border-bottom:1px solid rgba(255,255,255,0.08);">
+                                <th style="padding:12px; text-align:left; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Plan</th>
+                                <th style="padding:12px; text-align:center; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Precio</th>
+                                <th style="padding:12px; text-align:center; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Clases/mes</th>
+                                <th style="padding:12px; text-align:center; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Socios</th>
+                                <th style="padding:12px; text-align:center; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Ingreso</th>
+                                <th style="padding:12px; text-align:center; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Ocupación</th>
+                                <th style="padding:12px; text-align:left; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Características</th>
+                                <th style="padding:12px; text-align:right; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-gray);">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${planMetrics.map(p => {
+            const theme = themeColors[p.theme] || themeColors.bronze;
+            return `
+                                <tr class="compare-row" style="border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.2s;">
+                                    <td style="padding:12px;">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <div style="width:32px; height:32px; border-radius:8px; background:${theme.bg}; border:1px solid ${theme.border}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                <i data-lucide="${theme.icon}" style="width:14px; color:${theme.accent};"></i>
+                                            </div>
+                                            <div>
+                                                <strong style="font-size:0.85rem; color:${theme.accent};">${p.name}</strong>
+                                                ${p.popular ? '<span style="font-size:0.6rem; background:linear-gradient(135deg,#8b5cf6,#a855f7); color:white; padding:1px 6px; border-radius:10px; margin-left:4px;">Popular</span>' : ''}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="padding:12px; text-align:center; font-weight:800;">$${Number(p.price || 0).toLocaleString()}</td>
+                                    <td style="padding:12px; text-align:center;">${p.monthly || 0}</td>
+                                    <td style="padding:12px; text-align:center;"><strong style="color:white;">${p._activeCount}</strong></td>
+                                    <td style="padding:12px; text-align:center; color:#22c55e; font-weight:700;">$${p._monthlyRevenue.toLocaleString()}</td>
+                                    <td style="padding:12px; text-align:center;">
+                                        <div style="display:flex; align-items:center; gap:6px; justify-content:center;">
+                                            <div style="width:50px; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
+                                                <div style="width:${p._capacityUsed}%; height:100%; background:${theme.accent}; border-radius:2px;"></div>
+                                            </div>
+                                            <span style="font-size:0.7rem;">${p._capacityUsed}%</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:12px;">
+                                        <div style="display:flex; flex-wrap:wrap; gap:3px;">
+                                            ${p._features.slice(0, 3).map(f => `<span class="plan-feature-chip">${f}</span>`).join('')}
+                                            ${p._features.length > 3 ? `<span class="plan-feature-chip">+${p._features.length - 3}</span>` : ''}
+                                        </div>
+                                    </td>
+                                    <td style="padding:12px; text-align:right;">
+                                        <div style="display:flex; gap:4px; justify-content:flex-end;">
+                                            <button class="edit-plan-btn btn-glass-small" data-id="${p.id}" style="padding:3px 8px; font-size:0.65rem;"><i data-lucide="edit-3" style="width:10px;"></i></button>
+                                            <button class="delete-plan-btn btn-glass-small delete" data-id="${p.id}" style="padding:3px 8px; font-size:0.65rem;"><i data-lucide="trash-2" style="width:10px;"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+        }).join('')}
+                        </tbody>
+                    </table>
                 </div>
             </div>`;
 
         window.lucide.createIcons();
+
+        // Render charts
+        renderPlansCharts(sortedForChart, themeColors);
+
+        // Search filter
+        const searchInput = document.getElementById('plan-search-input');
+        if (searchInput) {
+            searchInput.oninput = () => {
+                const term = searchInput.value.toLowerCase().trim();
+                document.querySelectorAll('.plan-block-card').forEach(card => {
+                    const name = card.getAttribute('data-name');
+                    card.style.display = (!term || name.includes(term)) ? '' : 'none';
+                });
+            };
+        }
+
+        // View toggle
+        document.querySelectorAll('.plan-view-toggle').forEach(btn => {
+            btn.onclick = () => {
+                const view = btn.getAttribute('data-view');
+                document.querySelectorAll('.plan-view-toggle').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('plans-cards-view').classList.toggle('hidden', view !== 'cards');
+                document.getElementById('plans-compare-view').classList.toggle('hidden', view !== 'compare');
+                window.lucide.createIcons();
+            };
+        });
 
         document.getElementById('btn-add-plan-admin').onclick = () => openPlanModal();
         document.querySelectorAll('.edit-plan-btn').forEach(btn => {
@@ -723,6 +915,20 @@ export const renderAdminPlans = async () => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 deletePlan(btn.getAttribute('data-id'));
+            };
+        });
+        document.querySelectorAll('.view-plan-users-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const planName = btn.getAttribute('data-plan');
+                // Trigger members view with plan filter
+                import('./members.js').then(m => {
+                    if (m.renderAdminMembers) {
+                        // Set filter and render
+                        window.showToast(`Filtrando socios del plan: ${planName}`, '#8b5cf6');
+                        m.renderAdminMembers();
+                    }
+                });
             };
         });
 
@@ -768,6 +974,74 @@ export const renderAdminPlans = async () => {
                 <button onclick="renderAdminPlans()" class="btn-primary" style="padding:10px 24px;">🔄 Reintentar</button>
             </div>`;
         window.lucide.createIcons();
+    }
+};
+
+const renderPlansCharts = (planMetrics, themeColors) => {
+    const distCtx = document.getElementById('plans-distribution-chart');
+    const revCtx = document.getElementById('plans-revenue-chart');
+
+    if (distCtx && planMetrics.length > 0) {
+        if (window._plansDistChart) window._plansDistChart.destroy();
+        const colors = planMetrics.map(p => (themeColors[p.theme] || themeColors.bronze).accent);
+        window._plansDistChart = new Chart(distCtx, {
+            type: 'doughnut',
+            data: {
+                labels: planMetrics.map(p => p.name),
+                datasets: [{
+                    data: planMetrics.map(p => p._activeCount),
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(13,13,18,0.95)',
+                        callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} socios` }
+                    }
+                }
+            }
+        });
+    }
+
+    if (revCtx && planMetrics.length > 0) {
+        if (window._plansRevChart) window._plansRevChart.destroy();
+        const colors = planMetrics.map(p => (themeColors[p.theme] || themeColors.bronze).accent);
+        window._plansRevChart = new Chart(revCtx, {
+            type: 'bar',
+            data: {
+                labels: planMetrics.map(p => p.name.length > 10 ? p.name.substring(0, 10) + '...' : p.name),
+                datasets: [{
+                    label: 'Ingreso ($)',
+                    data: planMetrics.map(p => p._monthlyRevenue),
+                    backgroundColor: colors.map(c => c + '88'),
+                    borderColor: colors,
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(13,13,18,0.95)',
+                        callbacks: { label: (ctx) => ` Ingreso: $${ctx.raw.toLocaleString('es-CL')}` }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 9 } }, grid: { display: false } },
+                    y: { ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, callback: (v) => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v) }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            }
+        });
     }
 };
 

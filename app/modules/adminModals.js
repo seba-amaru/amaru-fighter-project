@@ -668,6 +668,15 @@ export const loadMemberPayments = async (uid) => {
                     const icon = isApproved ? 'check-circle' : 'clock';
                     const statusLabel = isApproved ? 'Aprobado' : 'Pendiente';
                     const amount = parseFloat(p.amount) || 0;
+                    const methodLabels = {
+                        transferencia: 'Transferencia Bancaria',
+                        pasarela: 'Pasarela de Pago',
+                        efectivo: 'Efectivo',
+                        mercadopago: 'Mercado Pago',
+                        webpay: 'Webpay',
+                        manual: 'Transferencia/Manual'
+                    };
+                    const methodLabel = methodLabels[p.payment_method] || methodLabels[p.method] || 'Transferencia';
                     return `<div style="display:flex; align-items:center; gap:12px; padding:12px; border-radius:10px; margin-bottom:6px; background:${bgColor}; border:1px solid rgba(255,255,255,0.04);">
                         <div style="width:36px; height:36px; border-radius:8px; background:${color}15; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i data-lucide="${icon}" style="width:14px; color:${color};"></i></div>
                         <div style="flex:1; min-width:0;">
@@ -676,7 +685,7 @@ export const loadMemberPayments = async (uid) => {
                         </div>
                         <div style="text-align:right; flex-shrink:0;">
                             <span style="font-size:0.9rem; font-weight:800; color:${color}; display:block;">$${amount.toLocaleString('es-CL')}</span>
-                            <span style="font-size:0.6rem; color:rgba(255,255,255,0.3);">${p.method || 'Transferencia'}</span>
+                            <span style="font-size:0.6rem; color:rgba(255,255,255,0.3);">${methodLabel}</span>
                         </div>
                     </div>`;
                 }).join('');
@@ -743,15 +752,23 @@ export const initModals = () => {
             const classLimitVal = parseInt(document.getElementById('mem-class-limit').value) || 2;
             const surchargeVal = parseInt(document.getElementById('mem-surcharge').value) || 30;
 
-            if (!nameVal || !emailVal) {
-                window.showToast("Nombre y Email son obligatorios ⚠️", "#eab308");
+            if (!nameVal) {
+                window.showToast("El nombre completo es obligatorio ⚠️", "#eab308");
                 return;
+            }
+
+            // Si no hay email, generar uno automáticamente para socios sin tecnología
+            let finalEmail = emailVal;
+            if (!finalEmail) {
+                const timestamp = Date.now();
+                const safeName = nameVal.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20);
+                finalEmail = `socio.${safeName}.${timestamp}@amaru.local`;
             }
 
             const memberData = {
                 full_name: nameVal,
                 rut: rutVal || null,
-                email: emailVal,
+                email: finalEmail,
                 phone: phoneVal || null,
                 level: levelVal,
                 xp: xpVal,
@@ -792,15 +809,34 @@ export const initModals = () => {
                     window.showToast("Datos de socio actualizados ✅", "#22c55e");
                 } else {
                     window.showToast("Creando nuevo socio... 🥋", "#8b5cf6");
-                    const { data: authData, error: authError } = await window.supabase.auth.signUp({
-                        email: emailVal,
-                        password: 'Amaru123!',
-                        options: { data: { full_name: nameVal } }
+                    const { data: funcData, error: funcError } = await window.supabase.functions.invoke('create-user', {
+                        body: {
+                            email: finalEmail,
+                            password: 'Amaru123!',
+                            full_name: nameVal,
+                            memberData: {
+                                rut: rutVal || null,
+                                phone: phoneVal || null,
+                                level: levelVal,
+                                xp: xpVal,
+                                birthdate: birthdateVal || null,
+                                address: addressVal || null,
+                                emergency_contact: emergencyVal || null,
+                                admin_notes: notesVal || null,
+                                membership_plan_id: planId || null,
+                                membership_limit: classLimitVal,
+                                surcharge_pct: surchargeVal,
+                                is_frozen: statusVal === 'frozen',
+                                membership_status: memberData.membership_status,
+                                membership_expiry: memberData.membership_expiry,
+                                created_at: memberData.created_at
+                            }
+                        }
                     });
-                    if (authError) throw authError;
-                    const newUser = { uid: authData.user.id, email: emailVal };
-                    await SupabaseService.createProfile(newUser, nameVal);
-                    await SupabaseService.updateProfile(authData.user.id, memberData);
+                    if (funcError) throw funcError;
+                    if (!funcData || !funcData.success) {
+                        throw new Error(funcData?.error || 'Error al crear socio via Edge Function');
+                    }
                     window.showToast("Socio creado exitosamente ✅", "#22c55e");
                 }
                 document.getElementById('member-modal').classList.remove('active');

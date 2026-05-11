@@ -433,9 +433,12 @@ const renderTransaccionesView = (container) => {
 
             <select id="tx-method" style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:8px 10px; border-radius:8px; font-size:0.75rem; outline:none;">
                 <option value="">Todos los métodos</option>
-                <option value="manual" ${txFilter.method === 'manual' ? 'selected' : ''}>Transferencia/Manual</option>
+                <option value="transferencia" ${txFilter.method === 'transferencia' ? 'selected' : ''}>Transferencia Bancaria</option>
+                <option value="pasarela" ${txFilter.method === 'pasarela' ? 'selected' : ''}>Pasarela de Pago</option>
+                <option value="efectivo" ${txFilter.method === 'efectivo' ? 'selected' : ''}>Efectivo</option>
                 <option value="mercadopago" ${txFilter.method === 'mercadopago' ? 'selected' : ''}>Mercado Pago</option>
                 <option value="webpay" ${txFilter.method === 'webpay' ? 'selected' : ''}>Webpay</option>
+                <option value="manual" ${txFilter.method === 'manual' ? 'selected' : ''}>Transferencia/Manual (legado)</option>
             </select>
 
             <div style="display:flex; gap:6px; align-items:center;">
@@ -484,7 +487,15 @@ const renderTransaccionesView = (container) => {
                 const concept = p.concept || p.plan_name || 'Membresía';
                 const amount = parseFloat(p.amount) || 0;
                 const method = p.payment_method || 'manual';
-                const methodLabel = method === 'mercadopago' ? 'Mercado Pago' : method === 'webpay' ? 'Webpay' : 'Transferencia';
+                const methodLabels = {
+                    transferencia: 'Transferencia Bancaria',
+                    pasarela: 'Pasarela de Pago',
+                    efectivo: 'Efectivo',
+                    mercadopago: 'Mercado Pago',
+                    webpay: 'Webpay',
+                    manual: 'Transferencia/Manual'
+                };
+                const methodLabel = methodLabels[method] || method;
                 const statusColor = p.status === 'approved' ? '#22c55e' : p.status === 'pending' ? '#fbbf24' : '#ef4444';
                 const statusLabel = p.status === 'approved' ? 'Aprobado' : p.status === 'pending' ? 'Pendiente' : 'Rechazado';
                 const statusBg = p.status === 'approved' ? 'rgba(34,197,94,0.15)' : p.status === 'pending' ? 'rgba(251,191,36,0.15)' : 'rgba(239,68,68,0.15)';
@@ -792,7 +803,7 @@ const renderCobranzaView = (container) => {
                                 <span class="tag" style="background:rgba(255,255,255,0.05); font-size:0.65rem; padding:2px 8px;">${d.planName}</span>
                             </div>
                             <span style="font-size:0.7rem; color:var(--text-gray); display:block; margin-top:2px;">
-                                ${prof.email || ''}
+                                ${prof.email && !prof.email.includes('@amaru.local') ? prof.email : '<span style="color:#fbbf24;">📵 Sin tecnología</span>'}
                                 ${daysLeft !== null ? ` • Vence: ${daysLeft > 0 ? daysLeft + ' días' : 'Expirado'}` : ''}
                             </span>
                         </div>
@@ -867,6 +878,14 @@ export const openQuickPaymentModal = (userId) => {
                 <label style="display:block; font-size:0.8rem; margin-bottom:6px; opacity:0.8; font-weight:600;">Concepto</label>
                 <input type="text" id="qp-concept" value="${defaultConcept}" class="login-input" style="width:100%; padding:12px 15px;">
             </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block; font-size:0.8rem; margin-bottom:6px; opacity:0.8; font-weight:600;">Método de Pago</label>
+                <select id="qp-method" class="login-input" style="width:100%; appearance:none; cursor:pointer; padding:12px 15px;">
+                    <option value="transferencia" style="background:#111; color:white;">🏦 Transferencia Bancaria</option>
+                    <option value="pasarela" style="background:#111; color:white;">💳 Pasarela de Pago (Webpay/Mercado Pago)</option>
+                    <option value="efectivo" style="background:#111; color:white;">💵 Efectivo</option>
+                </select>
+            </div>
             <div style="display:flex; gap:15px; margin-bottom:25px;">
                 <div style="flex:2;">
                     <label style="display:block; font-size:0.8rem; margin-bottom:6px; opacity:0.8; font-weight:600;">Mes de Cobertura</label>
@@ -899,6 +918,7 @@ export const openQuickPaymentModal = (userId) => {
     document.getElementById('qp-save-btn').onclick = async () => {
         const amount = parseFloat(document.getElementById('qp-amount').value);
         const concept = document.getElementById('qp-concept').value.trim();
+        const method = document.getElementById('qp-method').value;
         const month = document.getElementById('qp-month').value;
         const year = document.getElementById('qp-year').value;
         if (!amount || amount <= 0) { window.showToast('Ingresa un monto válido', '#ef4444'); return; }
@@ -910,7 +930,7 @@ export const openQuickPaymentModal = (userId) => {
                 amount,
                 concept,
                 status: 'approved',
-                payment_method: 'manual',
+                payment_method: method,
                 coverage_month: `${month} ${year}`,
                 created_at: new Date().toISOString()
             });

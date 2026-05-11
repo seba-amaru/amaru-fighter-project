@@ -2513,81 +2513,161 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('membership-plans-container');
         if (!container) return;
 
-        debugMsg("Rendering Premium Plans...");
-        container.innerHTML = appState.plans.map((plan, idx) => {
+        debugMsg("Rendering Premium Plans v2.0...");
+
+        const plans = appState.plans || [];
+        if (plans.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:40px; opacity:0.5;">No hay planes disponibles.</p>';
+            return;
+        }
+
+        // Detectar plan más popular por activePromo o flag popular
+        const mostPopularPlan = plans.reduce((max, p) => {
+            if (p.popular) return p;
+            return max;
+        }, plans[0]);
+
+        const themeColors = {
+            bronze: { accent: '#cd7f32', icon: 'shield', gradient: 'linear-gradient(135deg, rgba(205,127,50,0.15), rgba(205,127,50,0.05))' },
+            silver: { accent: '#c0c0c0', icon: 'shield-check', gradient: 'linear-gradient(135deg, rgba(192,192,192,0.15), rgba(192,192,192,0.05))' },
+            gold: { accent: '#ffd700', icon: 'crown', gradient: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05))' }
+        };
+
+        container.innerHTML = plans.map((plan, idx) => {
             let finalPrice = plan.price;
             let originalPriceHtml = '';
-            let subtitleHtml = plan.subtitle;
+            let subtitleHtml = plan.subtitle || '';
             let priceSuffix = '/ MES';
-            let proportionalWarning = '';
+            let promoBadge = '';
+            let savingsHtml = '';
 
+            const theme = themeColors[plan.theme] || themeColors.bronze;
+            const isPopular = plan.popular || (mostPopularPlan && plan.id === mostPopularPlan.id);
+
+            // Cálculo de precio con promociones
             if (appState.proRataPreference === 'proportional') {
                 const today = new Date();
                 const currentDay = today.getDate();
                 const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-                const daysLeft = daysInMonth - currentDay + 1; // inclusive today
+                const daysLeft = daysInMonth - currentDay + 1;
                 const dailyRate = plan.price / daysInMonth;
                 const surchargeMultiplier = 1 + (appState.surchargePct / 100);
-
                 finalPrice = Math.round(dailyRate * daysLeft * surchargeMultiplier);
-                originalPriceHtml = `<span style="text-decoration: line-through; opacity: 0.5; font-size: 0.8em; margin-right: 5px;">$${plan.price.toLocaleString()}</span>`;
-                subtitleHtml = `Plan Proporcional (${daysLeft} días restantes)`;
+                originalPriceHtml = `<span style="text-decoration:line-through; opacity:0.4; font-size:0.75em; margin-right:6px;">$${plan.price.toLocaleString()}</span>`;
+                subtitleHtml = `Proporcional (${daysLeft} días)`;
                 priceSuffix = '';
-                proportionalWarning = `<div style="font-size: 0.75em; color: var(--accent-yellow); margin-bottom: 5px; font-weight: 600;">Incluye recargo del ${appState.surchargePct}%</div>`;
+                promoBadge = `<span style="font-size:0.6rem; background:rgba(251,191,36,0.15); color:#fbbf24; padding:2px 8px; border-radius:10px; font-weight:700; border:1px solid rgba(251,191,36,0.3);">⚡ Prorrateado</span>`;
             } else if (appState.activePromo) {
                 let isValidForPlan = true;
                 let isExpired = false;
-
                 if (appState.activePromo.plans && appState.activePromo.plans.length > 0) {
                     isValidForPlan = appState.activePromo.plans.includes(plan.id);
                 }
                 if (appState.activePromo.expiresAt) {
                     const expDate = new Date(appState.activePromo.expiresAt);
-                    expDate.setDate(expDate.getDate() + 1); // Expirar al final del día seleccionado
+                    expDate.setDate(expDate.getDate() + 1);
                     isExpired = expDate < new Date();
                 }
-
                 if (isValidForPlan && !isExpired) {
-                    finalPrice = finalPrice - (finalPrice * (appState.activePromo.percent / 100));
-                    originalPriceHtml = `<span style="text-decoration: line-through; opacity: 0.5; font-size: 0.8em; margin-right: 5px;">$${plan.price.toLocaleString()}</span>`;
+                    const discount = appState.activePromo.percent;
+                    const saved = Math.round(plan.price * (discount / 100));
+                    finalPrice = plan.price - saved;
+                    originalPriceHtml = `<span style="text-decoration:line-through; opacity:0.4; font-size:0.75em; margin-right:6px;">$${plan.price.toLocaleString()}</span>`;
+                    promoBadge = `<span style="font-size:0.6rem; background:rgba(34,197,94,0.15); color:#22c55e; padding:2px 8px; border-radius:10px; font-weight:700; border:1px solid rgba(34,197,94,0.3);">🎉 -${discount}%</span>`;
+                    savingsHtml = `<span style="font-size:0.7rem; color:#22c55e; font-weight:700;">Ahorras $${saved.toLocaleString()}</span>`;
                 }
             } else if (appState.proRataPreference === 'full') {
-                proportionalWarning = `<div style="font-size: 0.75em; color: #60a5fa; margin-bottom: 5px; font-weight: 600;">Mes adelantado sin recargos</div>`;
+                promoBadge = `<span style="font-size:0.6rem; background:rgba(59,130,246,0.15); color:#3b82f6; padding:2px 8px; border-radius:10px; font-weight:700; border:1px solid rgba(59,130,246,0.3);">📅 Mes completo</span>`;
             }
 
+            const features = Array.isArray(plan.features) ? plan.features : (plan.features ? String(plan.features).split(',').map(f => f.trim()).filter(f => f) : []);
+            const featuresHtml = features.length > 0
+                ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin:10px 0; justify-content:center;">${features.slice(0, 3).map(f => `<span style="font-size:0.6rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:2px 8px; border-radius:20px; color:var(--text-gray);">${f}</span>`).join('')}${features.length > 3 ? `<span style="font-size:0.6rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:2px 8px; border-radius:20px; color:var(--text-gray);">+${features.length - 3}</span>` : ''}</div>`
+                : '';
+
+            const descHtml = plan.description
+                ? `<p style="font-size:0.7rem; color:var(--text-gray); margin:6px 12px 0; line-height:1.4; opacity:0.8; min-height:30px;">${plan.description}</p>`
+                : '';
+
             return `
-            <div id="plan-card-${plan.id}" class="plan-card ${plan.theme} ${plan.popular ? 'popular' : ''}" style="opacity:0; animation: elegantFadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${0.05 + idx * 0.12}s forwards;">
+            <div id="plan-card-${plan.id}" class="plan-card ${plan.theme} ${isPopular ? 'popular' : ''}" style="opacity:0; animation: elegantFadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${0.05 + idx * 0.12}s forwards;">
                 <div class="plan-card-inner">
                     <!-- Front Side -->
-                    <div class="plan-card-front">
-                        ${plan.popular ? '<div class="popular-badge">RECOMENDADO</div>' : ''}
-                        <div class="plan-icon-wrapper" onclick="togglePlanFlip('${plan.id}')" style="cursor: pointer; position: relative; z-index: 10;">
-                            <i data-lucide="${plan.theme === 'bronze' ? 'shield' : plan.theme === 'silver' ? 'shield-check' : 'crown'}" class="main-shield"></i>
+                    <div class="plan-card-front" style="background:${theme.gradient};">
+                        ${isPopular ? `<div style="position:absolute; top:-8px; right:12px; background:linear-gradient(135deg, #8b5cf6, #a855f7); color:white; font-size:0.6rem; font-weight:800; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 15px rgba(139,92,246,0.4); display:flex; align-items:center; gap:4px; z-index:20;"><i data-lucide="flame" style="width:10px;"></i> ${plan.popular ? 'Recomendado' : 'Más Popular'}</div>` : ''}
+
+                        <div class="plan-icon-wrapper" onclick="togglePlanFlip('${plan.id}')" style="cursor:pointer; position:relative; z-index:10;">
+                            <i data-lucide="${theme.icon}" class="main-shield" style="color:${theme.accent};"></i>
                             <div class="tap-hint"><i data-lucide="mouse-pointer-2"></i></div>
                         </div>
-                        <h2>${plan.name}</h2>
-                        <p class="plan-subtitle">${subtitleHtml}</p>
-                        ${proportionalWarning}
-                        <div class="plan-price">COP ${originalPriceHtml}<span>$${finalPrice.toLocaleString()}</span> ${priceSuffix}</div>
-                        <button class="btn-select-plan" onclick="event.stopPropagation(); selectMembershipPlan('${plan.id}')">SELECCIONAR PLAN</button>
+
+                        <h2 style="color:${theme.accent};">${plan.name}</h2>
+
+                        <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap; margin-bottom:4px;">
+                            ${promoBadge}
+                        </div>
+
+                        <p class="plan-subtitle" style="font-size:0.75rem; margin:4px 0;">${subtitleHtml}</p>
+
+                        ${descHtml}
+                        ${featuresHtml}
+
+                        <div style="margin:10px 0;">
+                            <div style="display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:wrap;">
+                                ${originalPriceHtml}
+                                <span style="font-size:1.6rem; font-weight:900; color:white;">$${finalPrice.toLocaleString()}</span>
+                            </div>
+                            <span style="font-size:0.65rem; color:var(--text-gray); text-transform:uppercase; font-weight:700; letter-spacing:1px;">${priceSuffix}</span>
+                            ${savingsHtml ? `<div style="margin-top:4px;">${savingsHtml}</div>` : ''}
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 12px; padding:8px; background:rgba(255,255,255,0.03); border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+                            <div style="text-align:center;">
+                                <span style="font-size:0.55rem; color:var(--text-gray); text-transform:uppercase; font-weight:700;">Clases/día</span>
+                                <strong style="font-size:0.9rem; color:white; display:block;">${plan.limit || '∞'}</strong>
+                            </div>
+                            <div style="text-align:center;">
+                                <span style="font-size:0.55rem; color:var(--text-gray); text-transform:uppercase; font-weight:700;">Clases/mes</span>
+                                <strong style="font-size:0.9rem; color:white; display:block;">${plan.monthly || 0}</strong>
+                            </div>
+                        </div>
+
+                        <button class="btn-select-plan" onclick="event.stopPropagation(); selectMembershipPlan('${plan.id}')" style="margin-top:auto;">SELECCIONAR PLAN</button>
                     </div>
 
                     <!-- Back Side (Details) -->
                     <div class="plan-card-back">
-                        <div class="plan-icon-wrapper back-trigger" onclick="togglePlanFlip('${plan.id}')" style="cursor: pointer; background: rgba(203, 242, 240, 0.2); border-color: rgba(203, 242, 240, 0.5);">
+                        <div class="plan-icon-wrapper back-trigger" onclick="togglePlanFlip('${plan.id}')" style="cursor:pointer; background:rgba(203,242,240,0.2); border-color:rgba(203,242,240,0.5);">
                             <i data-lucide="chevron-left"></i>
                         </div>
-                        <h3 style="color:var(--accent-purple); margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">VENTAJAS DEL PLAN</h3>
-                        <ul class="plan-features" style="text-align: left; margin-bottom: 30px;">
-                            <li><i data-lucide="clock" style="width:14px; color:var(--accent-purple);"></i> <strong>${plan.limit}</strong> Clases por día</li>
-                            <li><i data-lucide="calendar" style="width:14px; color:var(--accent-purple);"></i> <strong>${plan.monthly}</strong> Clases por mes</li>
-                            ${(plan.features || []).map(f => `<li><i data-lucide="check-circle-2" style="width:14px; color:#22c55e;"></i> ${f}</li>`).join('')}
+                        <h3 style="color:var(--accent-purple); margin-bottom:15px; font-weight:800; letter-spacing:1px; font-size:1rem;">DETALLES DEL PLAN</h3>
+
+                        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:15px;">
+                            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <span style="font-size:0.75rem; color:var(--text-gray);">Precio mensual</span>
+                                <strong style="font-size:0.8rem; color:white;">$${plan.price.toLocaleString()}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <span style="font-size:0.75rem; color:var(--text-gray);">Clases por día</span>
+                                <strong style="font-size:0.8rem; color:white;">${plan.limit || 'Ilimitado'}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <span style="font-size:0.75rem; color:var(--text-gray);">Clases por mes</span>
+                                <strong style="font-size:0.8rem; color:white;">${plan.monthly || 0}</strong>
+                            </div>
+                            ${plan.description ? `<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span style="font-size:0.7rem; color:var(--text-gray);">${plan.description}</span></div>` : ''}
+                        </div>
+
+                        <h4 style="font-size:0.75rem; color:var(--accent-purple); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Incluye</h4>
+                        <ul class="plan-features" style="text-align:left; margin-bottom:15px; flex:1; overflow-y:auto;">
+                            ${features.map(f => `<li style="display:flex; align-items:center; gap:8px; padding:3px 0; font-size:0.8rem;"><i data-lucide="check-circle-2" style="width:14px; color:#22c55e; flex-shrink:0;"></i> ${f}</li>`).join('')}
                         </ul>
-                        <button class="btn-select-plan" onclick="event.stopPropagation(); selectMembershipPlan('${plan.id}')" style="margin-top: auto;">SELECCIONAR Y PAGAR</button>
+
+                        <button class="btn-select-plan" onclick="event.stopPropagation(); selectMembershipPlan('${plan.id}')" style="margin-top:auto;">SELECCIONAR Y PAGAR</button>
                     </div>
                 </div>
             </div>
-        `
+        `;
         }).join('');
         lucide.createIcons();
     };

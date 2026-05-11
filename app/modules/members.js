@@ -151,10 +151,27 @@ const renderDashboardView = (container) => {
         return created && created.getMonth() === currentMonth && created.getFullYear() === currentYear;
     }).length;
 
-    // Alertas críticas
-    const expiringSoon = processed.filter(p => p._status === 'Activo' && p._daysLeft !== null && p._daysLeft > 0 && p._daysLeft <= 5).slice(0, 5);
-    const noAttendance14 = processed.filter(p => p._status === 'Activo' && p._daysSinceLastAttendance > 14 && p._daysSinceLastAttendance !== -1).slice(0, 5);
-    const overdue = processed.filter(p => p._status === 'Moroso').slice(0, 5);
+    // Métricas avanzadas
+    const avgDaysAsMember = processed.length > 0
+        ? Math.round(processed.reduce((sum, p) => {
+            const created = p.created_at ? new Date(p.created_at) : now;
+            return sum + Math.floor((now - created) / (1000 * 60 * 60 * 24));
+        }, 0) / processed.length)
+        : 0;
+
+    const retentionRate = total > 0 ? ((active / total) * 100).toFixed(0) : 0;
+
+    // Últimos 5 socios registrados
+    const recentMembers = [...processed]
+        .filter(p => p.created_at)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 5);
+
+    // Últimos 5 pagos
+    const recentPayments = [...paymentsData]
+        .filter(p => p.status === 'approved')
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 5);
 
     // Datos para gráfico de evolución (últimos 6 meses)
     const evolutionData = [];
@@ -176,47 +193,120 @@ const renderDashboardView = (container) => {
         planDist[planName] = (planDist[planName] || 0) + 1;
     });
 
+    // Datos para gráfico de asistencia (últimos 7 días)
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(now); d.setDate(d.getDate() - i);
+        const dStr = d.toISOString().split('T')[0];
+        const count = allReservations.filter(r => r.reservation_date === dStr).length;
+        last7Days.push({
+            label: d.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric' }),
+            count
+        });
+    }
+
+    // Alertas críticas
+    const expiringSoon = processed.filter(p => p._status === 'Activo' && p._daysLeft !== null && p._daysLeft > 0 && p._daysLeft <= 5).slice(0, 5);
+    const noAttendance14 = processed.filter(p => p._status === 'Activo' && p._daysSinceLastAttendance > 14 && p._daysSinceLastAttendance !== -1).slice(0, 5);
+    const overdue = processed.filter(p => p._status === 'Moroso').slice(0, 5);
+
     container.innerHTML = `
-        <!-- KPIs -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:25px;">
+        <style>
+            @keyframes dashFadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+            .dash-section { animation: dashFadeIn 0.4s ease forwards; }
+        </style>
+
+        <!-- KPIs con barras de progreso -->
+        <div class="dash-section" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:25px;">
             <div class="stat-mini-premium" style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.2); padding:18px; border-radius:14px; text-align:center;">
-                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:6px;">Total Socios</span>
-                <strong style="font-size:1.5rem; color:var(--accent-purple); font-weight:900;">${total}</strong>
-                <span style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:4px;">${newThisMonth} nuevos este mes</span>
+                <strong style="display:block; font-size:1.5rem; font-weight:900; color:var(--accent-purple);">${total}</strong>
+                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:8px;">Total Socios</span>
+                <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
+                    <div style="width:${retentionRate}%; height:100%; background:var(--accent-purple); border-radius:2px;"></div>
+                </div>
+                <span style="font-size:0.7rem; color:var(--text-gray); display:block; margin-top:4px;">${retentionRate}% retención • ${newThisMonth} nuevos</span>
             </div>
             <div class="stat-mini-premium" style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); padding:18px; border-radius:14px; text-align:center;">
-                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:6px;">Activos</span>
-                <strong style="font-size:1.5rem; color:#22c55e; font-weight:900;">${active}</strong>
-                <span style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:4px;">${((active / total) * 100 || 0).toFixed(0)}% del total</span>
+                <strong style="display:block; font-size:1.5rem; font-weight:900; color:#22c55e;">${active}</strong>
+                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:8px;">Activos</span>
+                <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
+                    <div style="width:${total > 0 ? (active / total * 100) : 0}%; height:100%; background:#22c55e; border-radius:2px;"></div>
+                </div>
+                <span style="font-size:0.7rem; color:var(--text-gray); display:block; margin-top:4px;">${total > 0 ? Math.round(active / total * 100) : 0}% del total</span>
             </div>
             <div class="stat-mini-premium" style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); padding:18px; border-radius:14px; text-align:center;">
-                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:6px;">Congelados</span>
-                <strong style="font-size:1.5rem; color:#3b82f6; font-weight:900;">${frozen}</strong>
+                <strong style="display:block; font-size:1.5rem; font-weight:900; color:#3b82f6;">${frozen}</strong>
+                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:8px;">Congelados</span>
+                <span style="font-size:0.7rem; color:var(--text-gray); display:block; margin-top:4px;">${avgDaysAsMember} días promedio</span>
             </div>
             <div class="stat-mini-premium ${moroso > 0 ? 'pulse-warning' : ''}" style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); padding:18px; border-radius:14px; text-align:center;">
-                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:6px;">Morosos</span>
-                <strong style="font-size:1.5rem; color:#ef4444; font-weight:900;">${moroso}</strong>
+                <strong style="display:block; font-size:1.5rem; font-weight:900; color:#ef4444;">${moroso}</strong>
+                <span style="font-size:0.65rem; opacity:0.6; text-transform:uppercase; font-weight:700; letter-spacing:1px; display:block; margin-bottom:8px;">Morosos</span>
+                <span style="font-size:0.7rem; color:var(--text-gray); display:block; margin-top:4px;">${inactive} inactivos totales</span>
             </div>
         </div>
 
         <!-- Gráficos -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-bottom:25px;">
-            <div style="background:rgba(255,255,255,0.02); border-radius:12px; border:1px solid rgba(255,255,255,0.05); padding:15px;">
-                <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:12px;">📈 Nuevos Socios (6 meses)</h4>
-                <div class="chart-container" style="min-height:180px;">
-                    <canvas id="membersEvolutionChart"></canvas>
+        <div class="dash-section" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-bottom:25px;">
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:15px;">
+                <h4 style="font-size:0.8rem; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:6px;"><i data-lucide="trending-up" style="width:14px; color:var(--accent-purple);"></i> Nuevos Socios (6 meses)</h4>
+                <div class="chart-container" style="min-height:160px;"><canvas id="membersEvolutionChart"></canvas></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:15px;">
+                <h4 style="font-size:0.8rem; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:6px;"><i data-lucide="pie-chart" style="width:14px; color:#22c55e;"></i> Distribución por Plan</h4>
+                <div class="chart-container" style="min-height:160px;"><canvas id="membersPlanChart"></canvas></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:15px;">
+                <h4 style="font-size:0.8rem; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:6px;"><i data-lucide="calendar-check" style="width:14px; color:var(--accent-cyan);"></i> Asistencia Últimos 7 Días</h4>
+                <div class="chart-container" style="min-height:160px;"><canvas id="membersAttendanceChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Actividad Reciente -->
+        <div class="dash-section" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:25px;">
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:15px;">
+                <h4 style="font-size:0.8rem; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:6px;"><i data-lucide="user-plus" style="width:14px; color:var(--accent-purple);"></i> Socios Recientes</h4>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    ${recentMembers.length === 0
+            ? '<p style="opacity:0.5; font-size:0.8rem; padding:10px;">Sin registros recientes</p>'
+            : recentMembers.map(p => `
+                            <div style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                                <img src="${p.photo_url || (typeof unknowAvatar !== 'undefined' ? unknowAvatar : '/app/images/icon-192.png')}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">
+                                <div style="flex:1; min-width:0;">
+                                    <strong style="font-size:0.8rem; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.full_name || 'Sin nombre'}</strong>
+                                    <span style="font-size:0.65rem; color:var(--text-gray);">${p._status} • ${p.membership_plans?.name || 'Sin plan'}</span>
+                                </div>
+                                <span style="font-size:0.65rem; color:var(--text-gray); flex-shrink:0;">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : ''}</span>
+                            </div>
+                        `).join('')}
                 </div>
             </div>
-            <div style="background:rgba(255,255,255,0.02); border-radius:12px; border:1px solid rgba(255,255,255,0.05); padding:15px;">
-                <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:12px;">🥧 Distribución por Plan</h4>
-                <div class="chart-container" style="min-height:180px;">
-                    <canvas id="membersPlanChart"></canvas>
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:15px;">
+                <h4 style="font-size:0.8rem; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:6px;"><i data-lucide="receipt" style="width:14px; color:#22c55e;"></i> Pagos Recientes</h4>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    ${recentPayments.length === 0
+            ? '<p style="opacity:0.5; font-size:0.8rem; padding:10px;">Sin pagos recientes</p>'
+            : recentPayments.map(p => {
+                const user = processed.find(u => u.id === p.user_id);
+                return `
+                            <div style="display:flex; align-items:center; gap:10px; padding:8px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                                <div style="width:32px; height:32px; border-radius:50%; background:rgba(34,197,94,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                    <i data-lucide="dollar-sign" style="width:14px; color:#22c55e;"></i>
+                                </div>
+                                <div style="flex:1; min-width:0;">
+                                    <strong style="font-size:0.8rem; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${user?.full_name || 'Socio'}</strong>
+                                    <span style="font-size:0.65rem; color:var(--text-gray);">${p.concept || 'Pago'}</span>
+                                </div>
+                                <span style="font-size:0.8rem; color:#22c55e; font-weight:700; flex-shrink:0;">$${(parseFloat(p.amount) || 0).toLocaleString('es-CL')}</span>
+                            </div>
+                        `;
+            }).join('')}
                 </div>
             </div>
         </div>
 
         <!-- Alertas críticas -->
-        <div>
+        <div class="dash-section">
             <h4 style="font-size:0.9rem; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
                 <i data-lucide="alert-triangle" style="width:16px; color:#ef4444;"></i> Alertas Críticas
             </h4>
@@ -232,7 +322,7 @@ const renderDashboardView = (container) => {
     `;
 
     window.lucide && window.lucide.createIcons();
-    renderDashboardCharts(evolutionData, planDist);
+    renderDashboardCharts(evolutionData, planDist, last7Days);
 
     // Listeners para acciones rápidas en alertas
     container.querySelectorAll('.alert-action-renew').forEach(btn => {
@@ -270,7 +360,7 @@ const renderAlertCard = (p, type) => {
     `;
 };
 
-const renderDashboardCharts = (evolutionData, planDist) => {
+const renderDashboardCharts = (evolutionData, planDist, last7Days) => {
     const evCtx = document.getElementById('membersEvolutionChart');
     if (evCtx) {
         if (window._membersEvolutionChart) window._membersEvolutionChart.destroy();
@@ -319,6 +409,33 @@ const renderDashboardCharts = (evolutionData, planDist) => {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'right', labels: { color: 'rgba(255,255,255,0.7)', font: { size: 10 }, boxWidth: 10 } }
+                }
+            }
+        });
+    }
+
+    const attCtx = document.getElementById('membersAttendanceChart');
+    if (attCtx && last7Days) {
+        if (window._membersAttendanceChart) window._membersAttendanceChart.destroy();
+        window._membersAttendanceChart = new Chart(attCtx, {
+            type: 'bar',
+            data: {
+                labels: last7Days.map(d => d.label),
+                datasets: [{
+                    label: 'Asistencias',
+                    data: last7Days.map(d => d.count),
+                    backgroundColor: 'rgba(6,182,212,0.7)',
+                    borderColor: 'rgba(6,182,212,1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 9 } }, grid: { display: false } },
+                    y: { ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true }
                 }
             }
         });
@@ -462,7 +579,9 @@ const renderDirectorioView = (container) => {
                                             <img src="${avatar}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1);">
                                             <div>
                                                 <strong style="font-size:0.85rem;">${p.full_name || 'Sin nombre'}</strong>
-                                                <span style="font-size:0.7rem; color:var(--text-gray); display:block;">${p.email || ''}</span>
+                                                <span style="font-size:0.7rem; color:var(--text-gray); display:block;">
+                                                    ${p.email && !p.email.includes('@amaru.local') ? p.email : '<span style="color:#fbbf24;">📵 Sin tecnología</span>'}
+                                                </span>
                                             </div>
                                         </div>
                                     </td>
@@ -637,12 +756,13 @@ const renderRetencionView = (container) => {
     });
 
     container.innerHTML = `
-        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; padding:15px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.06); align-items:center;">
-            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:200px;">
-                <span style="font-size:1.2rem; font-weight:900; color:white;">${withScore.length}</span>
-                <span style="font-size:0.8rem; color:var(--text-gray);">socios evaluados</span>
-            </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-bottom:20px;">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; padding:15px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.06); align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:200px;">
+                    <span style="font-size:1.2rem; font-weight:900; color:white;">${withScore.length}</span>
+                    <span style="font-size:0.8rem; color:var(--text-gray);">socios evaluados</span>
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <button class="risk-filter-btn btn-glass-small ${riskFilter === 'all' ? 'active' : ''}" data-filter="all" style="font-size:0.75rem; ${riskFilter === 'all' ? 'background:rgba(255,255,255,0.1); color:white; border-color:white;' : ''}">
                     Todos
                 </button>
@@ -818,7 +938,9 @@ const renderComunicacionesView = (container) => {
                                 <img src="${p.photo_url || (typeof unknowAvatar !== 'undefined' ? unknowAvatar : '/app/images/icon-192.png')}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
                                 <div style="flex:1; min-width:0;">
                                     <span style="font-size:0.8rem; font-weight:600;">${p.full_name || 'Sin nombre'}</span>
-                                    <span style="font-size:0.7rem; color:var(--text-gray); display:block;">${p.email || ''}</span>
+                                    <span style="font-size:0.7rem; color:var(--text-gray); display:block;">
+                                        ${p.email && !p.email.includes('@amaru.local') ? p.email : '<span style="color:#fbbf24;">📵 Sin tecnología</span>'}
+                                    </span>
                                 </div>
                                 <span class="tag" style="background:${p._statusBg}; color:${p._statusColor}; font-size:0.6rem; padding:1px 6px;">${p._status}</span>
                             </div>
@@ -874,10 +996,12 @@ const renderComunicacionesView = (container) => {
             const emails = [];
             const hasEmailChannel = channel === 'email' || channel === 'both';
 
-            // Preparar emails
+            // Preparar emails (excluir socios sin tecnología — emails @amaru.local)
             if (hasEmailChannel) {
                 filtered.forEach(user => {
-                    if (user.email && user.email.includes('@')) emails.push(user.email);
+                    if (user.email && user.email.includes('@') && !user.email.includes('@amaru.local')) {
+                        emails.push(user.email);
+                    }
                 });
             }
 
