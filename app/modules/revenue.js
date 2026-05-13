@@ -142,6 +142,13 @@ export const cleanupRevenueSection = () => {
     cleanupRealtimeSubscription();
 };
 
+export const forceRefreshRevenue = async () => {
+    console.log('[Revenue] Force refresh triggered');
+    currentRevenueData = await fetchRevenueData();
+    await getDiscounts();
+    renderRevenueDashboard();
+};
+
 // ─── Dashboard completo ─────────────────────────────────────────────────────
 const renderRevenueDashboard = () => {
     const adminContent = document.getElementById('admin-content-area');

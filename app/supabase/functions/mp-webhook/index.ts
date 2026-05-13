@@ -5,13 +5,10 @@ const MP_ACCESS_TOKEN = Deno.env.get('MP_ACCESS_TOKEN') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-const DEFAULT_SURCHARGE_PCT = 30;
-
 async function calculateCorrectAmount(supabase, planId, userId, metadata) {
   try {
     let finalAmount = 0;
     let discountPercent = 0;
-    let surchargePercent = DEFAULT_SURCHARGE_PCT;
     let concept = 'Membresía AmaruApp';
 
     const { data: plan } = await supabase
@@ -27,13 +24,9 @@ async function calculateCorrectAmount(supabase, planId, userId, metadata) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('active_promo, surcharge_pct')
+      .select('active_promo')
       .eq('id', userId)
       .single();
-    
-    if (profile?.surcharge_pct) {
-      surchargePercent = Number(profile.surcharge_pct);
-    }
 
     if (profile?.active_promo) {
       const { data: discount } = await supabase
@@ -50,27 +43,22 @@ async function calculateCorrectAmount(supabase, planId, userId, metadata) {
     if (metadata.isProportional === 'true' && metadata.daysLeft && metadata.daysInMonth) {
       const dailyRate = finalAmount / Number(metadata.daysInMonth);
       const daysLeft = Number(metadata.daysLeft);
-      const baseProportional = dailyRate * daysLeft;
-      finalAmount = Math.round(baseProportional * (1 + surchargePercent / 100));
+      finalAmount = Math.round(dailyRate * daysLeft);
       concept += ' (Proporcional)';
-    } else if (surchargePercent > 0 && metadata.isProportional !== 'true') {
-      finalAmount = Math.round(finalAmount * (1 + surchargePercent / 100));
-      concept += ` (+${surchargePercent}% recargo)`;
     }
 
     if (discountPercent > 0) {
       finalAmount = Math.round(finalAmount * (1 - discountPercent / 100));
-      concept += ` (${discountPercent}% descuento)`;
+      concept += ` (-${discountPercent}% LFNM2026)`;
     }
 
-    return { amount: finalAmount, concept, discountPercent, surchargePercent };
+    return { amount: finalAmount, concept, discountPercent };
   } catch (err) {
     console.error('Error calculating amount:', err);
     return { 
       amount: 0, 
       concept: 'Membresía AmaruApp',
-      discountPercent: 0,
-      surchargePercent: DEFAULT_SURCHARGE_PCT
+      discountPercent: 0
     };
   }
 }
@@ -115,7 +103,7 @@ serve(async (req) => {
         if (userId && planId) {
           const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-          const { amount, concept, discountPercent, surchargePercent } = await calculateCorrectAmount(
+          const { amount, concept, discountPercent } = await calculateCorrectAmount(
             supabase, planId, userId, metadata
           );
 

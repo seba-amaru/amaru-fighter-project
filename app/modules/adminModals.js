@@ -4,6 +4,7 @@ import unknowAvatar from '../images/unknow.png';
 import { renderAdminClasses, renderAdminPlans } from './admin.js';
 import { renderAdminMembers } from './members.js';
 import { renderAdminPayments } from './payments.js';
+import { forceRefreshRevenue } from './revenue.js';
 
 const formatCurrency = (n) => {
     if (n === undefined || n === null) return '$0';
@@ -50,6 +51,7 @@ export const handlePaymentAction = async (id, status) => {
 
         window.showToast(`Pago ${status === 'approved' ? 'aprobado' : 'rechazado'} ✅`, status === 'approved' ? "#22c55e" : "#ef4444");
         renderAdminPayments();
+        forceRefreshRevenue();
     } catch (err) {
         console.error(err);
         window.showToast("Error al actualizar pago", "#ef4444");
@@ -566,7 +568,10 @@ const quickRenewMember = async (uid) => {
                 created_at: new Date().toISOString()
             });
             if (payErr) console.warn('[AdminModals] Renewal payment insert failed:', payErr);
-            else window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+            else {
+                window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+                forceRefreshRevenue();
+            }
         }
 
         window.showToast('Plan renovado exitosamente ✅', '#22c55e');
@@ -855,7 +860,10 @@ export const initModals = () => {
                                 created_at: new Date().toISOString()
                             });
                             if (payErr) console.warn('[AdminModals] Auto-payment insert failed:', payErr);
-                            else window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+                            else {
+                                window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+                                forceRefreshRevenue();
+                            }
                         }
                     }
 
@@ -908,7 +916,10 @@ export const initModals = () => {
                                 created_at: new Date().toISOString()
                             });
                             if (payErr) console.warn('[AdminModals] Auto-payment insert failed:', payErr);
-                            else window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+                            else {
+                                window.showToast(`Pago de ${formatCurrency(amount)} registrado ✅`, '#22c55e');
+                                forceRefreshRevenue();
+                            }
                         }
                     }
 

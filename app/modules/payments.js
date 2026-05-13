@@ -4,6 +4,7 @@
 
 import { exportToFormat } from '../utils/exportUtils.js';
 import { handlePaymentAction } from './adminModals.js';
+import { forceRefreshRevenue } from './revenue.js';
 
 /* global Chart */
 
@@ -949,6 +950,7 @@ export const openQuickPaymentModal = (userId) => {
             close();
             await fetchAllPaymentsData();
             renderPaymentsDashboard();
+            forceRefreshRevenue();
         } catch (e) {
             console.error(e);
             window.showToast('Error al registrar pago', '#ef4444');
