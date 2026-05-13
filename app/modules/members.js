@@ -41,7 +41,7 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 // ─── Fetch unificado ────────────────────────────────────────────────────────
 const fetchAllMembersData = async () => {
     try {
-        const users = await window.supabase.from('profiles').select('*');
+        const users = await window.supabase.from('profiles').select('*').eq('is_deleted', false);
         const res = await window.supabase.from('reservations').select('*');
         const plans = await window.supabase.from('membership_plans').select('*');
         const pays = await window.supabase.from('payments').select('*');
