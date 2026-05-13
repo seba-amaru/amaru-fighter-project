@@ -11,16 +11,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
-        rel="stylesheet">    <!-- PWA Setup -->
+        rel="stylesheet"> <!-- PWA Setup -->
     <link rel="manifest" href="/assets/manifest-CP5Drj9k.json">
     <meta name="theme-color" content="#000000">
     <link rel="icon" type="image/png" href="/images/icon-192.png">
     <link rel="apple-touch-icon" href="/images/icon-192.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-  <script type="module" crossorigin src="/assets/main-SWgw7C3H.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/dist-CjQljHnc.js">
-  <link rel="stylesheet" crossorigin href="/assets/main-CI5_UdJc.css">
+  <script type="module" crossorigin src="/assets/main-jiITlyvp.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/supabase-config-BzB6TJQm.js">
+  <link rel="stylesheet" crossorigin href="/assets/main-BW5kuAFT.css">
 </head>
 
 <body>
@@ -53,6 +53,16 @@
         <a href="#memberships" class="mobile-link">Planes de Membresía</a>
         <a href="#schedule" class="mobile-link">Horario</a>
         <a href="#contact" class="mobile-link">Contacto</a>
+        <div class="mobile-menu-divider"></div>
+        <a href="./app/index.html" class="mobile-link mobile-link-app">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"
+                style="margin-right: 8px;">
+                <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+                <path fill-rule="evenodd"
+                    d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z" />
+            </svg>
+            Mi Cuenta / App
+        </a>
     </div>
 
     <!-- Hero Section -->
@@ -191,17 +201,21 @@
                 <img src="/assets/12-60INYSs9.jpg" alt="Amarufighter" class="gallery-img">
             </div>
         </div>
-        
+
         <!-- Memberships Section (Positioned after gallery as requested) -->
         <section id="memberships" class="memberships" style="padding: 100px 0 60px;">
             <div class="container">
                 <div class="section-header" style="text-align: center; margin-bottom: 50px;">
                     <h2 class="section-title">Elige tu <span class="gradient-text">Plan</span></h2>
                     <p class="section-subtitle">Visualiza nuestros precios y beneficios.</p>
-                    <div class="info-notice glass-card" style="display: inline-block; padding: 16px 28px; margin-top: 25px; border-radius: 16px; font-size: 0.95rem; border: 1px solid rgba(255, 184, 0, 0.4); background: rgba(255, 184, 0, 0.08); max-width: 800px; line-height: 1.6; color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+                    <div class="info-notice glass-card"
+                        style="display: inline-block; padding: 16px 28px; margin-top: 25px; border-radius: 16px; font-size: 0.95rem; border: 1px solid rgba(255, 184, 0, 0.4); background: rgba(255, 184, 0, 0.08); max-width: 800px; line-height: 1.6; color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
                         <div style="display: flex; align-items: flex-start; gap: 12px; text-align: left;">
-                            <i data-lucide="info" style="width: 20px; height: 20px; min-width: 20px; color: #ffb800; margin-top: 2px;"></i>
-                            <span>Para contratar un plan, primero debes <b>crear tu cuenta</b> en nuestra plataforma de gestión. Al elegirlo, tendrás acceso a todas las <b>clases</b> y será válido por el mes en curso desde su activación.</span>
+                            <i data-lucide="info"
+                                style="width: 20px; height: 20px; min-width: 20px; color: #ffb800; margin-top: 2px;"></i>
+                            <span>Para contratar un plan, primero debes <b>crear tu cuenta</b> en nuestra plataforma de
+                                gestión. Al elegirlo, tendrás acceso a todas las <b>clases</b> y será válido por el mes
+                                en curso desde su activación.</span>
                         </div>
                     </div>
                 </div>
@@ -215,20 +229,41 @@
         </section>
 
         <!-- Schedule Section -->
-        <section id="schedule" class="schedule" style="padding: 60px 0; text-align: center;">
+        <section id="schedule" class="schedule-section">
             <div class="container">
-                <h2 class="section-title">Nuestro <span class="gradient-text">Horario</span></h2>
-                <p class="section-subtitle" style="margin-bottom: 40px;">Descubre nuestras disciplinas y encuentra el horario perfecto para ti.</p>
-                <div class="schedule-container glass-card" style="padding: 20px; border-radius: 16px; display: inline-block; max-width: 100%;">
-                    <!-- Se mostrará en formato PNG (Óptimo para visualizar en web) -->
-                    <img src="/assets/horario-Cy979iSt.png" alt="Horario de Clases" style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
+                <div class="section-header">
+                    <h2 class="section-title">Nuestro <span class="gradient-text">Horario</span></h2>
+                    <p class="section-subtitle">Descubre nuestras disciplinas y encuentra el horario perfecto para ti.
+                    </p>
                 </div>
-                <div style="margin-top: 32px;">
-                    <!-- Botón para descargar o visualizar el horario en formato PDF -->
-                    <a href="images/horario.pdf" target="_blank" class="btn-outline glow-primary" style="display: inline-flex; align-items: center; gap: 8px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
-                            <path d="M4.603 14.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.482-.645 19.697 19.697 0 0 0 1.062-2.227 7.269 7.269 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a10.954 10.954 0 0 0 .98 1.686 5.753 5.753 0 0 1 1.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 0 1-.354.416.856.856 0 0 1-.51.138c-.331-.014-.654-.196-.933-.417a5.712 5.712 0 0 1-.911-.95 11.651 11.651 0 0 0-1.997.406 11.307 11.307 0 0 1-1.02 1.51c-.292.35-.609.656-.927.787a.793.793 0 0 1-.58.029zm1.379-1.901c-.166.076-.32.156-.459.238-.328.194-.541.383-.647.547-.094.145-.096.25-.04.361.01.022.02.036.026.044a.266.266 0 0 0 .023-.012c.152-.086.305-.23.448-.377.308-.316.635-.783.91-1.353a13.344 13.344 0 0 1-1.261-.448zM10.15 10.16a7.1 7.1 0 0 0-1.084-.693c-.424.23-.847.461-1.248.694.394.343.83.69 1.314.991.13.082.257.162.379.239.027-.145.056-.29.088-.435a11.166 11.166 0 0 1 .551-1.196zm.26.173a4.706 4.706 0 0 0 .425.43c.125.109.245.203.345.26.11.062.204.091.259.084.095-.013.19-.104.228-.215.038-.112.022-.24-.047-.36-.08-.14-.23-.213-.41-.284-.18-.071-.39-.12-.6-.115zM8.13 6.91a2.6 2.6 0 0 0-.158-.916c-.053-.175-.11-.295-.157-.33-.047-.035-.112-.055-.175-.055-.07 0-.14.026-.182.049-.041.023-.061.056-.07.094-.017.067-.002.162.036.29.037.129.087.276.151.444.116.306.267.65.459 1.018.12-.13.238-.266.357-.406z"/>
+
+                <!-- Filtros por disciplina -->
+                <div class="schedule-filters" id="schedule-filters">
+                    <button class="filter-btn active" data-filter="all">Todas</button>
+                    <button class="filter-btn" data-filter="Striking">Kick Boxing</button>
+                    <button class="filter-btn" data-filter="BJJ">Jiu Jitsu</button>
+                    <button class="filter-btn" data-filter="MMA">MMA</button>
+                    <button class="filter-btn" data-filter="Funcional Fighter">Funcional</button>
+                </div>
+
+                <!-- Vista Desktop: Grilla semanal -->
+                <div class="schedule-grid-wrapper" id="schedule-grid-wrapper">
+                    <div class="loading-schedule">
+                        <div class="loading-spinner"></div>
+                        <p>Cargando horario del dojo...</p>
+                    </div>
+                </div>
+
+                <!-- Vista Mobile: Acordeón por día -->
+                <div class="schedule-mobile" id="schedule-mobile"></div>
+
+                <!-- Fallback PDF -->
+                <div class="schedule-fallback">
+                    <a href="images/horario.pdf" target="_blank" class="btn-outline">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                            viewBox="0 0 16 16">
+                            <path
+                                d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z" />
                         </svg>
                         Descargar Horario en PDF
                     </a>
@@ -260,7 +295,8 @@
         <div class="container footer-container">
             <div class="footer-brand">
                 <img src="/assets/AMARU-LFNM-CbIP2x2j.png" alt="Logo" class="footer-logo">
-                <p>© 2024 Amarufighter. Todos los derechos reservados. <span style="opacity:0.5; font-size:0.8em;">v1.4.6</span></p>
+                <p>© 2024 Amarufighter. Todos los derechos reservados. <span
+                        style="opacity:0.5; font-size:0.8em;">v1.4.6</span></p>
             </div>
             <div class="footer-links">
                 <a href="https://www.instagram.com/amarufighter_eda/">Instagram</a>

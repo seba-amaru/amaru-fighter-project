@@ -10,6 +10,7 @@ let currentRevenueData = [];
 let currentFilter = { year: new Date().getFullYear(), month: new Date().getMonth() };
 let compareFilter = null; // null = compara con periodo anterior
 let displayLimit = 20;
+let revenueRealtimeChannel = null;
 
 // ─── Utilidades ─────────────────────────────────────────────────────────────
 const formatCurrency = (n) => {
@@ -72,19 +73,73 @@ const fetchRevenueData = async () => {
     }
 };
 
+// ─── Realtime subscription for live updates ─────────────────────────────────
+const subscribeToRealtimeUpdates = () => {
+    if (revenueRealtimeChannel) {
+        revenueRealtimeChannel.unsubscribe();
+    }
+
+    revenueRealtimeChannel = window.supabase
+        .channel('revenue-payments-updates')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'payments',
+                filter: "status=eq.approved"
+            },
+            (payload) => {
+                console.log('[Revenue] Realtime update received:', payload);
+                refreshRevenueData();
+            }
+        )
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('[Revenue] Realtime subscription active');
+            } else {
+                console.warn('[Revenue] Realtime subscription status:', status);
+            }
+        });
+};
+
+const refreshRevenueData = async () => {
+    try {
+        const newData = await fetchRevenueData();
+        currentRevenueData = newData;
+        renderRevenueDashboard();
+        window.showToast && window.showToast('Nuevo pago detectado - Actualizando...', '#22c55e');
+    } catch (err) {
+        console.error('[Revenue] Error refreshing data:', err);
+    }
+};
+
+const cleanupRealtimeSubscription = () => {
+    if (revenueRealtimeChannel) {
+        window.supabase.removeChannel(revenueRealtimeChannel);
+        revenueRealtimeChannel = null;
+        console.log('[Revenue] Realtime subscription cleaned up');
+    }
+};
+
 // ─── Render principal ───────────────────────────────────────────────────────
 export const renderRevenueSection = async () => {
     const revSection = document.getElementById('admin-revenue-section');
     const adminContent = document.getElementById('admin-content-area');
 
-    // Asegurar que solo se muestre el dashboard renderizado dinámicamente en admin-content-area
     if (revSection) revSection.classList.add('hidden');
     if (adminContent) adminContent.innerHTML = `<div class="p-20 text-center"><i data-lucide="loader" class="spin"></i> Cargando inteligencia financiera...</div>`;
     window.lucide && window.lucide.createIcons();
 
     currentRevenueData = await fetchRevenueData();
-    await getDiscounts(); // Preload discounts for payment rows
+    await getDiscounts();
     renderRevenueDashboard();
+    
+    subscribeToRealtimeUpdates();
+};
+
+export const cleanupRevenueSection = () => {
+    cleanupRealtimeSubscription();
 };
 
 // ─── Dashboard completo ─────────────────────────────────────────────────────
@@ -144,6 +199,12 @@ const renderRevenueDashboard = () => {
                     <button id="btn-compare-prev" class="btn-glass" style="padding:6px 14px; font-size:0.7rem; ${compareFilter ? 'background:var(--accent-purple); color:white; border-color:var(--accent-purple);' : ''}">
                         <i data-lucide="git-compare" style="width:12px;"></i> Comparar
                     </button>
+                    <button id="btn-refresh-rev" class="btn-glass" style="padding:6px 14px; font-size:0.7rem;" title="Actualizar datos">
+                        <i data-lucide="refresh-cw" style="width:12px;"></i>
+                    </button>
+                    <span id="realtime-status" style="display:flex; align-items:center; gap:4px; font-size:0.65rem; color:#22c55e; background:rgba(34,197,94,0.1); padding:4px 8px; border-radius:20px;">
+                        <span style="width:6px; height:6px; background:#22c55e; border-radius:50%;"></span> Live
+                    </span>
                 </div>
             </div>
 
@@ -500,7 +561,11 @@ const renderHistoricalChart = (data) => {
 // ─── Helpers de filtrado ────────────────────────────────────────────────────
 const filterByPeriod = (payments, year, month) => {
     return payments.filter(p => {
-        const d = new Date(p.created_at);
+        const createdAt = p.created_at;
+        if (!createdAt) return false;
+        
+        const datePart = createdAt.split('T')[0];
+        const d = new Date(datePart + 'T00:00:00');
         return d.getFullYear() === year && d.getMonth() === month;
     });
 };
@@ -562,6 +627,17 @@ const attachListeners = (selPayments) => {
                 compareFilter = { year: prevYear, month: prevMonth };
             }
             renderRevenueDashboard();
+        };
+    }
+
+    // Refresh manual
+    const refreshBtn = document.getElementById('btn-refresh-rev');
+    if (refreshBtn) {
+        refreshBtn.onclick = async () => {
+            refreshBtn.style.animation = 'spin 1s linear infinite';
+            window.showToast('Actualizando datos...', '#f59e0b');
+            await refreshRevenueData();
+            setTimeout(() => { refreshBtn.style.animation = ''; }, 500);
         };
     }
 

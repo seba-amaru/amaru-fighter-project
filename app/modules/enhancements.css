@@ -1,0 +1,261 @@
+/* ===== CAROUSEL NAV ARROWS ===== */
+.carousel-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-gray);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .25s ease;
+    z-index: 5;
+    font-size: 14px;
+}
+
+.carousel-nav-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--accent-purple);
+    color: white;
+}
+
+.carousel-prev {
+    left: -6px;
+}
+
+.carousel-next {
+    right: -6px;
+}
+
+.section-header-premium {
+    position: relative;
+}
+
+/* ===== MEMBERSHIP BANNER ===== */
+.membership-banner {
+    margin: 0 0 12px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: slideDown .4s ease;
+}
+
+.membership-banner--warning {
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    color: #fbbf24;
+}
+
+.membership-banner--danger {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #ef4444;
+}
+
+.membership-banner__content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.membership-banner__content i {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.membership-banner__close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: .6;
+    transition: opacity .2s;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.membership-banner__close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== FAQ OVERLAY ENHANCEMENTS ===== */
+#faq-overlay .faq-section h4 {
+    font-size: .9rem;
+    font-weight: 800;
+    color: var(--accent-purple);
+    margin: 20px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#faq-overlay .faq-section:first-child h4 {
+    margin-top: 0;
+}
+
+#faq-overlay .faq-item {
+    margin-bottom: 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all .2s;
+}
+
+#faq-overlay .faq-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+#faq-overlay .faq-question {
+    width: 100%;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    color: white;
+    text-align: left;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#faq-overlay .faq-question::after {
+    content: '+';
+    font-size: 1.1rem;
+    color: var(--text-gray);
+    transition: transform .2s;
+}
+
+#faq-overlay .faq-item.active .faq-question::after {
+    content: '−';
+}
+
+#faq-overlay .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s ease;
+    padding: 0 14px;
+    font-size: .78rem;
+    color: var(--text-gray);
+    line-height: 1.5;
+}
+
+#faq-overlay .faq-item.active .faq-answer {
+    max-height: 200px;
+    padding-bottom: 12px;
+}
+
+/* ===== PASSWORD RESET MODAL FEEDBACK ===== */
+#forgot-password-modal .validation-feedback {
+    display: block;
+    margin-top: 6px;
+    font-size: .75rem;
+    font-weight: 600;
+    transition: all .2s;
+    min-height: 18px;
+}
+
+#forgot-password-modal .validation-feedback.valid {
+    color: #22c55e;
+}
+
+#forgot-password-modal .validation-feedback.invalid {
+    color: #ef4444;
+}
+
+#forgot-password-modal #forgot-status {
+    transition: all .3s;
+}
+
+#forgot-password-modal .btn-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===== AGENDA DATE CHIP ACTIVE ===== */
+.date-chip {
+    transition: all .25s cubic-bezier(.34, 1.56, .64, 1);
+    cursor: pointer;
+}
+
+.date-chip:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.date-chip.active {
+    transform: scale(1.08);
+}
+
+/* ===== CLASS CARD ANIMATION ===== */
+@keyframes fadeSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== AGENDA EMPTY STATE ===== */
+.agenda-empty {
+    text-align: center;
+    padding: 40px 20px;
+    opacity: .5;
+}
+
+.agenda-empty i {
+    margin-bottom: 12px;
+}
+
+.agenda-empty p {
+    font-size: .85rem;
+    color: var(--text-gray);
+}

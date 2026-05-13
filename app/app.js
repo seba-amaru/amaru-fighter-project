@@ -14,6 +14,10 @@ import { renderSchedule } from './modules/schedule.js';
 import { renderTournaments } from './modules/tournaments.js';
 import { renderRevenueSection } from './modules/revenue.js';
 import unknowAvatar from '../images/unknow.png';
+import { Validation } from './modules/validation.js';
+import { NotificationSystem } from './modules/notifications.js';
+import { FAQ } from './modules/faq.js';
+import { SkeletonLoader, AgendaEnhancer } from './modules/integrations.js';
 // Firebase Auth removed, using Supabase Auth
 const auth = {
     get currentUser() {
@@ -1173,6 +1177,17 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
 
     initAuthUI(switchScreen, renderMembershipPlans);
+
+    // Initialize new modules
+    try {
+        if (typeof Validation !== 'undefined') Validation.init();
+        if (typeof NotificationSystem !== 'undefined') NotificationSystem.init();
+        if (typeof FAQ !== 'undefined') FAQ.init();
+        if (typeof AgendaEnhancer !== 'undefined') AgendaEnhancer.init();
+        console.log('[INIT] All enhancement modules initialized');
+    } catch (err) {
+        console.error('[INIT] Error initializing enhancement modules:', err);
+    }
 
     // --- Profile Avatar Logic ---
     const btnEditAvatar = document.getElementById('btn-edit-avatar');
@@ -2866,4 +2881,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initAdminListeners();
 
+    // Initialize new modules
+    if (typeof Validation !== 'undefined') Validation.init();
+    if (typeof NotificationSystem !== 'undefined') NotificationSystem.init();
+    if (typeof FAQ !== 'undefined') FAQ.init();
+    if (typeof AgendaEnhancer !== 'undefined') AgendaEnhancer.init();
+    if (typeof SkeletonLoader !== 'undefined') {
+        SkeletonLoader.init();
+        // Override showLoading to use skeleton when possible
+        const origShowLoading = window.showLoading;
+        window.showLoading = (message = "Cargando...") => {
+            const scheduleContainer = document.querySelector('.class-timeline');
+            if (scheduleContainer && message.includes('clases')) {
+                SkeletonLoader.showFor('schedule');
+            } else if (typeof Swal !== 'undefined') {
+                origShowLoading(message);
+            }
+        };
+        const origHideLoading = window.hideLoading;
+        window.hideLoading = () => {
+            SkeletonLoader.hideAll();
+            origHideLoading();
+        };
+    }
 });

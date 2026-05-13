@@ -9,7 +9,7 @@ export const renderSchedule = async () => {
     const carousel = document.querySelector('.date-carousel-premium');
     if (!container) return;
 
-    const { appState, auth, showLoading, hideLoading, toggleReservation, openClassModal } = window;
+    const { appState, auth, showLoading, hideLoading, toggleReservation, openClassModal, SkeletonLoader } = window;
 
     // Build the dynamic calendar for 7 days
     if (carousel) {
@@ -86,6 +86,11 @@ export const renderSchedule = async () => {
     console.log(`[Schedule] Filtered classes: ${filteredClasses.length}`);
 
     if (filteredClasses.length === 0) {
+        // Show skeleton while loading if data not ready yet
+        if (appState.classes.length === 0 && SkeletonLoader) {
+            SkeletonLoader.showFor('schedule');
+            return;
+        }
         container.innerHTML = `
             <div style="text-align:center; padding:40px 20px; color:var(--text-gray);">
                 <i data-lucide="calendar-x" style="width:40px; height:40px; opacity:0.3; margin-bottom:15px;"></i>
@@ -95,6 +100,9 @@ export const renderSchedule = async () => {
         if (window.lucide) window.lucide.createIcons();
         return;
     }
+
+    // Hide skeleton when data is ready
+    if (SkeletonLoader) SkeletonLoader.hideAll();
 
     container.innerHTML = filteredClasses.map((cls, idx) => {
         const isBooked = appState.reservations.includes(cls.id);

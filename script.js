@@ -233,8 +233,211 @@ function createPlanCard(plan) {
     return card;
 }
 
+// --- Schedule Fetching & Rendering ---
+let allClasses = [];
+let activeScheduleFilter = 'all';
+
+async function loadSchedule() {
+    const gridWrapper = document.getElementById('schedule-grid-wrapper');
+    if (!gridWrapper) return;
+
+    try {
+        const { data: classes, error } = await supabase
+            .from('classes')
+            .select('*')
+            .order('time', { ascending: true });
+
+        if (error) throw error;
+
+        allClasses = classes || [];
+
+        if (allClasses.length > 0) {
+            renderScheduleGrid(allClasses);
+            renderScheduleMobile(allClasses);
+        } else {
+            showScheduleFallback();
+        }
+    } catch (err) {
+        console.error("Error loading schedule:", err);
+        showScheduleFallback();
+    }
+}
+
+function showScheduleFallback() {
+    const gridWrapper = document.getElementById('schedule-grid-wrapper');
+    if (gridWrapper) {
+        gridWrapper.innerHTML = `
+            <div class="schedule-fallback-msg glass-card">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16" style="opacity:0.5; margin-bottom:16px;">
+                    <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
+                </svg>
+                <p>No se pudo cargar el horario dinámico.</p>
+                <a href="images/horario.pdf" target="_blank" class="btn-outline" style="margin-top:16px; display:inline-block;">Ver Horario PDF</a>
+            </div>
+        `;
+    }
+}
+
+const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const dayIndexMap = { 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6, 'Domingo': 0 };
+
+const typeColors = {
+    'Striking': { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.35)', text: '#ef4444', label: 'Kick Boxing' },
+    'BJJ': { bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.35)', text: '#8b5cf6', label: 'Jiu Jitsu' },
+    'BJJ Gi': { bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.35)', text: '#8b5cf6', label: 'Jiu Jitsu Gi' },
+    'No Gi': { bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.35)', text: '#a855f7', label: 'No Gi' },
+    'MMA': { bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.35)', text: '#f97316', label: 'MMA' },
+    'Funcional Fighter': { bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.35)', text: '#22c55e', label: 'Funcional' }
+};
+
+function getClassTypeInfo(type) {
+    return typeColors[type] || { bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.35)', text: 'var(--accent-cyan)', label: type };
+}
+
+function parseDays(days) {
+    if (!days) return [];
+    if (Array.isArray(days)) return days;
+    if (typeof days === 'string') {
+        try {
+            const parsed = JSON.parse(days);
+            if (Array.isArray(parsed)) return parsed;
+        } catch {
+            return days.split(',').map(d => d.trim());
+        }
+    }
+    return [];
+}
+
+function matchesDay(classDays, dayName) {
+    const parsed = parseDays(classDays);
+    const targetIndex = dayIndexMap[dayName];
+
+    return parsed.some(d => {
+        const strD = String(d).trim();
+        // Match by day name (case insensitive)
+        if (strD.toLowerCase() === dayName.toLowerCase()) return true;
+        if (strD.toLowerCase() === dayName.substring(0, 3).toLowerCase()) return true;
+        // Match by numeric day index (0 = Sunday, 1 = Monday)
+        if (strD === String(targetIndex)) return true;
+        return false;
+    });
+}
+
+function filterClasses(classes, filter) {
+    if (filter === 'all') return classes;
+    return classes.filter(c => c.type === filter);
+}
+
+function renderScheduleGrid(classes) {
+    const wrapper = document.getElementById('schedule-grid-wrapper');
+    const filtered = filterClasses(classes, activeScheduleFilter);
+
+    let html = '<div class="schedule-table">';
+
+    // Header row
+    html += '<div class="schedule-header-row">';
+    html += '<div class="schedule-time-col">Hora</div>';
+    dayNames.forEach(day => {
+        const isToday = new Date().getDay() === dayIndexMap[day];
+        html += `<div class="schedule-day-col ${isToday ? 'today' : ''}">${day}${isToday ? '<span class="today-badge">Hoy</span>' : ''}</div>`;
+    });
+    html += '</div>';
+
+    // Build rows by time slots (group classes by time)
+    const timeSlots = [...new Set(filtered.map(c => c.time))].sort();
+
+    if (timeSlots.length === 0) {
+        html += '<div class="schedule-empty">No hay clases para esta disciplina.</div>';
+    } else {
+        timeSlots.forEach(time => {
+            html += '<div class="schedule-row">';
+            html += `<div class="schedule-time-col"><span class="time-label">${time}</span></div>`;
+
+            dayNames.forEach(day => {
+                const dayClasses = filtered.filter(c => matchesDay(c.days, day) && c.time === time);
+                html += `<div class="schedule-cell">`;
+                dayClasses.forEach(cls => {
+                    const info = getClassTypeInfo(cls.type);
+                    html += `
+                        <div class="schedule-class-card" style="background:${info.bg}; border-color:${info.border};" data-type="${cls.type}">
+                            <span class="class-type-tag" style="color:${info.text};">${info.label}</span>
+                            <h4 class="class-name">${cls.name}</h4>
+                            <p class="class-coach">Coach ${cls.coach || 'Amaru'}</p>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            });
+
+            html += '</div>';
+        });
+    }
+
+    html += '</div>';
+    wrapper.innerHTML = html;
+}
+
+function renderScheduleMobile(classes) {
+    const container = document.getElementById('schedule-mobile');
+    if (!container) return;
+
+    const filtered = filterClasses(classes, activeScheduleFilter);
+    const todayIndex = new Date().getDay();
+    const todayName = dayNames.find(d => dayIndexMap[d] === todayIndex) || 'Lunes';
+
+    let html = '';
+    dayNames.forEach((day) => {
+        const dayClasses = filtered.filter(c => matchesDay(c.days, day)).sort((a, b) => a.time.localeCompare(b.time));
+        const isToday = day === todayName;
+        const hasClasses = dayClasses.length > 0;
+
+        html += `
+            <div class="schedule-day-accordion ${isToday ? 'today' : ''} ${hasClasses ? '' : 'empty'}">
+                <button class="day-accordion-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="day-name">${day}${isToday ? '<span class="today-badge-mobile">Hoy</span>' : ''}</span>
+                    <span class="day-count">${dayClasses.length} clase${dayClasses.length !== 1 ? 's' : ''}</span>
+                    <svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div class="day-accordion-content">
+                    ${hasClasses ? dayClasses.map(cls => {
+            const info = getClassTypeInfo(cls.type);
+            return `
+                            <div class="mobile-class-card" style="border-left-color:${info.text};">
+                                <div class="mobile-class-time">${cls.time}</div>
+                                <div class="mobile-class-info">
+                                    <span class="mobile-class-tag" style="color:${info.text};">${info.label}</span>
+                                    <h4>${cls.name}</h4>
+                                    <p>Coach ${cls.coach || 'Amaru'}</p>
+                                </div>
+                            </div>
+                        `;
+        }).join('') : '<p class="no-classes">No hay clases programadas.</p>'}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    // Auto-open today's accordion
+    const todayAccordion = container.querySelector('.schedule-day-accordion.today');
+    if (todayAccordion) todayAccordion.classList.add('open');
+}
+
+// Filter buttons logic
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('filter-btn')) {
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        activeScheduleFilter = e.target.getAttribute('data-filter');
+        renderScheduleGrid(allClasses);
+        renderScheduleMobile(allClasses);
+    }
+});
+
 // Initial load
 loadMemberships();
+loadSchedule();
 
 // Initialize static icons
 createIcons({ icons });

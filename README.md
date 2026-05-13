@@ -24,6 +24,23 @@ Premium Martial Arts Landing Page & App
 - `npm run lint`: Analiza el código con ESLint en busca de problemas.
 - `npm run test`: Ejecuta las pruebas unitarias e integradas con Vitest.
 
+## Edge Functions de Supabase
+
+El proyecto incluye Edge Functions desplegadas en Supabase:
+
+- `send-email`: Envía correos electrónicos usando la API de **Resend**.
+
+### Configuración de Secrets
+
+Para que la función `send-email` funcione, debes configurar los siguientes secrets en Supabase:
+
+```bash
+npx supabase secrets set RESEND_API_KEY=re_tu_api_key_de_resend
+npx supabase secrets set RESEND_FROM_EMAIL=onboarding@resend.dev
+```
+
+> **Nota:** El email debe estar verificado en tu cuenta de Resend. Para pruebas, puedes usar `onboarding@resend.dev`.
+
 ## Despliegue
 
 La aplicación se despliega automáticamente mediante GitHub Actions al hacer merge en la rama `main`.

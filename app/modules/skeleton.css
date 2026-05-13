@@ -1,0 +1,404 @@
+/* ============================================
+   SKELETON LOADING SYSTEM - Amaru Fighter
+   Modern skeleton screens for better perceived performance
+   ============================================ */
+
+/* Base skeleton animation */
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes skeleton-pulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+}
+
+.skeleton {
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.03) 25%,
+            rgba(255, 255, 255, 0.08) 50%,
+            rgba(255, 255, 255, 0.03) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 8px;
+    pointer-events: none;
+    user-select: none;
+}
+
+.skeleton-pulse {
+    background: rgba(255, 255, 255, 0.05);
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Hero Card Skeleton */
+.skeleton-hero-card {
+    width: 100%;
+    min-height: 200px;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(20, 20, 25, 0.95) 0%, rgba(30, 30, 40, 0.8) 100%);
+}
+
+.skeleton-hero-content {
+    position: relative;
+    z-index: 1;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.skeleton-tag {
+    width: 140px;
+    height: 24px;
+    border-radius: 100px;
+}
+
+.skeleton-title {
+    width: 70%;
+    height: 36px;
+    border-radius: 8px;
+}
+
+.skeleton-subtitle {
+    width: 50%;
+    height: 20px;
+    border-radius: 6px;
+}
+
+.skeleton-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.skeleton-btn {
+    width: 160px;
+    height: 44px;
+    border-radius: 100px;
+}
+
+.skeleton-btn-sm {
+    width: 120px;
+    height: 44px;
+    border-radius: 100px;
+}
+
+/* Grid Skeleton */
+.skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.skeleton-stat-card {
+    height: 100px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+}
+
+.skeleton-stat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+}
+
+.skeleton-stat-value {
+    width: 50px;
+    height: 24px;
+    border-radius: 6px;
+}
+
+.skeleton-stat-label {
+    width: 70px;
+    height: 14px;
+    border-radius: 4px;
+}
+
+/* Activity Feed Skeleton */
+.skeleton-activity-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.skeleton-activity-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.skeleton-activity-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.skeleton-activity-title {
+    width: 60%;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.skeleton-activity-desc {
+    width: 80%;
+    height: 12px;
+    border-radius: 4px;
+}
+
+.skeleton-activity-time {
+    width: 40px;
+    height: 12px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* Section Title Skeleton */
+.skeleton-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.skeleton-section-title {
+    width: 150px;
+    height: 20px;
+    border-radius: 6px;
+}
+
+.skeleton-section-action {
+    width: 80px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+/* Notifications Skeleton */
+.skeleton-notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.skeleton-notif-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.skeleton-notif-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skeleton-notif-title {
+    width: 70%;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.skeleton-notif-desc {
+    width: 90%;
+    height: 12px;
+    border-radius: 4px;
+}
+
+.skeleton-notif-time {
+    width: 100px;
+    height: 10px;
+    border-radius: 4px;
+}
+
+/* Rank Card Skeleton */
+.skeleton-rank-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.skeleton-rank-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+}
+
+.skeleton-rank-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skeleton-rank-title {
+    width: 120px;
+    height: 20px;
+    border-radius: 6px;
+}
+
+.skeleton-rank-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: 100px;
+}
+
+.skeleton-rank-meta {
+    width: 80px;
+    height: 12px;
+    border-radius: 4px;
+}
+
+/* Badges Skeleton */
+.skeleton-badges-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.skeleton-badge {
+    aspect-ratio: 1;
+    border-radius: 16px;
+}
+
+/* Agenda Screen Skeletons */
+.skeleton-agenda-calendar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.skeleton-day-pill {
+    min-width: 60px;
+    height: 70px;
+    border-radius: 16px;
+}
+
+.skeleton-class-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    margin-bottom: 10px;
+}
+
+.skeleton-class-time {
+    width: 50px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.skeleton-class-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skeleton-class-name {
+    width: 60%;
+    height: 18px;
+    border-radius: 6px;
+}
+
+.skeleton-class-meta {
+    width: 40%;
+    height: 12px;
+    border-radius: 4px;
+}
+
+.skeleton-class-action {
+    width: 80px;
+    height: 36px;
+    border-radius: 100px;
+    flex-shrink: 0;
+}
+
+/* Staggered animation delays for skeletons */
+.skeleton-delay-1 {
+    animation-delay: 0.1s;
+}
+
+.skeleton-delay-2 {
+    animation-delay: 0.2s;
+}
+
+.skeleton-delay-3 {
+    animation-delay: 0.3s;
+}
+
+.skeleton-delay-4 {
+    animation-delay: 0.4s;
+}
+
+.skeleton-delay-5 {
+    animation-delay: 0.5s;
+}
+
+/* Dashboard loading state container */
+#dashboard-screen.loading-state .dashboard-content {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Smooth content reveal */
+.content-reveal {
+    animation: elegantFadeIn 0.5s ease forwards;
+}
+
+@keyframes elegantFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
