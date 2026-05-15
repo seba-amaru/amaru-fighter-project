@@ -363,6 +363,10 @@ export const openMemberModal = async (id = null, users = []) => {
                 document.getElementById('btn-mem-renew').onclick = () => quickRenewMember(user.id);
                 document.getElementById('btn-mem-freeze').onclick = () => toggleFreezeMember(user.id, !user.is_frozen);
                 document.getElementById('btn-mem-message').onclick = async () => {
+                    if (!window.SupabaseService) {
+                        window.showToast('El servicio de comunicaciones no está disponible. Recarga la página.', '#ef4444');
+                        return;
+                    }
                     const channel = prompt(`Enviar mensaje a ${user.full_name}\n\nElige canal:\n1 = 📱 In-App\n2 = ✉️ Email\n3 = 🔄 Ambos`);
                     if (!channel) return;
                     const choice = channel.trim();

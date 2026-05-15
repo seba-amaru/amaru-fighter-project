@@ -983,6 +983,12 @@ const renderComunicacionesView = (container) => {
     const sendBtn = container.querySelector('#btn-send-comm');
     if (sendBtn) {
         sendBtn.onclick = async () => {
+            if (!window.SupabaseService) {
+                console.error('[Comunications] SupabaseService not available');
+                window.showToast('El servicio de comunicaciones no está disponible. Recarga la página.', '#ef4444');
+                return;
+            }
+
             const msg = messageArea?.value?.trim();
             if (!msg) {
                 window.showToast('Escribe un mensaje antes de enviar', '#ef4444');
@@ -1012,16 +1018,27 @@ const renderComunicacionesView = (container) => {
 
                 // In-App
                 if (channel === 'inapp' || channel === 'both') {
-                    for (const user of filtered) {
-                        const personalized = msg.replace(/{nombre}/g, user.full_name || 'Atleta');
-                        try {
-                            await window.SupabaseService.sendUserNotification(
-                                user.id, title, personalized, 'mass'
-                            );
-                            sentInApp++;
-                        } catch (e) {
-                            console.warn(`[Comunicaciones] Fallo In-App para ${user.id}:`, e.message);
-                        }
+                    const userIds = filtered.map(u => u.id);
+                    // If no personalization is needed, we can send one message to all.
+                    // But here we support {nombre}, so we build individual messages but send in one batch.
+                    const notifications = filtered.map(user => ({
+                        user_id: user.id,
+                        title: title,
+                        message: msg.replace(/{nombre}/g, user.full_name || 'Atleta'),
+                        type: 'mass',
+                        sender_id: window.appState?.user?.uid || null
+                    }));
+
+                    try {
+                        const { error } = await window.supabase
+                            .from('user_notifications')
+                            .insert(notifications);
+                        
+                        if (error) throw error;
+                        sentInApp = filtered.length;
+                    } catch (e) {
+                        console.error('[Comunicaciones] Fallo masivo In-App:', e);
+                        // Fallback to individual if batch fails (optional, but RLS should be fixed now)
                     }
                 }
 

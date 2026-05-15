@@ -429,6 +429,24 @@ export const SupabaseService = {
         return data;
     },
 
+    async sendBulkUserNotifications(userIds, title, message, type = 'mass') {
+        const senderId = window.appState?.user?.uid || null;
+        const notifications = userIds.map(userId => ({
+            user_id: userId,
+            sender_id: senderId,
+            title,
+            message,
+            type
+        }));
+
+        const { data, error } = await window.supabase
+            .from('user_notifications')
+            .insert(notifications)
+            .select();
+        if (error) throw error;
+        return data;
+    },
+
     async markNotificationRead(id) {
         const { error } = await window.supabase
             .from('user_notifications')

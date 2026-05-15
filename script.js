@@ -1,6 +1,8 @@
 import supabase from './app/supabase-config.js';
 import { createIcons, icons } from 'lucide';
 
+/* global html2canvas */
+
 
 supabase.auth.onAuthStateChange((event, session) => {
     if (session) {
@@ -203,7 +205,7 @@ async function loadMemberships() {
 
 function createPlanCard(plan) {
     const card = document.createElement('div');
-    card.className = `plan-card glass-card ${plan.theme}-theme`;
+    card.className = `plan-card ${plan.theme || 'bronze'}-theme`;
 
     // Fix: Handle both string and array for features
     let featuresHtml = '';
@@ -214,19 +216,33 @@ function createPlanCard(plan) {
         } else if (typeof plan.features === 'string') {
             featuresArray = plan.features.split(',').map(f => f.trim());
         }
-        featuresHtml = featuresArray.map(f => `<li>${f}</li>`).join('');
+        featuresHtml = featuresArray.map(f => `
+            <li>
+                <i data-lucide="check-circle"></i>
+                <span>${f}</span>
+            </li>
+        `).join('');
     }
 
     card.innerHTML = `
         <div class="plan-label">${plan.subtitle || 'MEMBRESÍA'}</div>
         <h3 class="plan-title">${plan.name}</h3>
-        <div class="plan-price">$${Number(plan.price).toLocaleString('es-CL')} <span>/ mes</span></div>
+        <div class="plan-price">
+            <span class="currency">$</span>${Number(plan.price).toLocaleString('es-CL')} 
+            <span>/ mes</span>
+        </div>
         <ul class="plan-features">
-            <li>${plan.monthly} clases mensuales</li>
-            <li>Hasta ${plan.limit} clases por día</li>
+            <li>
+                <i data-lucide="calendar"></i>
+                <span>${plan.monthly} clases mensuales</span>
+            </li>
+            <li>
+                <i data-lucide="clock"></i>
+                <span>Hasta ${plan.limit} clases por día</span>
+            </li>
             ${featuresHtml}
         </ul>
-        <a href="./app/index.html" class="btn-primary" style="text-align:center;">Seleccionar Plan</a>
+        <a href="./app/index.html" class="btn-primary" style="text-align:center; margin-top: auto;">Seleccionar Plan</a>
         ${plan.theme === 'gold' ? '<div class="plan-badge">Popular</div>' : ''}
     `;
 
@@ -435,10 +451,98 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// --- Export Schedule Logic ---
+async function exportSchedule() {
+    const btn = document.getElementById('btn-download-schedule');
+    const scheduleGrid = document.querySelector('.schedule-table');
+    const scheduleMobile = document.getElementById('schedule-mobile');
+    
+    if (!scheduleGrid && !scheduleMobile) return;
+
+    // Determine which view to capture (Desktop grid is better for PDF)
+    const elementToCapture = window.innerWidth > 968 ? scheduleGrid : scheduleMobile;
+    
+    if (!elementToCapture) {
+        alert("Primero carga el horario para poder descargarlo.");
+        return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<div class="loading-spinner" style="width:16px; height:16px; border-width:2px;"></div> Generando...';
+    btn.disabled = true;
+
+    try {
+        // Optimization for capture: ensure all elements are visible and backgrounds are rendered
+        const canvas = await html2canvas(elementToCapture, {
+            backgroundColor: '#000000', // Keep the dark aesthetic
+            scale: 2, // Higher quality
+            useCORS: true,
+            logging: false,
+            onclone: (clonedDoc) => {
+                const clonedEl = clonedDoc.querySelector('.schedule-table') || clonedDoc.getElementById('schedule-mobile');
+                if (clonedEl) {
+                    clonedEl.style.padding = '40px';
+                    clonedEl.style.borderRadius = '0px';
+                    // Force display if hidden
+                    clonedEl.style.display = 'block';
+                    
+                    // Add a header to the export
+                    const header = clonedDoc.createElement('div');
+                    header.innerHTML = `
+                        <div style="text-align:center; margin-bottom:40px; color:white; font-family:sans-serif;">
+                            <h1 style="margin:0; font-size:32px;">AMARUFIGHTER</h1>
+                            <p style="margin:5px 0; opacity:0.7;">Horario de Clases - La Familia Nunca Muere</p>
+                        </div>
+                    `;
+                    clonedEl.prepend(header);
+                }
+            }
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Save as PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: window.innerWidth > 968 ? 'l' : 'p',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Horario_Amarufighter_${activeScheduleFilter}.pdf`);
+
+        // Success state
+        btn.innerHTML = '¡Descargado! ✓';
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 3000);
+
+    } catch (err) {
+        console.error("Error exporting schedule:", err);
+        alert("Hubo un error al generar el archivo. Por favor intenta de nuevo.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
 // Initial load
 loadMemberships();
 loadSchedule();
 
 // Initialize static icons
 createIcons({ icons });
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const downloadBtn = document.getElementById('btn-download-schedule');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', exportSchedule);
+    }
+});
 

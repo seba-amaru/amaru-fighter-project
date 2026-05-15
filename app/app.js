@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         proRataPreference: null
     });
     window.appState = appState;
+    window.SupabaseService = SupabaseService;
 
     const motivationalQuotes = [
         "El único entrenamiento malo es el que no sucedió.",
