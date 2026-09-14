@@ -4,72 +4,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>amarufighter</title>
-    <link rel="stylesheet" href="style.css">
+    <title>amarufighter</title>
     <!-- Google Fonts: Inter & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
         rel="stylesheet">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/assets/manifest-DgdJiDuS.json">
     <link rel="icon" type="image/png" href="/images/icon-192.png">
-    <link rel="apple-touch-icon" href="/images/icon-192.png">
-    <link rel="stylesheet" href="style.css">
+    <link rel="apple-touch-icon" href="/images/icon-192.png">
     <meta name="theme-color" content="#000000">
+
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <meta name="mobile-web-app-capable" content="yes">
+
     <!-- Third-party SDKs -->
+
     <script src="https://sdk.mercadopago.com/js/v2"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
     <!-- SweetAlert2 for modern alerts and loading states -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- App Config & Logic (Vite modules) -->
-    <!-- Firebase Config Removed -->
-    <script type="module" src="./supabase-config.js"></script>
-    <script type="module" src="./app.js"></script>
-    <script type="module">
-        if ('serviceWorker' in navigator) {
-            if (window.location.hostname === 'localhost') {
-                console.log('Service Worker no registrado en localhost para evitar problemas de caché.');
-                // Unregister existing service workers on localhost
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                    for(let registration of registrations) {
-                        registration.unregister();
-                    }
-                });
-            } else {
-                window.addEventListener('load', () => {
-                    // Use absolute path so it resolves correctly at any URL depth
-                    navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })
-                    .then((reg) => {
-                        console.log('Service Worker Registrado: ', reg);
-                        // If there's an active worker, initialize messaging
-                        if (reg.active) {
-                            if (typeof initMessaging === 'function') initMessaging();
-                        } else {
-                            // Wait for it to become active
-                            reg.addEventListener('updatefound', () => {
-                                const newWorker = reg.installing;
-                                newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'activated') {
-                                        if (typeof initMessaging === 'function') initMessaging();
-                                    }
-                                });
-                            });
-                        }
-                    })
-                    .catch((err) => console.error('Error de Service Worker: ', err));
-                });
-            }
-        }
-    </script>
+
+
     <!-- Scripts para exportar a Excel y PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
+  <script type="module" crossorigin src="/assets/app-Dz1MK3V9.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/main-DyuDBEK6.css">
+  <link rel="stylesheet" crossorigin href="/assets/app-C3MCjiR-.css">
 </head>
 
 <body class="dark-theme">
@@ -100,7 +70,9 @@
                         <input type="password" id="login-password" class="auth-input" placeholder="••••••••">
                     </div>
                     <div style="text-align: right; margin-top: 5px;">
-                        <span id="btn-forgot-password" style="font-size: 0.75rem; color: var(--accent-purple); cursor: pointer; font-weight: 700;">¿Olvidaste tu contraseña?</span>
+                        <span id="btn-forgot-password"
+                            style="font-size: 0.75rem; color: var(--accent-purple); cursor: pointer; font-weight: 700;">¿Olvidaste
+                            tu contraseña?</span>
                     </div>
                 </div>
                 <button id="btn-login" class="auth-btn">INICIAR SESIÓN</button>
@@ -220,69 +192,209 @@
 
             <!-- Dashboard Screen -->
             <section id="dashboard" class="screen active">
-                <header class="screen-header">
-                    <div class="user-welcome">
-                        <span class="greeting">¡Hola!</span>
-                        <h1 class="welcome-text">Listo para entrenar ⚡</h1>
-                        <div class="level-indicator">
-                            <div class="lvl-bar">
-                                <div class="lvl-fill" style="width: 65%;"></div>
-                            </div>
-                            <span>--</span>
+                <!-- Redesigned Header: Avatar + Info + Streak -->
+                <header class="screen-header" style="padding-bottom: 5px;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        <img id="dash-avatar" src="/assets/icon-192-7jfv_V-A.png"
+                            style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(139,92,246,0.4); box-shadow: 0 0 15px rgba(139,92,246,0.2);">
+                        <div>
+                            <span class="greeting"
+                                style="font-size: 0.75rem; opacity: 0.6; display: block; font-weight: 600;">¡Hola!</span>
+                            <h1 id="dash-name" style="font-size: 1rem; font-weight: 800; margin: 0; line-height: 1.2;">
+                                Atleta</h1>
                         </div>
                     </div>
-                    <div class="header-right">
-                        <div class="streak-badge">
-                            <i data-lucide="flame"></i>
-                            <span id="user-streak-text">0 Días</span>
+                    <div class="header-right" style="display: flex; align-items: center; gap: 10px;">
+                        <div id="dash-plan-chip"
+                            style="font-size: 0.6rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); text-transform: uppercase; letter-spacing: 0.5px;">
+                            Activo</div>
+                        <div class="streak-badge"
+                            style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); padding: 6px 12px; border-radius: 12px;">
+                            <i data-lucide="flame" style="color: #f97316; width: 16px; height: 16px;"></i>
+                            <span id="user-streak-text" style="font-size: 0.75rem; font-weight: 700;">0</span>
                         </div>
                         <button id="btn-dashboard-back-admin" class="btn-action-glow hidden"
-                            style="margin-left: 10px; background: #ef4444; border:none; width: auto; padding: 10px 15px; font-size: 0.75rem;">
-                            <i data-lucide="shield-check" style="width: 14px; margin-right:5px;"></i> PANEL ADMIN
+                            style="background: #ef4444; border:none; width: auto; padding: 8px 12px; font-size: 0.7rem;">
+                            <i data-lucide="shield-check" style="width: 12px; margin-right:4px;"></i> ADMIN
                         </button>
                     </div>
                 </header>
 
-                <div class="daily-motivation glass">
-                    <i data-lucide="quote" class="quote-icon"></i>
-                    <p id="motivational-quote">"El único entrenamiento malo es el que no sucedió."</p>
+                <!-- Quick Access Buttons -->
+                <div id="quick-access-row"
+                    style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0 16px;">
+                    <button data-nav="schedule" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="calendar" style="width: 18px; color: var(--accent-cyan);"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Agenda</span>
+                    </button>
+                    <button data-nav="schedule" data-action="reserve" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="plus-circle" style="width: 18px; color: #22c55e;"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Reservar</span>
+                    </button>
+                    <button data-nav="profile" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="user" style="width: 18px; color: var(--accent-purple);"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Perfil</span>
+                    </button>
+                    <button data-nav="tournaments" class="quick-btn"
+                        style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 4px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 12px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="trophy" style="width: 18px; color: #fbbf24;"></i>
+                        </div>
+                        <span
+                            style="font-size: 0.65rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase;">Rank</span>
+                    </button>
                 </div>
 
-                <div id="dynamic-next-class" class="hero-card next-class">
+                <!-- Hero Next Class -->
+                <div id="dynamic-next-class" class="hero-card next-class" style="margin-bottom: 16px;">
                     <!-- Dynamic Next Class Content -->
                 </div>
 
-                <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="stat-card glass"
-                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; position: relative; overflow: hidden;">
-                        <span id="completed-classes-count"
-                            style="font-size: 2.2rem; font-weight: 800; color: white; display: flex; align-items: baseline; gap: 4px;">
-                            0 <span style="font-size: 1rem; color: var(--text-gray); font-weight: 600;">/ 20</span>
-                        </span>
-                        <span class="stat-label"
-                            style="font-size: 0.8rem; margin-top: 5px; color: var(--text-gray); text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">Clases
-                            Activas</span>
-                        <div style="position: absolute; bottom: -10px; right: -10px; opacity: 0.05;">
-                            <i data-lucide="activity" style="width: 80px; height: 80px;"></i>
-                        </div>
-                    </div>
+                <!-- Quote -->
+                <div class="daily-motivation glass" style="padding: 12px 16px; margin-bottom: 16px;">
+                    <p id="motivational-quote" style="font-size: 0.8rem; font-style: italic; margin: 0;">"El único
+                        entrenamiento malo es el que no sucedió."</p>
+                </div>
 
-                    <div class="stat-card glass">
-                        <div class="progress-ring-container">
-                            <svg class="progress-ring" width="80" height="80">
-                                <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.1)" stroke-width="6"
-                                    fill="transparent" r="30" cx="40" cy="40" />
-                                <circle id="attendance-circle" class="progress-ring__circle"
-                                    stroke="var(--accent-purple)" stroke-width="6" stroke-dasharray="188.5"
-                                    stroke-dashoffset="188.5" fill="transparent" r="30" cx="40" cy="40" />
-                            </svg>
-                            <span id="attendance-percent" class="progress-value">0%</span>
-                        </div>
-                        <span class="stat-label">Tu Meta Mensual</span>
+                <!-- Activity Feed (D) -->
+                <div id="activity-feed-container" style="margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <span
+                            style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-gray);">Actividad
+                            Reciente</span>
+                        <span style="font-size: 0.6rem; opacity: 0.4; cursor: pointer;" onclick="renderActivityFeed()">↻
+                            Actualizar</span>
+                    </div>
+                    <div id="activity-feed-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Dynamic activity items -->
                     </div>
                 </div>
 
+                <!-- Premium Stats Grid -->
+                <div class="stats-grid" id="premium-stats-grid"
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                    <!-- 1. Streak Weekly -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 10px;">Racha
+                            Semanal</span>
+                        <div id="streak-weekly-dots"
+                            style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                L</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                M</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                M</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                J</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                V</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                S</div>
+                            <div
+                                style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: var(--text-gray);">
+                                D</div>
+                        </div>
+                        <span id="streak-count-label"
+                            style="font-size: 0.7rem; color: var(--text-gray); margin-top: 8px; display: block;">0 días
+                            seguidos</span>
+                    </div>
 
+                    <!-- 2. XP Progress -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 10px;">XP
+                            al Siguiente Nivel</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px;">
+                            <span id="dash-xp-current"
+                                style="font-size: 1.4rem; font-weight: 900; color: white;">0</span>
+                            <span style="font-size: 0.7rem; opacity: 0.4;">/ <span id="dash-xp-target">100</span>
+                                XP</span>
+                        </div>
+                        <div
+                            style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden;">
+                            <div id="dash-xp-bar"
+                                style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); border-radius: 10px; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                            </div>
+                        </div>
+                        <span id="dash-xp-percent"
+                            style="font-size: 0.65rem; color: var(--accent-cyan); font-weight: 700; margin-top: 6px; display: block;">0%
+                            para subir</span>
+                    </div>
+
+                    <!-- 3. Classes This Month -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 8px;">Clases
+                            Este Mes</span>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="dash-classes-count"
+                                style="font-size: 1.8rem; font-weight: 900; color: white;">0</span>
+                            <span style="font-size: 0.7rem; opacity: 0.4;">clases</span>
+                        </div>
+                        <div id="dash-classes-sparkline"
+                            style="display: flex; align-items: flex-end; gap: 3px; height: 24px; margin-top: 8px;">
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 30%; transition: height 0.5s;">
+                            </div>
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 50%; transition: height 0.5s;">
+                            </div>
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 40%; transition: height 0.5s;">
+                            </div>
+                            <div
+                                style="width: 6px; background: rgba(255,255,255,0.1); border-radius: 2px; height: 70%; transition: height 0.5s;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Current Rank -->
+                    <div class="stat-card glass"
+                        style="padding: 16px; border-radius: 16px; position: relative; overflow: hidden;">
+                        <span
+                            style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; display: block; margin-bottom: 8px;">Tu
+                            Rango</span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div id="dash-rank-icon"
+                                style="width: 36px; height: 36px; border-radius: 10px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); display: flex; align-items: center; justify-content: center;">
+                                <i data-lucide="shield" style="width: 18px; color: #fbbf24;"></i>
+                            </div>
+                            <div>
+                                <span id="dash-rank-name"
+                                    style="font-size: 0.9rem; font-weight: 800; color: #fbbf24; display: block;">Nomad</span>
+                                <span id="dash-rank-level" style="font-size: 0.65rem; opacity: 0.5;">Nivel 0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </section>
 
@@ -326,297 +438,325 @@
 
             <!-- Tournaments Screen -->
             <section id="tournaments" class="screen">
-                <header class="section-header-premium">
-                    <div class="header-split">
-                        <div>
-                            <h2>Arena de Torneos</h2>
-                            <p class="subtitle">Mide tu progreso en el tatami</p>
-                        </div>
-                        <button id="add-tourney-btn" class="btn-action-glow">
-                            <i data-lucide="plus"></i>
-                        </button>
+                <!-- Tournament Hero -->
+                <div id="tournament-hero"
+                    style="position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 20px; background: linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(249,115,22,0.06) 50%, rgba(0,0,0,0.3) 100%); border: 1px solid rgba(255,255,255,0.06);">
+                    <div
+                        style="position: absolute; top: -30%; right: -10%; width: 250px; height: 250px; background: radial-gradient(circle, rgba(251,191,36,0.15) 0%, transparent 70%); pointer-events: none;">
                     </div>
-                </header>
-
-                <div class="tournament-selector">
-                    <button class="sel-tab active" data-tab="upcoming">PRÓXIMOS</button>
-                    <button class="sel-tab" data-tab="history">PASADOS</button>
+                    <div style="position: relative; z-index: 2; padding: 24px 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div>
+                                <h2 style="font-size: 1.2rem; font-weight: 800; margin: 0; letter-spacing: 0.5px;">Arena
+                                    de Torneos</h2>
+                                <p style="font-size: 0.75rem; color: var(--text-gray); margin: 4px 0 0;">Mide tu
+                                    progreso en el tatami</p>
+                            </div>
+                            <button id="add-tourney-btn"
+                                style="width: 40px; height: 40px; border-radius: 12px; background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s;">
+                                <i data-lucide="plus" style="width: 18px;"></i>
+                            </button>
+                        </div>
+                        <div id="tournament-next-countdown" style="margin-top: 16px; display: none;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <i data-lucide="trophy" style="width: 14px; color: #fbbf24;"></i>
+                                <span
+                                    style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #fbbf24;">Próximo
+                                    evento</span>
+                            </div>
+                            <h3 id="tournament-hero-name" style="font-size: 1rem; font-weight: 800; margin: 0 0 4px;">—
+                            </h3>
+                            <p id="tournament-hero-place"
+                                style="font-size: 0.75rem; color: var(--text-gray); margin: 0 0 8px;">—</p>
+                            <div style="display: flex; gap: 12px;">
+                                <div
+                                    style="text-align: center; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 8px 14px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span id="tourney-cd-days"
+                                        style="font-size: 1.2rem; font-weight: 900; color: #fbbf24; display: block;">0</span>
+                                    <span
+                                        style="font-size: 0.55rem; color: var(--text-gray); text-transform: uppercase;">Días</span>
+                                </div>
+                                <div
+                                    style="text-align: center; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 8px 14px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span id="tourney-cd-hours"
+                                        style="font-size: 1.2rem; font-weight: 900; color: white; display: block;">0</span>
+                                    <span
+                                        style="font-size: 0.55rem; color: var(--text-gray); text-transform: uppercase;">Horas</span>
+                                </div>
+                                <div
+                                    style="text-align: center; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 8px 14px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span id="tourney-cd-mins"
+                                        style="font-size: 1.2rem; font-weight: 900; color: white; display: block;">0</span>
+                                    <span
+                                        style="font-size: 0.55rem; color: var(--text-gray); text-transform: uppercase;">Min</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="tournament-no-events" style="margin-top: 16px; text-align: center; opacity: 0.5;">
+                            <p style="font-size: 0.8rem;">No hay torneos registrados</p>
+                            <p style="font-size: 0.7rem; color: var(--text-gray);">Agrega tu primer evento con el botón
+                                +</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="tourney-list" class="premium-tourney-grid">
-                    <!-- Tournament cards with background images -->
+                <!-- Tournament Tabs -->
+                <div class="tournament-selector"
+                    style="display: flex; gap: 8px; margin-bottom: 16px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 14px; border: 1px solid rgba(255,255,255,0.05);">
+                    <button class="sel-tab active" data-tab="upcoming"
+                        style="flex: 1; padding: 10px; border-radius: 10px; border: none; background: var(--accent-purple); color: white; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; transition: all 0.3s;">Próximos</button>
+                    <button class="sel-tab" data-tab="history"
+                        style="flex: 1; padding: 10px; border-radius: 10px; border: none; background: transparent; color: var(--text-gray); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; transition: all 0.3s;">Pasados</button>
+                </div>
+
+                <!-- Smoothcomp Banner -->
+                <div id="smoothcomp-banner-tourney"
+                    style="padding: 16px; border-radius: 16px; background: linear-gradient(135deg, rgba(203,242,240,0.08) 0%, rgba(203,242,240,0.02) 100%); border: 1px solid rgba(203,242,240,0.15); margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+                    <div
+                        style="width: 40px; height: 40px; border-radius: 12px; background: rgba(203,242,240,0.1); border: 1px solid rgba(203,242,240,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i data-lucide="external-link" style="width: 18px; color: #CBF2F0;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <p style="font-size: 0.8rem; font-weight: 700; color: white; margin: 0;">Smoothcomp</p>
+                        <p style="font-size: 0.65rem; color: var(--text-gray); margin: 2px 0 0;">Competencias
+                            internacionales de BJJ</p>
+                    </div>
+                    <a href="https://smoothcomp.com/es/events/upcoming" target="_blank"
+                        style="padding: 8px 14px; background: rgba(203,242,240,0.1); border: 1px solid rgba(203,242,240,0.2); border-radius: 10px; color: #CBF2F0; font-size: 0.65rem; font-weight: 700; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s; white-space: nowrap;">Ver
+                        Eventos</a>
+                </div>
+
+                <div id="tourney-list" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Tournament cards rendered by JS -->
                 </div>
             </section>
 
             <!-- Profile Screen -->
             <section id="profile" class="screen">
-                <div class="profile-main-card glass-premium">
-                    <div class="profile-header-premium">
-                        <div class="avatar-container-luxury">
-                            <div class="avatar-outer-glow"></div>
-                            <div class="avatar-inner-frame">
-                                <img id="profile-avatar" src="../images/unknow.png" alt="Atleta"
-                                    class="avatar-image-premium">
-                                <div class="avatar-glare"></div>
-                                <div class="avatar-actions-overlay">
-                                    <button id="btn-edit-avatar" title="Cambiar foto"><i
-                                            data-lucide="camera"></i></button>
-                                    <button id="btn-delete-avatar" title="Eliminar foto" class="delete"><i
-                                            data-lucide="trash-2"></i></button>
+                <!-- Profile Hero Header -->
+                <div id="profile-hero-card"
+                    style="position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 20px; background: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(6,182,212,0.08) 50%, rgba(0,0,0,0.3) 100%); border: 1px solid rgba(255,255,255,0.06);">
+                    <div
+                        style="position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%); pointer-events: none;">
+                    </div>
+                    <div
+                        style="position: absolute; bottom: -30%; left: -10%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%); pointer-events: none;">
+                    </div>
+
+                    <div style="position: relative; z-index: 2; padding: 24px 20px 20px; text-align: center;">
+                        <!-- Avatar -->
+                        <div style="position: relative; display: inline-block; margin-bottom: 12px;">
+                            <div
+                                style="position: absolute; inset: -4px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); opacity: 0.6; animation: pulse-glow 3s infinite;">
+                            </div>
+                            <img id="profile-avatar" src="/assets/unknow-BC4RhdqH.png" alt="Atleta"
+                                style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.1); position: relative; z-index: 2; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                            <button id="btn-edit-avatar"
+                                style="position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-purple); border: 2px solid rgba(0,0,0,0.5); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 3; font-size: 0.7rem;">
+                                <i data-lucide="camera" style="width: 14px;"></i>
+                            </button>
+                            <input type="file" id="avatar-input" accept="image/*" class="hidden">
+                        </div>
+
+                        <!-- Name & Rank -->
+                        <h2 id="profile-user-name"
+                            style="font-size: 1.3rem; font-weight: 800; margin: 0; letter-spacing: 0.5px;">Cargando...
+                        </h2>
+                        <div
+                            style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px;">
+                            <span id="user-rank-status"
+                                style="font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3);">Nomad</span>
+                            <span id="profile-plan-chip"
+                                style="font-size: 0.65rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3);">Activo</span>
+                        </div>
+
+                        <!-- Level Progress -->
+                        <div style="margin-top: 16px;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span id="profile-user-level"
+                                    style="font-size: 0.7rem; font-weight: 700; color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px;">Nivel
+                                    0</span>
+                                <span id="profile-xp-text"
+                                    style="font-size: 0.65rem; color: var(--accent-cyan); font-weight: 700;">0 / 100
+                                    XP</span>
+                            </div>
+                            <div
+                                style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden;">
+                                <div id="profile-rank-bar"
+                                    style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); border-radius: 10px; transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
                                 </div>
                             </div>
-                            <input type="file" id="avatar-input" accept="image/*" class="hidden">
-                            <div id="user-rank-status" class="rank-badge">Cargando...</div>
                         </div>
-                        <h2 id="profile-user-name" class="user-name-premium">Cargando...</h2>
-                        <p id="profile-user-level"
-                            style="font-size: 0.9rem; font-weight: 700; color: #a0a0a0; margin-top: 5px; text-transform: uppercase;">
-                            NIVEL: <span style="color: white;">--</span></p>
-                        <div class="rank-container-premium">
-                            <div class="rank-bar-bg">
-                                <div class="rank-bar-fill" style="width: 75%;"></div>
-                            </div>
-                            <div class="rank-info-text">
-                                <span>3450 / 5000 XP</span>
-                                <strong>75%</strong>
-                            </div>
+
+                        <!-- Quick Actions -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px;">
+                            <button id="btn-view-plans"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; cursor: pointer; color: white; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                <i data-lucide="credit-card" style="width: 16px; color: var(--accent-purple);"></i>
+                                Planes
+                            </button>
+                            <button id="btn-profile-settings"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; cursor: pointer; color: white; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                <i data-lucide="settings" style="width: 16px; color: var(--accent-cyan);"></i>
+                                Ajustes
+                            </button>
+                            <button id="btn-logout"
+                                style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; padding: 10px; cursor: pointer; color: #ef4444; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                <i data-lucide="log-out" style="width: 16px;"></i>
+                                Salir
+                            </button>
                         </div>
-                        <div class="user-style-selection"
-                            style="margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 5px;">
-                            <span style="font-size: 0.75rem; color: var(--text-gray); font-weight: bold;">TU ESTILO DE
-                                COMBATE:</span>
-                            <select id="user-combat-style"
-                                style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 5px 10px; font-size: 0.85rem; font-weight: bold;">
-                                <option value="striker" style="color: black;">Striker</option>
-                                <option value="grappler" style="color: black;">Grappler</option>
-                                <option value="hybrid" style="color: black;">Híbrido</option>
-                            </select>
-                        </div>
-                        <button id="btn-back-admin" class="btn-primary hidden"
-                            style="margin-top: 15px; background: #ef4444; width: auto; padding: 12px 25px; font-size: 0.8rem; font-weight: 800;">
-                            <i data-lucide="shield-check" style="width: 16px; margin-right:8px;"></i> PANEL
-                            ADMINISTRATIVO
+
+                        <button id="btn-back-admin" class="hidden"
+                            style="margin-top: 12px; width: 100%; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 12px; padding: 10px; color: white; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <i data-lucide="shield-check" style="width: 14px;"></i> PANEL ADMINISTRATIVO
                         </button>
                     </div>
+                </div>
 
-                    <!-- Current Membership Progress (Integrated) -->
-                    <div id="current-membership-progress" class="glass"
-                        style="margin-top: 20px; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                <!-- Stats Row -->
+                <div id="profile-stats-row"
+                    style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-classes"
+                            style="font-size: 1.4rem; font-weight: 900; color: white; display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Clases</span>
+                    </div>
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-streak"
+                            style="font-size: 1.4rem; font-weight: 900; color: #f97316; display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Racha</span>
+                    </div>
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-xp"
+                            style="font-size: 1.4rem; font-weight: 900; color: var(--accent-cyan); display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">XP</span>
+                    </div>
+                    <div class="glass" style="padding: 14px 8px; border-radius: 16px; text-align: center;">
+                        <span id="prof-stat-reserv"
+                            style="font-size: 1.4rem; font-weight: 900; color: var(--accent-purple); display: block;">0</span>
+                        <span
+                            style="font-size: 0.6rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Reservas</span>
+                    </div>
+                </div>
+
+                <!-- Membership Progress Card -->
+                <div id="current-membership-progress" class="glass"
+                    style="margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.06);">
+                    <p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">Cargando tu progreso de
+                        membresía...</p>
+                </div>
+
+                <!-- Activity Timeline -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="activity" style="width: 16px; color: var(--accent-cyan);"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Actividad Reciente</h3>
+                        </div>
+                        <span style="font-size: 0.6rem; color: var(--text-gray); opacity: 0.5;">Últimos 7 días</span>
+                    </div>
+                    <div id="profile-activity-timeline" style="display: flex; flex-direction: column; gap: 0;">
                         <!-- Rendered by JS -->
-                        <p style="text-align:center; font-size:0.8rem; color:var(--text-gray);">Cargando tu progreso de
-                            membresía...</p>
-                    </div>
-
-                    <div id="btn-logout" class="glass"
-                        style="margin-top: 20px; text-align: center; border-color: #ef4444; color: #ef4444; cursor: pointer; padding: 12px; font-weight: 700; border-radius: 16px;">
-                        <i data-lucide="log-out" style="width: 16px; margin-right: 8px; vertical-align: middle;"></i>
-                        CERRAR SESIÓN
-                    </div>
-
-
-                </div>
-
-                <!-- Badges Section (Request #2) -->
-                <div class="badges-section glass mt-20" style="padding: 20px; border-radius: 20px;">
-                    <div class="section-title"
-                        style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                        <i data-lucide="award" style="color: var(--accent-purple);"></i>
-                        <h3>Tus Medallas</h3>
-                    </div>
-                    <div class="badges-grid" id="user-badges-container"
-                        style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-                        <div class="badge-item locked" title="Guerrero Novato: Asiste a 5 clases">
-                            <div class="badge-icon"><i data-lucide="shield"></i></div>
-                        </div>
-                        <div class="badge-item locked" title="Asistencia Perfecta: Completa una semana">
-                            <div class="badge-icon"><i data-lucide="calendar-check"></i></div>
-                        </div>
-                        <div class="badge-item locked" title="Madrugador: Clase antes de las 9 AM">
-                            <div class="badge-icon"><i data-lucide="sun"></i></div>
-                        </div>
-                        <div class="badge-item locked" title="Leyenda: Alcanza el nivel 50">
-                            <div class="badge-icon"><i data-lucide="crown"></i></div>
-                        </div>
                     </div>
                 </div>
 
-                <div class="attendance-viz glass">
-                    <div class="viz-header">
-                        <h3>Actividad Mensual</h3>
-                        <i data-lucide="trending-up" class="icon-accent"></i>
+                <!-- Badges Section -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="award" style="width: 16px; color: #fbbf24;"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Tus Medallas</h3>
+                        </div>
+                        <span id="badges-progress-text" style="font-size: 0.6rem; color: var(--text-gray);">0 / 4</span>
                     </div>
-                    <div class="chart-container">
+                    <div id="user-badges-container"
+                        style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Monthly Activity Chart -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="bar-chart-3" style="width: 16px; color: var(--accent-purple);"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Actividad Mensual</h3>
+                        </div>
+                        <div id="profile-chart-legend" style="display: flex; gap: 12px;">
+                            <span
+                                style="font-size: 0.6rem; color: var(--text-gray); display: flex; align-items: center; gap: 4px;"><span
+                                    style="width: 8px; height: 8px; border-radius: 2px; background: var(--accent-cyan); display: inline-block;"></span>
+                                Asistencias</span>
+                            <span
+                                style="font-size: 0.6rem; color: var(--text-gray); display: flex; align-items: center; gap: 4px;"><span
+                                    style="width: 8px; height: 8px; border-radius: 2px; background: var(--accent-purple); display: inline-block;"></span>
+                                Reservas</span>
+                        </div>
+                    </div>
+                    <div style="height: 140px;">
                         <canvas id="attendanceChart"></canvas>
                     </div>
                 </div>
 
-                <div class="payment-section glass">
-                    <div class="section-title"
-                        style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center;">
-                        <h3>Membresías</h3>
-                        <div style="display:flex; gap: 8px;">
-                            <button class="btn-glass" id="btn-view-plans"
-                                style="padding: 6px 14px; font-size: 0.7rem; background: var(--accent-purple); color: var(--bg-dark); border: none; font-weight: bold; cursor:pointer;">
-                                Ver Planes
-                            </button>
+                <!-- Payments Section -->
+                <div class="glass" style="padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="receipt" style="width: 16px; color: #22c55e;"></i>
+                            <h3
+                                style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                                Historial de Pagos</h3>
                         </div>
+                        <span id="payments-count" style="font-size: 0.6rem; color: var(--text-gray); opacity: 0.5;">0
+                            pagos</span>
                     </div>
-
-                    <h4 style="font-size: 0.8rem; margin-bottom: 15px; color: var(--text-gray);">Historial de Pagos</h4>
-                    <ul class="payment-premium-list" id="payment-history-list">
-                        <!-- Dynamic payments here -->
-                    </ul>
-                    <div style="margin-top: 40px; text-align: center; opacity: 0.6; font-size: 0.75rem;">
-                        <a href="/privacy.html" target="_blank"
-                            style="color: var(--text-gray); text-decoration: none;">Política de Privacidad</a>
-                        <p style="margin-top: 5px;">Amaru App v1.4.6</p>
+                    <div id="payment-history-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
 
+                <!-- Footer -->
+                <div style="text-align: center; opacity: 0.4; padding: 20px 0 40px;">
+                    <a href="/privacy.html" target="_blank"
+                        style="color: var(--text-gray); text-decoration: none; font-size: 0.7rem;">Política de
+                        Privacidad</a>
+                    <p style="margin-top: 6px; font-size: 0.65rem;">Amaru App v1.4.8</p>
+                </div>
             </section>
 
-            <!-- Admin Screen -->
+            <!-- Admin Redirect Screen -->
             <section id="admin-panel" class="screen">
-                <div class="admin-header-premium">
-                    <div style="display: flex; justify-content: flex-end; align-items: flex-start;">
-                        <button id="btn-exit-admin-mode" class="btn-glass"
-                            style="padding: 6px 14px; font-size: 0.65rem; border-color: rgba(255,255,255,0.3); display: flex; align-items: center; gap: 5px;">
-                            <i data-lucide="log-out" style="width: 12px;"></i> SALIR DEL MODO ADMIN
-                        </button>
-                    </div>
-                    <h1>Panel Administrativo</h1>
-                    <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Control central de operaciones y alumnos
-                    </p>
+                <div class="header-premium">
+                    <h1>Suite Administrativa</h1>
+                    <p>Gestión deportiva y control de alumnos 🥋</p>
                 </div>
-
-
-                <div class="admin-grid">
-                    <div class="admin-card glass" id="manage-classes-btn">
-                        <i data-lucide="calendar-days"></i>
-                        <div class="admin-card-text">
-                            <h3>Gestión de Clases</h3>
-                            <p>Crear, editar o eliminar horarios</p>
-                        </div>
+                <div style="padding: 30px 20px; text-align: center;">
+                    <div class="glass" style="padding: 36px 24px; border-radius: 16px; border: 1px solid rgba(239,68,68,0.3); max-width: 440px; margin: 0 auto;">
+                        <i data-lucide="shield-check" style="width: 52px; height: 52px; color: var(--primary); margin-bottom: 16px;"></i>
+                        <h3 style="color: #fff; margin-bottom: 8px; font-size: 1.25rem;">Panel de Escritorio Desacoplado</h3>
+                        <p style="color: var(--text-gray); font-size: 0.85rem; margin-bottom: 24px; line-height: 1.5;">
+                            La administración de Amarufighter ahora funciona como una aplicación web de escritorio independiente con vista panorámica, control de pagos en pantalla dividida y CRM de socios.
+                        </p>
+                        <a href="/admin/index.html" class="btn-primary glow-primary" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; width: 100%;">
+                            <i data-lucide="external-link" style="width: 18px; height: 18px;"></i>
+                            Abrir Suite de Escritorio
+                        </a>
                     </div>
-                    <div class="admin-card glass" id="view-attendance-btn">
-                        <i data-lucide="users"></i>
-                        <div class="admin-card-text">
-                            <h3>Control de Asistencia</h3>
-                            <p>Revisar registros de todos los alumnos</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-payments-btn">
-                        <i data-lucide="receipt"></i>
-                        <div class="admin-card-text">
-                            <h3>Control de Pagos</h3>
-                            <p>Validar comprobantes y mensualidades</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-users-btn">
-                        <i data-lucide="award"></i>
-                        <div class="admin-card-text">
-                            <h3>Gestión de Membresías</h3>
-                            <p>Membresías, límites y planes</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-active-users-btn">
-                        <i data-lucide="user-cog"></i>
-                        <div class="admin-card-text">
-                            <h3>Control de Socios</h3>
-                            <p>Resumen de cada socio activo</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-discounts-btn">
-                        <i data-lucide="percent"></i>
-                        <div class="admin-card-text">
-                            <h3>Descuentos</h3>
-                            <p>Promociones y códigos influencers</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="view-revenue-btn">
-
-                        <i data-lucide="trending-up"></i>
-                        <div class="admin-card-text">
-                            <h3>Ingresos 📊</h3>
-                            <p>Ver estadísticas de recaudación</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-notifications-btn">
-                        <i data-lucide="bell-ring"></i>
-                        <div class="admin-card-text">
-                            <h3>Avisos Globales 📢</h3>
-                            <p>Enviar comunicados a todos</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="admin-revenue-section" class="attendance-viz glass mt-20 hidden" style="padding: 25px; border-radius: 20px;">
-                    <div class="viz-header" style="flex-direction: column; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
-                        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                            <h3 style="font-size: 1.4rem; color: var(--accent-purple);">Evolución de Ingresos</h3>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <select id="revenue-timeframe" style="background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3); padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; outline: none;">
-                                    <option value="mensual" style="color:black;">Comparar Meses</option>
-                                    <option value="anual" style="color:black;">Comparar Años</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- AI Insights Box -->
-                    <div id="revenue-insights" class="glass" style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                        <h4 style="margin-bottom: 10px; display: flex; align-items: center; gap: 5px; color: var(--accent-purple); font-size: 0.9rem;">
-                            <i data-lucide="brain" style="width: 16px;"></i> Análisis Inteligente
-                        </h4>
-                        <div id="insights-content" style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; flex-direction: column; gap: 8px;">
-                            <!-- Dinámico -->
-                        </div>
-                    </div>
-
-                    <!-- Chart & Summary -->
-                    <div style="display: flex; flex-direction: column; gap: 20px;">
-                        <div class="chart-container" style="flex: 1; min-height: 250px;">
-                            <canvas id="revenueChart"></canvas>
-                        </div>
-                        
-                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                            <div class="stat-mini glass" style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
-                                <span id="admin-total-label" style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">TOTAL PERIODO</span>
-                                <strong id="admin-total-month" style="font-size: 1.5rem; color: var(--accent-green);">$0</strong>
-                            </div>
-                            <div class="stat-mini glass" style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
-                                <span id="admin-growth-label" style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">CRECIMIENTO</span>
-                                <strong id="admin-growth-value" style="font-size: 1.5rem;">0%</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Breakdown -->
-                    <div class="mt-20">
-                        <h4 style="font-size: 0.9rem; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Desglose de Ingresos (Periodo Actual)</h4>
-                        <div id="revenue-breakdown" style="display: flex; flex-direction: column; gap: 10px;">
-                            <!-- Dinámico -->
-                        </div>
-                    </div>
-
-                    <!-- Export -->
-                    <div style="display: flex; gap: 8px; margin-top: 25px; align-items: center; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                        <select id="export-format-rev" style="background: rgba(255,255,255,0.05); color: var(--text-gray); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; outline: none;">
-                            <option value="csv" style="color: black;">Formato CSV</option>
-                            <option value="xls" style="color: black;">Formato XLS</option>
-                            <option value="pdf" style="color: black;">Formato PDF</option>
-                        </select>
-                        <button id="btn-export-report" class="btn-primary" style="padding: 8px 15px; font-size: 0.75rem; border-radius: 8px;">
-                            <i data-lucide="download" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"></i> Exportar
-                        </button>
-                    </div>
-                </div>
-
-
-
-
-                <div id="admin-content-area" class="mt-20">
-                    <!-- Dynamic admin content will load here -->
                 </div>
             </section>
 
@@ -647,8 +787,10 @@
                 <i data-lucide="trophy"></i>
                 <span>Torneos</span>
             </button>
-            <button class="nav-item" data-screen="notifications">
+            <button class="nav-item" data-screen="notifications" style="position:relative;">
                 <i data-lucide="bell"></i>
+                <span id="nav-notif-badge"
+                    style="display:none; position:absolute; top:2px; right:2px; min-width:16px; height:16px; background:#ef4444; color:white; font-size:0.6rem; font-weight:800; border-radius:50%; align-items:center; justify-content:center; padding:0 4px; box-shadow:0 2px 4px rgba(0,0,0,0.3);"></span>
                 <span>Avisos</span>
             </button>
             <button class="nav-item" data-screen="profile">
@@ -685,40 +827,102 @@
         <div class="modal-content glass" style="max-width: 400px; text-align: center;">
             <div class="modal-header">
                 <h3>¡Límite Alcanzado!</h3>
-                <button class="btn-close-modal" onclick="document.getElementById('upsell-modal').classList.add('hidden')">×</button>
+                <button class="btn-close-modal"
+                    onclick="document.getElementById('upsell-modal').classList.add('hidden')">×</button>
             </div>
             <div class="upsell-body" style="padding: 20px 0;">
-                <i data-lucide="alert-triangle" style="width: 50px; height: 50px; color: var(--accent-yellow); margin-bottom: 15px;"></i>
+                <i data-lucide="alert-triangle"
+                    style="width: 50px; height: 50px; color: var(--accent-yellow); margin-bottom: 15px;"></i>
                 <p style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-gray);">
-                    Has agotado tu límite de clases (Diario o Mensual). ¡No pierdas el ritmo! Elige cómo deseas continuar tu entrenamiento:
+                    Has agotado tu límite de clases (Diario o Mensual). ¡No pierdas el ritmo! Elige cómo deseas
+                    continuar tu entrenamiento:
                 </p>
                 <div style="display: flex; flex-direction: column; gap: 15px;">
-                    <button class="btn-outline glow-primary" style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;" onclick="window.buyDailyPass()">
+                    <button class="btn-outline glow-primary"
+                        style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;"
+                        onclick="window.buyDailyPass()">
                         <span style="font-weight: bold; font-size: 1.1rem; color: white;">🎟️ Pase Diario / Extra</span>
                         <span style="font-size: 0.8rem; opacity: 0.8;">Compra 1 clase extra por $5.000</span>
                     </button>
-                    <button class="btn-primary glow-primary" style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;" onclick="window.upgradePlan()">
-                        <span style="font-weight: bold; font-size: 1.1rem; color: var(--bg-dark);">🚀 Subir de Plan (Upgrade)</span>
-                        <span style="font-size: 0.8rem; opacity: 0.8; color: var(--bg-dark);">Paga la diferencia y entrena sin límites</span>
+                    <button class="btn-primary glow-primary"
+                        style="display: flex; flex-direction: column; align-items: center; padding: 15px; border-radius: 12px; gap: 5px;"
+                        onclick="window.upgradePlan()">
+                        <span style="font-weight: bold; font-size: 1.1rem; color: var(--bg-dark);">🚀 Subir de Plan
+                            (Upgrade)</span>
+                        <span style="font-size: 0.8rem; opacity: 0.8; color: var(--bg-dark);">Paga la diferencia y
+                            entrena sin límites</span>
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Forgot Password Modal -->
+    <div id="forgot-password-modal" class="overlay hidden">
+        <div class="modal-content glass" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h3>Recuperar Contraseña</h3>
+                <button class="btn-close-modal"
+                    onclick="document.getElementById('forgot-password-modal').classList.add('hidden')">×</button>
+            </div>
+            <div style="padding: 20px 0;">
+                <i data-lucide="mail"
+                    style="width: 40px; height: 40px; color: var(--accent-cyan); margin-bottom: 15px;"></i>
+                <p style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-gray);">
+                    Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.
+                </p>
+                <div class="auth-form-group" style="text-align: left;">
+                    <label>EMAIL</label>
+                    <div class="auth-input-wrapper">
+                        <i data-lucide="mail"></i>
+                        <input type="email" id="forgot-email" class="auth-input" placeholder="tu@email.com">
+                    </div>
+                    <span id="forgot-email-feedback" class="validation-feedback"></span>
+                </div>
+                <button id="btn-send-reset" class="auth-btn" style="margin-top: 16px;">ENVIAR ENLACE</button>
+                <p id="forgot-status" style="margin-top: 12px; font-size: 0.8rem; min-height: 20px;"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div id="faq-overlay" class="overlay hidden">
+        <div class="modal-content glass" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3>Centro de Ayuda</h3>
+                <button class="btn-close-modal"
+                    onclick="document.getElementById('faq-overlay').classList.add('hidden')">×</button>
+            </div>
+            <div id="faq-content" style="padding: 10px 0;">
+                <!-- Dynamic FAQ content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Integration Scripts -->
+
     <!-- Lucide & Chart.js -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- Class Management Modal -->
     <div id="class-modal" class="overlay">
         <div class="modal-content glass">
+
             <div class="modal-header">
+
                 <h3 id="class-modal-title">Nueva Clase</h3>
+
                 <button class="btn-close-modal">×</button>
+
             </div>
+
             <form id="class-form">
+
                 <div class="form-group">
+
                     <label>Nombre de la Clase</label>
+
                     <input type="text" id="cls-name" placeholder="Ej: BJJ Avanzado" required>
                 </div>
                 <div class="form-group">
@@ -754,13 +958,20 @@
                 <div class="form-group">
                     <label>Días de la Semana</label>
                     <div id="cls-days-container" class="day-selector-premium">
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="1" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="2" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="3" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="4" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="5" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="6" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="0" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="1"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="2"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="3"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="4"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="5"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="6"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="cls-day" value="0"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
                     </div>
                 </div>
 
@@ -792,7 +1003,8 @@
                 </div>
                 <div class="form-group">
                     <label>Disciplina / Plan</label>
-                    <div class="discipline-selector-tabs" id="pay-discipline-tabs" style="display:flex; flex-wrap:wrap; gap:5px;">
+                    <div class="discipline-selector-tabs" id="pay-discipline-tabs"
+                        style="display:flex; flex-wrap:wrap; gap:5px;">
                         <!-- Dynamically populated from appState.plans -->
                     </div>
                     <input type="hidden" id="pay-concept" value="Primer Asalto">
@@ -863,13 +1075,20 @@
                 <div class="form-group">
                     <label>Días de Validez (Opcional)</label>
                     <div id="plan-days-container" class="day-selector-premium">
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="1" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="2" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="3" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="4" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="5" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="6" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
-                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="0" onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="1"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>L</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="2"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="3"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>M</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="4"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>J</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="5"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>V</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="6"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>S</span></label>
+                        <label class="day-toggle"><input type="checkbox" name="plan-day" value="0"
+                                onchange="this.parentElement.classList.toggle('active', this.checked)"><span>D</span></label>
                     </div>
                     <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 5px;">Si no marcas ninguno, el
                         plan será válido para todos los días.</p>
@@ -883,186 +1102,369 @@
             </form>
         </div>
     </div>
-    <!-- Member Management Modal -->
+    <!-- Member Management Modal v2.0 -->
     <div id="member-modal" class="overlay" style="z-index: 9999;">
-        <div class="modal-content glass" style="max-width: 520px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header" style="position: sticky; top: 0; background: rgba(13,13,18,0.98); z-index: 2; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <h3 id="member-modal-title">Nuevo Socio</h3>
-                <button class="btn-close-modal">×</button>
+        <div class="modal-content glass" style="max-width: 720px; max-height: 92vh; overflow-y: auto; padding: 0;">
+            <!-- Sticky Header v2 -->
+            <div class="modal-header"
+                style="position: sticky; top: 0; background: rgba(13,13,18,0.98); z-index: 10; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="member-modal-title" style="font-size:1.1rem; letter-spacing:0.5px;">Nuevo Socio</h3>
+                <button class="btn-close-modal" style="font-size:1.5rem; line-height:1;">×</button>
             </div>
 
-            <!-- Member Profile Summary (shown only when editing) -->
-            <div id="mem-profile-summary" class="hidden" style="align-items:center; gap:14px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:12px;">
-                <img id="mem-avatar-preview" src="" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid rgba(139,92,246,0.4); box-shadow:0 0 15px rgba(139,92,246,0.15);">
-                <div style="flex:1;">
-                    <strong id="mem-display-name" style="font-size:1.05rem; display:block; letter-spacing:0.5px;">—</strong>
-                    <span id="mem-display-email" style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:2px;">—</span>
-                    <div id="mem-display-badges" style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;"></div>
-                </div>
-            </div>
-
-            <!-- Tabs -->
-            <div id="mem-modal-tabs" class="hidden" style="gap:6px; margin-bottom:16px; padding-bottom:2px;">
-                <button type="button" class="mem-tab active" data-tab="profile" style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:var(--accent-purple); color:white; border:1px solid var(--accent-purple); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
-                    <i data-lucide="user" style="width:13px; height:13px;"></i> Perfil
-                </button>
-                <button type="button" class="mem-tab" data-tab="membership" style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
-                    <i data-lucide="credit-card" style="width:13px; height:13px;"></i> Membresía
-                </button>
-                <button type="button" class="mem-tab" data-tab="history" style="flex:1; padding:8px 12px; font-size:0.75rem; font-weight:700; background:rgba(255,255,255,0.05); color:var(--text-gray); border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
-                    <i data-lucide="history" style="width:13px; height:13px;"></i> Historial
-                </button>
-            </div>
-
-            <form id="member-form">
-                <!-- TAB: Profile -->
-                <div id="mem-tab-profile">
-                    <div class="form-group">
-                        <label>Nombre Completo</label>
-                        <input type="text" id="mem-name" placeholder="Ej: Juan Pérez" required>
-                    </div>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" id="mem-email" placeholder="email@ejemplo.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Teléfono</label>
-                            <input type="tel" id="mem-phone" placeholder="+56 9 1234 5678">
+            <div style="padding: 0 24px 24px 24px;">
+                <!-- Member Profile Summary v2 (shown only when editing) -->
+                <div id="mem-profile-summary" class="hidden"
+                    style="display:flex; align-items:center; gap:16px; padding:18px 0; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:14px;">
+                    <div style="position:relative;">
+                        <img id="mem-avatar-preview" src=""
+                            style="width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid rgba(139,92,246,0.4); box-shadow:0 0 20px rgba(139,92,246,0.2);">
+                        <div id="mem-status-indicator"
+                            style="position:absolute; bottom:2px; right:2px; width:14px; height:14px; border-radius:50%; background:#22c55e; border:2px solid rgba(13,13,18,0.98);">
                         </div>
                     </div>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Nivel</label>
-                            <input type="number" id="mem-level" placeholder="1" min="0">
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <strong id="mem-display-name"
+                                style="font-size:1.15rem; display:block; letter-spacing:0.3px;">—</strong>
+                            <span id="mem-display-status-badge"
+                                style="font-size:0.65rem; background:rgba(34,197,94,0.15); color:#22c55e; padding:2px 10px; border-radius:12px; font-weight:700; border:1px solid rgba(34,197,94,0.3);">Activo</span>
                         </div>
-                        <div class="form-group">
-                            <label>XP</label>
-                            <input type="number" id="mem-xp" placeholder="0" min="0">
+                        <span id="mem-display-email"
+                            style="font-size:0.75rem; color:var(--text-gray); display:block; margin-top:3px;">—</span>
+                        <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; align-items:center;">
+                            <span id="mem-display-plan"
+                                style="font-size:0.7rem; background:rgba(139,92,246,0.1); color:var(--accent-purple); padding:2px 10px; border-radius:12px; font-weight:700;">Sin
+                                Plan</span>
+                            <span id="mem-display-level"
+                                style="font-size:0.7rem; background:rgba(255,255,255,0.05); color:var(--text-gray); padding:2px 10px; border-radius:12px; font-weight:700;">LVL
+                                0</span>
+                            <span id="mem-display-expiry"
+                                style="font-size:0.7rem; background:rgba(251,191,36,0.1); color:#fbbf24; padding:2px 10px; border-radius:12px; font-weight:700;">—</span>
                         </div>
                     </div>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Fecha de Ingreso</label>
-                            <input type="date" id="mem-entry-date" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha de Nacimiento</label>
-                            <input type="date" id="mem-birthdate">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Contacto de Emergencia</label>
-                        <input type="text" id="mem-emergency-contact" placeholder="Nombre - +56 9 xxxx xxxx">
-                    </div>
-                    <div class="form-group">
-                        <label>Notas del Administrador</label>
-                        <textarea id="mem-admin-notes" placeholder="Notas internas sobre este socio..." rows="2"
-                            style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%; resize: vertical; font-family: inherit; font-size: 0.85rem;"></textarea>
-                    </div>
-
-                    <!-- Password Reset (Supabase) -->
-                    <div id="admin-pass-tools" class="hidden"
-                        style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 15px;">
-                        <label
-                            style="font-size: 0.7rem; color: var(--text-gray); margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">SEGURIDAD
-                            DE CUENTA</label>
-                        <button type="button" id="btn-admin-reset-pass" class="btn-glass"
-                            style="width: 100%; border-color: #eab308; color: #eab308; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <i data-lucide="mail"></i> REESTABLECER CONTRASEÑA
+                    <!-- Quick Actions -->
+                    <div id="mem-quick-actions" style="display:flex; gap:6px; flex-shrink:0;">
+                        <button type="button" id="btn-mem-renew" class="btn-glass-small" title="Renovar membresía"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:#22c55e; color:#22c55e;">
+                            <i data-lucide="refresh-cw" style="width:13px;"></i>
                         </button>
-                        <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">Se
-                            enviará un email al socio para crear una nueva clave.</p>
+                        <button type="button" id="btn-mem-freeze" class="btn-glass-small" title="Congelar/Descongelar"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:#3b82f6; color:#3b82f6;">
+                            <i data-lucide="snowflake" style="width:13px;"></i>
+                        </button>
+                        <button type="button" id="btn-mem-message" class="btn-glass-small" title="Enviar mensaje"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:var(--accent-purple); color:var(--accent-purple);">
+                            <i data-lucide="message-square" style="width:13px;"></i>
+                        </button>
+                        <button type="button" id="btn-mem-delete" class="btn-glass-small" title="Eliminar socio"
+                            style="padding:6px 10px; font-size:0.7rem; border-color:#ef4444; color:#ef4444;">
+                            <i data-lucide="trash-2" style="width:13px;"></i>
+                        </button>
                     </div>
                 </div>
 
-                <!-- TAB: Membership -->
-                <div id="mem-tab-membership" class="hidden">
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label>Plan de Membresía</label>
-                        <select id="mem-plan"
-                            style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%;">
-                            <option value="" style="color: black;">Sin Plan (Inactivo)</option>
-                            <!-- Populated dynamically via JS -->
-                        </select>
+                <!-- Risk Alert Banner -->
+                <div id="mem-risk-banner" class="hidden"
+                    style="margin-bottom:14px; padding:10px 14px; border-radius:10px; border:1px solid rgba(239,68,68,0.2); background:rgba(239,68,68,0.08); display:flex; align-items:center; gap:10px;">
+                    <i data-lucide="alert-triangle" style="width:16px; color:#ef4444; flex-shrink:0;"></i>
+                    <span id="mem-risk-text" style="font-size:0.8rem; color:#ef4444; font-weight:600;"></span>
+                </div>
+
+                <!-- Tabs v2 -->
+                <div id="mem-modal-tabs" class="hidden"
+                    style="display:flex; gap:4px; margin-bottom:16px; padding:4px; background:rgba(255,255,255,0.03); border-radius:10px; border:1px solid rgba(255,255,255,0.06);">
+                    <button type="button" class="mem-tab active" data-tab="profile"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:var(--accent-purple); color:white; border:1px solid var(--accent-purple); border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="user" style="width:13px; height:13px;"></i> Perfil
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="membership"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="credit-card" style="width:13px; height:13px;"></i> Membresía
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="attendance"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="calendar-check" style="width:13px; height:13px;"></i> Asistencia
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="payments"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="wallet" style="width:13px; height:13px;"></i> Pagos
+                    </button>
+                    <button type="button" class="mem-tab" data-tab="notes"
+                        style="flex:1; padding:8px 10px; font-size:0.75rem; font-weight:700; background:transparent; color:var(--text-gray); border:1px solid transparent; border-radius:8px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                        <i data-lucide="file-text" style="width:13px; height:13px;"></i> Notas
+                    </button>
+                </div>
+
+                <form id="member-form">
+                    <!-- TAB: Profile -->
+                    <div id="mem-tab-profile">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Nombre Completo *</label>
+                                <input type="text" id="mem-name" placeholder="Ej: Juan Pérez" required>
+                            </div>
+                            <div class="form-group">
+                                <label>RUT / Documento</label>
+                                <input type="text" id="mem-rut" placeholder="12.345.678-9">
+                            </div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Email <span style="font-size:0.7rem; opacity:0.6;">(Opcional — se genera
+                                        automáticamente para socios sin tecnología)</span></label>
+                                <input type="email" id="mem-email" placeholder="email@ejemplo.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="mem-phone" placeholder="+56 9 1234 5678">
+                            </div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Fecha de Nacimiento</label>
+                                <input type="date" id="mem-birthdate">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Ingreso *</label>
+                                <input type="date" id="mem-entry-date" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="mem-address" placeholder="Calle, número, comuna">
+                        </div>
+                        <div class="form-group">
+                            <label>Contacto de Emergencia</label>
+                            <input type="text" id="mem-emergency-contact" placeholder="Nombre - Parentesco - Teléfono">
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Nivel</label>
+                                <input type="number" id="mem-level" placeholder="0" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>XP</label>
+                                <input type="number" id="mem-xp" placeholder="0" min="0">
+                            </div>
+                        </div>
+
+                        <!-- Password Reset (Supabase) -->
+                        <div id="admin-pass-tools" class="hidden"
+                            style="margin-top: 12px; padding: 14px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                            <label
+                                style="font-size: 0.7rem; color: var(--text-gray); margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">SEGURIDAD
+                                DE CUENTA</label>
+                            <button type="button" id="btn-admin-reset-pass" class="btn-glass"
+                                style="width: 100%; border-color: #eab308; color: #eab308; display: flex; align-items: center; justify-content: center; gap: 10px; font-size:0.8rem;">
+                                <i data-lucide="mail" style="width:14px;"></i> REESTABLECER CONTRASEÑA
+                            </button>
+                            <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">
+                                Se
+                                enviará un email al socio para crear una nueva clave.</p>
+                        </div>
                     </div>
 
-                    <div class="grid-2">
+                    <!-- TAB: Membership -->
+                    <div id="mem-tab-membership" class="hidden">
                         <div class="form-group">
-                            <label>Estado</label>
-                            <select id="mem-status"
-                                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%;">
-                                <option value="active" style="color: black;">Activo ✅</option>
-                                <option value="inactive" style="color: black;">Inactivo ❌</option>
-                                <option value="frozen" style="color: black;">Congelado 🧊</option>
+                            <label>Plan de Membresía</label>
+                            <select id="mem-plan"
+                                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%; font-size:0.85rem;">
+                                <option value="" style="color: black;">Sin Plan (Inactivo)</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>Vencimiento</label>
-                            <input type="date" id="mem-expiry">
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Estado</label>
+                                <select id="mem-status"
+                                    style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; width: 100%; font-size:0.85rem;">
+                                    <option value="active" style="color: black;">Activo ✅</option>
+                                    <option value="inactive" style="color: black;">Inactivo ❌</option>
+                                    <option value="frozen" style="color: black;">Congelado 🧊</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Vencimiento</label>
+                                <input type="date" id="mem-expiry">
+                            </div>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Límite Mensual de Clases</label>
+                                <input type="number" id="mem-class-limit" placeholder="2" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Recargo (%)</label>
+                                <input type="number" id="mem-surcharge" placeholder="30" min="0" max="100">
+                            </div>
+                        </div>
+
+                        <!-- Membership Progress Card -->
+                        <div id="mem-status-display" class="hidden"
+                            style="margin-top: 14px; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                                <span
+                                    style="font-size:0.7rem; font-weight:700; color:var(--text-gray); letter-spacing:0.5px;">PROGRESO
+                                    DE MEMBRESÍA</span>
+                                <span id="mem-days-left"
+                                    style="font-size:0.8rem; font-weight:800; color:var(--accent-purple);"></span>
+                            </div>
+                            <div
+                                style="height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">
+                                <div id="mem-progress-bar"
+                                    style="height:100%; background:linear-gradient(90deg, var(--accent-purple), var(--accent-cyan)); transition:width 0.6s ease; width:0%; border-radius:4px;">
+                                </div>
+                            </div>
+                            <div
+                                style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.65rem; color:var(--text-gray);">
+                                <span id="mem-progress-start">Inicio</span>
+                                <span id="mem-progress-end">Vencimiento</span>
+                            </div>
+                        </div>
+
+                        <!-- Membership Actions -->
+                        <div id="mem-membership-actions"
+                            style="margin-top: 14px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <button type="button" id="btn-mem-extend-7" class="btn-glass"
+                                style="font-size:0.75rem; padding:10px;">
+                                <i data-lucide="plus" style="width:12px; vertical-align:middle; margin-right:4px;"></i>
+                                +7 días
+                            </button>
+                            <button type="button" id="btn-mem-extend-30" class="btn-glass"
+                                style="font-size:0.75rem; padding:10px;">
+                                <i data-lucide="plus" style="width:12px; vertical-align:middle; margin-right:4px;"></i>
+                                +30 días
+                            </button>
+                        </div>
+
+                        <!-- Payment Tools -->
+                        <div id="admin-payment-tools" class="hidden"
+                            style="margin-top: 14px; padding: 14px; background: rgba(239, 68, 68, 0.05); border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                            <label
+                                style="font-size: 0.7rem; color: #ef4444; margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">
+                                ESTADO: INACTIVO / SIN PLAN</label>
+                            <button type="button" id="btn-admin-req-payment" class="btn-glass"
+                                style="width: 100%; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center; gap: 10px; font-size:0.8rem;">
+                                <i data-lucide="alert-circle" style="width:14px;"></i> ENVIAR A PAGOS PENDIENTES
+                            </button>
                         </div>
                     </div>
 
-                    <div class="grid-2" style="margin-top: 10px;">
-                        <div class="form-group">
-                            <label>Límite Mensual de Clases</label>
-                            <input type="number" id="mem-class-limit" placeholder="2" min="0">
+                    <!-- TAB: Attendance -->
+                    <div id="mem-tab-attendance" class="hidden">
+                        <div id="mem-attendance-stats"
+                            style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">TOTAL</span>
+                                <strong id="mem-stat-total"
+                                    style="font-size:1.3rem; color:var(--accent-cyan);">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">ESTE
+                                    MES</span>
+                                <strong id="mem-stat-month"
+                                    style="font-size:1.3rem; color:var(--accent-purple);">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">SEMANA</span>
+                                <strong id="mem-stat-week" style="font-size:1.3rem; color:#fbbf24;">0</strong>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Recargo (%)</label>
-                            <input type="number" id="mem-surcharge" placeholder="30" min="0" max="100">
+                        <!-- Attendance Heatmap Legend -->
+                        <div
+                            style="display:flex; align-items:center; gap:8px; margin-bottom:10px; padding:8px 12px; background:rgba(255,255,255,0.02); border-radius:8px; border:1px solid rgba(255,255,255,0.04);">
+                            <span style="font-size:0.7rem; color:var(--text-gray);">Frecuencia:</span>
+                            <div style="display:flex; gap:3px;">
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:rgba(255,255,255,0.05);"></span>
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:rgba(139,92,246,0.3);"></span>
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:rgba(139,92,246,0.6);"></span>
+                                <span
+                                    style="width:10px; height:10px; border-radius:2px; background:var(--accent-purple);"></span>
+                            </div>
+                        </div>
+                        <div id="mem-attendance-heatmap"
+                            style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; margin-bottom:14px;">
+                        </div>
+                        <div id="mem-attendance-list" style="max-height:280px; overflow-y:auto;">
+                            <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">
+                                Cargando historial...</p>
                         </div>
                     </div>
 
-                    <!-- Membership Status Display -->
-                    <div id="mem-status-display" class="hidden" style="margin-top: 15px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                            <span style="font-size:0.7rem; font-weight:700; color:var(--text-gray); letter-spacing:0.5px;">PROGRESO DE MEMBRESÍA</span>
-                            <span id="mem-days-left" style="font-size:0.7rem; font-weight:700;"></span>
+                    <!-- TAB: Payments -->
+                    <div id="mem-tab-payments" class="hidden">
+                        <div id="mem-payments-summary"
+                            style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">TOTAL
+                                    PAGOS</span>
+                                <strong id="mem-pay-total" style="font-size:1.3rem; color:#22c55e;">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">PENDIENTES</span>
+                                <strong id="mem-pay-pending" style="font-size:1.3rem; color:#fbbf24;">0</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:14px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+                                <span
+                                    style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">MONTO
+                                    TOTAL</span>
+                                <strong id="mem-pay-amount"
+                                    style="font-size:1.1rem; color:var(--accent-purple);">$0</strong>
+                            </div>
                         </div>
-                        <div style="height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
-                            <div id="mem-progress-bar" style="height:100%; background:var(--accent-purple); transition:width 0.5s; width:0%;"></div>
+                        <div id="mem-payments-list" style="max-height:320px; overflow-y:auto;">
+                            <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">
+                                Cargando pagos...</p>
                         </div>
                     </div>
 
-                    <!-- Payment Tools -->
-                    <div id="admin-payment-tools" class="hidden"
-                        style="margin-top: 15px; padding: 15px; background: rgba(239, 68, 68, 0.05); border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2); margin-bottom: 15px;">
-                        <label
-                            style="font-size: 0.7rem; color: #ef4444; margin-bottom: 8px; display: block; font-weight: 800; letter-spacing: 1px;">
-                            ESTADO DE MEMBRESÍA: INACTIVO / SIN PLAN</label>
-                        <button type="button" id="btn-admin-req-payment" class="btn-glass"
-                            style="width: 100%; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <i data-lucide="alert-circle"></i> ENVIAR A PAGOS PENDIENTES
+                    <!-- TAB: Notes -->
+                    <div id="mem-tab-notes" class="hidden">
+                        <div class="form-group">
+                            <label>Notas del Administrador</label>
+                            <textarea id="mem-admin-notes" placeholder="Escribe notas internas sobre este socio..."
+                                rows="6"
+                                style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 14px; border-radius: 12px; width: 100%; resize: vertical; font-family: inherit; font-size: 0.85rem; line-height:1.5;"></textarea>
+                        </div>
+                        <div id="mem-notes-history" style="margin-top:12px; max-height:200px; overflow-y:auto;">
+                            <p style="text-align:center; color:var(--text-gray); font-size:0.75rem; padding:12px;">Las
+                                notas se guardan junto con el perfil del socio.</p>
+                        </div>
+                    </div>
+
+                    <!-- Sticky Footer Actions -->
+                    <div
+                        style="position: sticky; bottom: 0; background: rgba(13,13,18,0.95); padding-top: 16px; margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.06); display:flex; gap:10px; align-items:center;">
+                        <button type="submit" class="btn-primary" style="flex:1; padding:12px; font-size:0.85rem;">
+                            <i data-lucide="save" style="width:14px; vertical-align:middle; margin-right:6px;"></i>
+                            GUARDAR CAMBIOS
                         </button>
-                        <p style="font-size: 0.6rem; color: var(--text-gray); margin-top: 8px; text-align: center;">Genera
-                            un registro automático para cobrar la renovación.</p>
+                        <button type="button" id="btn-mem-save-notify" class="btn-glass"
+                            style="padding:12px 16px; font-size:0.8rem; border-color:var(--accent-cyan); color:var(--accent-cyan); white-space:nowrap;">
+                            <i data-lucide="send" style="width:14px; vertical-align:middle; margin-right:4px;"></i>
+                            Guardar y Notificar
+                        </button>
                     </div>
-                </div>
-
-                <!-- TAB: History -->
-                <div id="mem-tab-history" class="hidden">
-                    <div id="mem-attendance-stats" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
-                        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">TOTAL</span>
-                            <strong id="mem-stat-total" style="font-size:1.2rem; color:var(--accent-cyan);">0</strong>
-                        </div>
-                        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">ESTE MES</span>
-                            <strong id="mem-stat-month" style="font-size:1.2rem; color:var(--accent-purple);">0</strong>
-                        </div>
-                        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
-                            <span style="font-size:0.6rem; color:var(--text-gray); display:block; margin-bottom:4px; font-weight:700;">PAGOS</span>
-                            <strong id="mem-stat-payments" style="font-size:1.2rem; color:#22c55e;">0</strong>
-                        </div>
-                    </div>
-                    <div id="mem-attendance-list" style="max-height:300px; overflow-y:auto;">
-                        <p style="text-align:center; color:var(--text-gray); font-size:0.8rem; padding:20px;">Cargando historial...</p>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-primary" style="margin-top: 18px;">GUARDAR SOCIO 🥋</button>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
     <!-- Tournament Management Modal -->
