@@ -5,7 +5,7 @@
 import { exportToFormat, exportUserData } from '../utils/exportUtils.js';
 import { openMemberModal, deleteMember } from './adminModals.js';
 import { openQuickPaymentModal } from './payments.js';
-import unknowAvatar from '../images/unknow.png';
+const unknowAvatar = '../images/unknow.png';
 
 /* global Chart */
 

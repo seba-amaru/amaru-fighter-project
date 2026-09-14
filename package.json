@@ -5,7 +5,7 @@
     "main": "index.html",
     "scripts": {
         "dev": "vite",
-        "build": "vite build && node -e \"const fs=require('fs'),path=require('path');['dist/app/images','dist/app/styles'].forEach(d=>{try{fs.mkdirSync(d,{recursive:true})}catch(e){}});fs.copyFileSync('app/sw.js','dist/app/sw.js');fs.copyFileSync('app/manifest.json','dist/app/manifest.json');fs.copyFileSync('app/images/icon-192.png','dist/app/images/icon-192.png');\"",
+        "build": "vite build && node -e \"const fs=require('fs'),path=require('path');['dist/app/images','dist/app/styles','dist/admin/images'].forEach(d=>{try{fs.mkdirSync(d,{recursive:true})}catch(e){}});fs.copyFileSync('app/sw.js','dist/app/sw.js');fs.copyFileSync('app/manifest.json','dist/app/manifest.json');fs.copyFileSync('app/images/icon-192.png','dist/app/images/icon-192.png');if(fs.existsSync('admin/images')){fs.cpSync('admin/images','dist/admin/images',{recursive:true});}\"",
         "preview": "vite preview",
         "deploy": "npm run build && gh-pages -d dist",
         "lint": "eslint .",

@@ -1,6 +1,6 @@
 import { appState } from '../store/appState.js';
 import { SupabaseService } from '../services/supabaseService.js';
-import unknowAvatar from '../images/unknow.png';
+const unknowAvatar = '../images/unknow.png';
 import { renderAdminClasses, renderAdminPlans } from './admin.js';
 import { renderAdminMembers } from './members.js';
 import { renderAdminPayments } from './payments.js';

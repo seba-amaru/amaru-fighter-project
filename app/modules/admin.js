@@ -1,5 +1,5 @@
 import { exportToFormat, exportUserData } from '../utils/exportUtils.js';
-import unknowAvatar from '../images/unknow.png';
+const unknowAvatar = '../images/unknow.png';
 
 /* global Chart */
 

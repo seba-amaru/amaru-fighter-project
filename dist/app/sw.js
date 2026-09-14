@@ -1,44 +1,14 @@
-const CACHE_NAME = 'amaru-cache-v2';
+const CACHE_NAME = 'amaru-cache-v3';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/app/index.html',
-    '/app/app.js',
-    '/app/style.css',
-    '/app/modules/skeleton.css',
-    '/app/modules/enhancements.css',
-    '/app/modules/validation.js',
-    '/app/modules/notifications.js',
-    '/app/modules/faq.js',
-    '/app/modules/integrations.js',
-    '/app/services/supabaseService.js',
-    '/app/supabase-config.js',
-    '/app/store/appStore.js',
-    '/app/auth/auth.js',
-    '/app/auth/forgot-password.js',
-    '/app/utils/helpers.js',
-    '/app/utils/formatters.js',
     '/manifest.json',
     '/images/icon-192.png',
     '/images/icon-512.png',
     '/images/amarunegro.png',
     '/images/AMARU-LFNM.png',
     '/images/patronapp.png',
-    '/images/1.jpg',
-    '/images/2.jpg',
-    '/images/3.jpg',
-    '/images/4.jpg',
-    '/images/5.jpg',
-    '/images/6.jpg',
-    '/images/7.jpg',
-    '/images/9.jpg',
-    '/images/10.jpg',
-    '/images/11.jpg',
-    '/images/12.jpg',
-    '/images/striking.jpg',
-    '/images/grappling.jpg',
-    '/images/mma.jpg',
-    '/images/horario.png',
     '/images/unknow.png'
 ];
 
@@ -77,28 +47,31 @@ self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Supabase API: network first, cache fallback
-    if (url.hostname.includes('supabase.co')) {
-        event.respondWith(
-            fetch(request)
-                .then(response => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-                    return response;
-                })
-                .catch(() => caches.match(request))
-        );
+    // 1. Never intercept non-HTTP(S) schemes (e.g. chrome-extension://, moz-extension://, data:)
+    if (!url.protocol.startsWith('http')) {
         return;
     }
 
-    // Images: cache first, network fallback
-    if (request.destination === 'image') {
+    // 2. Only cache and intercept GET requests
+    if (request.method !== 'GET') {
+        return;
+    }
+
+    // 3. Supabase API & Auth: Bypass SW completely for direct real-time network speed & fresh data
+    if (url.hostname.includes('supabase.co')) {
+        return;
+    }
+
+    // 4. Vite hashed bundle assets (/assets/): Stale-while-revalidate or Cache-First
+    if (url.pathname.startsWith('/assets/')) {
         event.respondWith(
             caches.match(request).then(cached => {
                 if (cached) return cached;
                 return fetch(request).then(response => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
+                    }
                     return response;
                 });
             })
@@ -106,34 +79,52 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Fonts and CSS: stale while revalidate
+    // 5. Images: Cache first, network fallback
+    if (request.destination === 'image') {
+        event.respondWith(
+            caches.match(request).then(cached => {
+                if (cached) return cached;
+                return fetch(request).then(response => {
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
+                    }
+                    return response;
+                }).catch(() => caches.match('/images/icon-192.png'));
+            })
+        );
+        return;
+    }
+
+    // 6. Fonts and CSS: Stale while revalidate
     if (request.destination === 'font' || request.destination === 'style') {
         event.respondWith(
             caches.match(request).then(cached => {
                 const fetchPromise = fetch(request).then(response => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
+                    }
                     return response;
-                });
+                }).catch(() => null);
                 return cached || fetchPromise;
             })
         );
         return;
     }
 
-    // Default: network first for HTML/JS, cache fallback
+    // 7. Default: Network first for HTML/JS, cache fallback
     event.respondWith(
         fetch(request)
             .then(response => {
-                if (request.method === 'GET' && response.status === 200) {
+                if (response && response.status === 200) {
                     const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
                 }
                 return response;
             })
             .catch(() => caches.match(request).then(cached => {
                 if (cached) return cached;
-                // Fallback to offline page for navigation
                 if (request.mode === 'navigate') {
                     return caches.match('/app/index.html');
                 }

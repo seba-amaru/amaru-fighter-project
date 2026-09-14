@@ -7,10 +7,12 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         emptyOutDir: true,
+        modulePreload: false,
         rollupOptions: {
             input: {
                 main: resolve(__dirname, 'index.html'),
                 app: resolve(__dirname, 'app/index.html'),
+                admin: resolve(__dirname, 'admin/index.html'),
             },
         },
     },

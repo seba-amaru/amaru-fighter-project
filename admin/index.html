@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amarufighter | Desktop Admin Suite</title>
+    <meta name="description" content="Panel de administración de escritorio para Amarufighter. Control de socios, pagos, clases e ingresos.">
+
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="./images/icon-192.png">
+
+    <!-- Estilos de escritorio -->
+    <link rel="stylesheet" href="./admin.css">
+
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- jsPDF & AutoTable para exportación PDF profesional -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+<body>
+    <!-- ====================================================================
+         SIDEBAR FIJA (260px)
+         ==================================================================== -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+        <div class="sidebar-header">
+            <img src="./images/AMARU-LFNM.png" alt="Amarufighter Logo" class="sidebar-logo">
+            <span class="brand-badge">ADMIN v2.0</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <span class="nav-section-title">Operaciones</span>
+            <button class="nav-btn active" data-section="overview">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Vista General</span>
+            </button>
+            <button class="nav-btn" data-section="classes">
+                <i data-lucide="calendar-days"></i>
+                <span>Gestión de Clases</span>
+            </button>
+            <button class="nav-btn" data-section="attendance">
+                <i data-lucide="clipboard-check"></i>
+                <span>Asistencia</span>
+            </button>
+
+            <span class="nav-section-title">Comunidad & Finanzas</span>
+            <button class="nav-btn" data-section="members">
+                <i data-lucide="users"></i>
+                <span>Control de Socios</span>
+                <span class="nav-badge" id="badge-total-members">-</span>
+            </button>
+            <button class="nav-btn" data-section="payments">
+                <i data-lucide="receipt"></i>
+                <span>Control de Pagos</span>
+                <span class="nav-badge alert" id="badge-pending-payments">!</span>
+            </button>
+            <button class="nav-btn" data-section="plans">
+                <i data-lucide="award"></i>
+                <span>Planes y Membresías</span>
+            </button>
+            <button class="nav-btn" data-section="discounts">
+                <i data-lucide="percent"></i>
+                <span>Descuentos</span>
+            </button>
+            <button class="nav-btn" data-section="revenue">
+                <i data-lucide="trending-up"></i>
+                <span>Ingresos y Métricas</span>
+            </button>
+
+            <span class="nav-section-title">Configuración</span>
+            <button class="nav-btn" data-section="notifications">
+                <i data-lucide="bell-ring"></i>
+                <span>Avisos Globales</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="admin-user-card">
+                <div class="user-avatar" id="admin-avatar">A</div>
+                <div class="user-info">
+                    <div class="user-name" id="admin-user-name">Administrador</div>
+                    <div class="user-role">Dojo Master / Admin</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <a href="/app/index.html" class="nav-btn" style="flex: 1; padding: 8px 10px; font-size: 0.75rem; justify-content: center;" title="Ir a vista de alumno">
+                    <i data-lucide="smartphone" style="width: 14px; height: 14px;"></i>
+                    <span>App Alumno</span>
+                </a>
+                <button id="btn-logout" class="btn-ghost-danger" title="Cerrar sesión">
+                    <i data-lucide="log-out" style="width: 14px; height: 14px;"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ====================================================================
+         WORKSPACE PRINCIPAL
+         ==================================================================== -->
+    <div class="admin-workspace">
+        <!-- Topbar Desktop -->
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="btn-icon mobile-menu-btn" id="btn-mobile-sidebar" style="display: none;">
+                    <i data-lucide="menu"></i>
+                </button>
+                <h1 class="page-title" id="topbar-page-title">Vista General</h1>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>Supabase Conectado</span>
+                </div>
+            </div>
+
+            <div class="topbar-right">
+                <!-- Disparador de Command Palette -->
+                <button class="search-trigger" id="btn-open-palette">
+                    <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+                    <span>Buscar acción o socio...</span>
+                    <kbd class="shortcut-kbd">Ctrl K</kbd>
+                </button>
+
+                <button class="btn-icon" id="btn-refresh-data" title="Recargar datos">
+                    <i data-lucide="refresh-cw"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Viewport Dinámico -->
+        <main class="admin-viewport" id="admin-viewport">
+            <!-- SECCIÓN 1: VISTA GENERAL (DASHBOARD) -->
+            <section class="admin-section active" id="section-overview">
+                <!-- Banner de Acciones Rápidas -->
+                <div class="quick-actions-bar">
+                    <button class="btn-primary-action" id="qa-new-class">
+                        <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
+                        <span>Nueva Clase</span>
+                    </button>
+                    <button class="btn-secondary-action" id="qa-new-member">
+                        <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
+                        <span>Registrar Socio</span>
+                    </button>
+                    <button class="btn-secondary-action" id="qa-view-payments">
+                        <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
+                        <span>Validar Pagos</span>
+                    </button>
+                    <button class="btn-secondary-action" id="qa-broadcast">
+                        <i data-lucide="megaphone" style="width: 16px; height: 16px;"></i>
+                        <span>Enviar Notificación</span>
+                    </button>
+                </div>
+
+                <!-- Tarjetas de Métricas (KPIs) -->
+                <div class="metrics-grid">
+                    <div class="glass-card">
+                        <div class="card-header-row">
+                            <span class="card-label">Socios Activos</span>
+                            <div class="card-icon-box red">
+                                <i data-lucide="users"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="kpi-active-members">--</div>
+                        <div class="card-trend up">
+                            <i data-lucide="arrow-up-right" style="width: 14px; height: 14px;"></i>
+                            <span>Membresías al día</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-header-row">
+                            <span class="card-label">Pagos Pendientes</span>
+                            <div class="card-icon-box amber">
+                                <i data-lucide="clock"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="kpi-pending-payments">--</div>
+                        <div class="card-trend" style="color: var(--accent-gold);">
+                            <i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i>
+                            <span>Requieren verificación</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-header-row">
+                            <span class="card-label">Clases Programadas Hoy</span>
+                            <div class="card-icon-box purple">
+                                <i data-lucide="calendar"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="kpi-today-classes">--</div>
+                        <div class="card-trend up">
+                            <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                            <span>Horario operativo</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-header-row">
+                            <span class="card-label">Recaudación del Mes</span>
+                            <div class="card-icon-box green">
+                                <i data-lucide="dollar-sign"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="kpi-month-revenue">$0</div>
+                        <div class="card-trend up">
+                            <i data-lucide="trending-up" style="width: 14px; height: 14px;"></i>
+                            <span>Ingresos confirmados</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de Bienvenida y Atajos de Escritorio -->
+                <div class="glass-card" style="margin-top: 10px;">
+                    <h3 style="margin-bottom: 8px; font-size: 1.15rem;">Suite de Administración Amarufighter</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 16px;">
+                        Bienvenido a la aplicación de escritorio desacoplada. Desde aquí tienes control total del dojo con alto rendimiento, visualización panorámica y acceso directo a la base de datos de producción.
+                    </p>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 0.8rem;">
+                            <span style="color: var(--accent-gold); font-weight: 700;">Atajo:</span> Presiona <kbd class="shortcut-kbd">Ctrl + K</kbd> para abrir el buscador global.
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 0.8rem;">
+                            <span style="color: var(--accent-emerald); font-weight: 700;">Seguridad:</span> Acceso protegido por autenticación y validación de rol <kbd class="shortcut-kbd">admin</kbd>.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: GESTIÓN DE CLASES (WEEK GRID) -->
+            <section class="admin-section" id="section-classes">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Gestión de Clases y Horarios</h2>
+                        <p>Visualización panorámica del horario semanal y administración de aforos.</p>
+                    </div>
+                    <div class="section-actions-group">
+                        <button class="btn-primary-action" id="btn-open-class-modal">
+                            <i data-lucide="plus"></i>
+                            <span>Nueva Clase</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                        <i data-lucide="filter" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+                        <select class="select-dark" id="filter-classes-discipline">
+                            <option value="all">Todas las disciplinas</option>
+                            <option value="NOGI">NOGI 🤼‍♂️</option>
+                            <option value="MMA">MMA ⛓️</option>
+                            <option value="GI">GI 🥋</option>
+                            <option value="Kick Boxing">Kick Boxing - K1 🥊</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-secondary-action" id="btn-manage-disciplines-trigger" style="padding: 6px 12px; font-size: 0.78rem;">
+                        <i data-lucide="settings"></i>
+                        <span>Gestionar Disciplinas</span>
+                    </button>
+                </div>
+
+                <div class="schedule-week-grid" id="classes-week-grid">
+                    <div class="day-column" data-day="lunes">
+                        <div class="day-col-header">
+                            <span class="day-name">Lunes</span>
+                            <span class="day-count" id="count-lunes">0</span>
+                        </div>
+                        <div class="day-cards-list" id="day-list-lunes">
+                            <div style="text-align: center; color: var(--text-muted); font-size: 0.78rem; padding: 20px 0;">Cargando clases...</div>
+                        </div>
+                    </div>
+                    <div class="day-column" data-day="martes">
+                        <div class="day-col-header">
+                            <span class="day-name">Martes</span>
+                            <span class="day-count" id="count-martes">0</span>
+                        </div>
+                        <div class="day-cards-list" id="day-list-martes"></div>
+                    </div>
+                    <div class="day-column" data-day="miercoles">
+                        <div class="day-col-header">
+                            <span class="day-name">Miércoles</span>
+                            <span class="day-count" id="count-miercoles">0</span>
+                        </div>
+                        <div class="day-cards-list" id="day-list-miercoles"></div>
+                    </div>
+                    <div class="day-column" data-day="jueves">
+                        <div class="day-col-header">
+                            <span class="day-name">Jueves</span>
+                            <span class="day-count" id="count-jueves">0</span>
+                        </div>
+                        <div class="day-cards-list" id="day-list-jueves"></div>
+                    </div>
+                    <div class="day-column" data-day="viernes">
+                        <div class="day-col-header">
+                            <span class="day-name">Viernes</span>
+                            <span class="day-count" id="count-viernes">0</span>
+                        </div>
+                        <div class="day-cards-list" id="day-list-viernes"></div>
+                    </div>
+                    <div class="day-column" data-day="sabado">
+                        <div class="day-col-header">
+                            <span class="day-name">Sábado</span>
+                            <span class="day-count" id="count-sabado">0</span>
+                        </div>
+                        <div class="day-cards-list" id="day-list-sabado"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: CONTROL DE ASISTENCIA (TATAMI COCKPIT) -->
+            <section class="admin-section" id="section-attendance">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Control de Asistencia & Tatami Cockpit</h2>
+                        <p>Monitoreo en tiempo real de check-ins, roster diario por clase, auditoría global y retención por asistencia.</p>
+                    </div>
+                    <div class="section-actions-group">
+                        <button class="btn-secondary-action" id="btn-refresh-attendance">
+                            <i data-lucide="rotate-cw"></i>
+                            <span>Actualizar</span>
+                        </button>
+                        <button class="btn-primary-action" id="btn-open-manual-checkin">
+                            <i data-lucide="user-plus"></i>
+                            <span>Check-in Rápido Manual</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 TARJETAS KPIS DE ASISTENCIA -->
+                <div class="payments-kpi-grid" style="margin-bottom: 24px;">
+                    <!-- KPI 1: Asistencias de Hoy -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Asistencias Hoy</span>
+                            <div class="kpi-icon-box emerald"><i data-lucide="calendar-check"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="akpi-today-count">0</div>
+                        <span class="kpi-subtext" id="akpi-today-breakdown">0 App • 0 Manual</span>
+                    </div>
+
+                    <!-- KPI 2: Ocupación Tatami (Fill Rate) -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Ocupación Tatami Hoy</span>
+                            <div class="kpi-icon-box cyan"><i data-lucide="gauge"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="akpi-fill-rate" style="color:#06b6d4;">0%</div>
+                        <div class="kpi-progress-wrapper">
+                            <div class="kpi-progress-bar" id="akpi-fill-bar" style="width: 0%; background: linear-gradient(90deg, #06b6d4, #10b981);"></div>
+                        </div>
+                        <span class="kpi-subtext" id="akpi-fill-sub">0 / 0 cupos ocupados</span>
+                    </div>
+
+                    <!-- KPI 3: Atletas Únicos (7 días) -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Atletas en Tatami (7d)</span>
+                            <div class="kpi-icon-box purple"><i data-lucide="users"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="akpi-unique-athletes" style="color:#a78bfa;">0</div>
+                        <span class="kpi-subtext" id="akpi-unique-sub">0% del padrón activo</span>
+                    </div>
+
+                    <!-- KPI 4: Alerta de Ausentismo / Tendencia -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Tendencia & Ausentismo</span>
+                            <div class="kpi-icon-box gold"><i data-lucide="trending-up"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="akpi-trend-status" style="font-size: 1.25rem;">Estable</div>
+                        <span class="kpi-subtext" id="akpi-trend-sub">Sin alerta de caída</span>
+                    </div>
+                </div>
+
+                <!-- NAVEGACIÓN DE SUB-PESTAÑAS DE ASISTENCIA -->
+                <div class="payments-subtabs-nav">
+                    <button class="attendance-subtab-btn active" data-atab="roster">
+                        <i data-lucide="calendar-days"></i>
+                        <span>Roster Diario por Clase</span>
+                    </button>
+                    <button class="attendance-subtab-btn" data-atab="ledger">
+                        <i data-lucide="list-checks"></i>
+                        <span>Historial y Auditoría Global</span>
+                        <span class="subtab-counter-badge" id="badge-att-total-count">0</span>
+                    </button>
+                    <button class="attendance-subtab-btn" data-atab="analytics">
+                        <i data-lucide="bar-chart-2"></i>
+                        <span>Analytics e Insights</span>
+                        <span class="subtab-counter-badge" id="badge-att-risk-count" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">0</span>
+                    </button>
+                </div>
+
+                <!-- SUB-PESTAÑA 1: ROSTER DIARIO POR CLASE -->
+                <div class="attendance-tab-view active" id="atab-content-roster">
+                    <div class="tx-filter-bar" style="margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button class="btn-secondary-action" id="btn-roster-prev-day" title="Día anterior" style="padding: 8px 12px;">
+                                <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i>
+                            </button>
+                            <button class="btn-secondary-action" id="btn-roster-today" style="padding: 8px 14px; font-size: 0.82rem; font-weight: 700;">
+                                Hoy
+                            </button>
+                            <button class="btn-secondary-action" id="btn-roster-next-day" title="Día siguiente" style="padding: 8px 12px;">
+                                <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                            </button>
+                            <input type="date" class="input-dark" id="att-roster-date" style="padding: 8px 12px; font-size: 0.82rem;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
+                            <span style="font-size: 0.78rem; color: var(--text-muted);">Disciplina:</span>
+                            <select class="select-dark" id="att-roster-discipline" style="padding: 8px 12px; font-size: 0.82rem;">
+                                <option value="all">Todas las disciplinas</option>
+                                <option value="Striking">Striking / Boxeo / Muay Thai</option>
+                                <option value="BJJ">BJJ / Grappling</option>
+                                <option value="MMA">MMA</option>
+                                <option value="Funcional">Funcional / Acondicionamiento</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor del Roster de clases -->
+                    <div id="att-roster-cards-container" class="roster-grid-container">
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">Cargando clases del día...</div>
+                    </div>
+                </div>
+
+                <!-- SUB-PESTAÑA 2: HISTORIAL Y AUDITORÍA GLOBAL -->
+                <div class="attendance-tab-view" id="atab-content-ledger">
+                    <div class="tx-filter-bar">
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px;">
+                            <i data-lucide="search" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+                            <input type="text" class="input-dark" id="att-ledger-search" placeholder="Buscar por alumno o clase..." style="flex: 1;">
+                        </div>
+                        <select class="select-dark" id="att-ledger-date-preset">
+                            <option value="today">Solo Hoy</option>
+                            <option value="week" selected>Últimos 7 días</option>
+                            <option value="month">Este Mes</option>
+                            <option value="all">Todo el Historial</option>
+                        </select>
+                        <select class="select-dark" id="att-ledger-method">
+                            <option value="all">Todos los métodos</option>
+                            <option value="check-in">📱 Check-in App</option>
+                            <option value="manual">🥋 Admin Manual</option>
+                        </select>
+                        <button class="btn-secondary-action" id="btn-export-attendance-csv">
+                            <i data-lucide="download"></i>
+                            <span>Exportar CSV</span>
+                        </button>
+                    </div>
+
+                    <div class="desktop-table-card">
+                        <div class="table-responsive-wrapper">
+                            <table class="desktop-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha / Hora</th>
+                                        <th>Alumno</th>
+                                        <th>Clase</th>
+                                        <th>Disciplina</th>
+                                        <th>Método</th>
+                                        <th>Plan de Socio</th>
+                                        <th style="text-align: right;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="att-ledger-table-body">
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                            Cargando historial de asistencias...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-pagination-bar">
+                            <span class="pagination-info" id="att-ledger-pagination-info">Mostrando 0 de 0 registros</span>
+                            <div class="pagination-controls">
+                                <button class="btn-secondary-action" id="btn-att-ledger-prev" disabled><i data-lucide="chevron-left"></i></button>
+                                <button class="btn-secondary-action" id="btn-att-ledger-next" disabled><i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PESTAÑA 3: ANALYTICS E INSIGHTS -->
+                <div class="attendance-tab-view" id="atab-content-analytics">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+                        <!-- Gráfico / Barras de Distribución Semanal -->
+                        <div class="desktop-table-card" style="padding: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff;">Afluencia por Día de la Semana</h4>
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">Últimos 30 días</span>
+                            </div>
+                            <div id="att-weekly-bars-container" style="display: flex; flex-direction: column; gap: 10px;">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+
+                        <!-- Top 5 Atletas Más Activos -->
+                        <div class="desktop-table-card" style="padding: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff;">🏆 Top 5 Atletas Más Activos</h4>
+                                <span style="font-size: 0.72rem; color: var(--accent-gold);">Mes en curso</span>
+                            </div>
+                            <div id="att-top-athletes-container" style="display: flex; flex-direction: column; gap: 10px;">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+
+                        <!-- Alumnos en Riesgo por Inasistencia > 14 días -->
+                        <div class="desktop-table-card" style="grid-column: 1 / -1; padding: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <div>
+                                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #ef4444;">⚠️ Alumnos en Riesgo de Deserción por Inasistencia (>14 días)</h4>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">Socios activos que han dejado de asistir al tatami. Contáctalos para reactivarlos.</p>
+                                </div>
+                                <span class="status-pill overdue" id="att-inactivity-count-badge">0 en riesgo</span>
+                            </div>
+                            <div id="att-inactivity-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: CONTROL DE SOCIOS -->
+            <section class="admin-section" id="section-members">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Control de Socios</h2>
+                        <p>Control integral de membresías, directorio maestro, radar de retención & churn y centro de comunicaciones.</p>
+                    </div>
+                    <div class="section-actions-group">
+                        <button class="btn-secondary-action" id="btn-refresh-members">
+                            <i data-lucide="rotate-cw"></i>
+                            <span>Actualizar</span>
+                        </button>
+                        <button class="btn-primary-action" id="btn-create-member">
+                            <i data-lucide="user-plus"></i>
+                            <span>Nuevo Socio</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 TARJETAS KPIS DE CRM DE SOCIOS -->
+                <div class="payments-kpi-grid" style="margin-bottom: 24px;">
+                    <!-- KPI 1: Total Socios -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Total Socios Registrados</span>
+                            <div class="kpi-icon-box cyan"><i data-lucide="users"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="mkpi-total-members">0</div>
+                        <span class="kpi-subtext" id="mkpi-total-sub">Padrón total en base de datos</span>
+                    </div>
+
+                    <!-- KPI 2: Activos con Membresía -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Socios Activos</span>
+                            <div class="kpi-icon-box emerald"><i data-lucide="user-check"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="mkpi-active-members" style="color: var(--accent-emerald);">0</div>
+                        <span class="kpi-subtext" id="mkpi-active-pct">0% del padrón total</span>
+                    </div>
+
+                    <!-- KPI 3: Por Vencer (≤ 5 días) -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Por Vencer (≤5 días)</span>
+                            <div class="kpi-icon-box gold"><i data-lucide="clock"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="mkpi-warning-members" style="color: var(--accent-gold);">0</div>
+                        <span class="kpi-subtext" id="mkpi-warning-sub">Requieren renovación inmediata</span>
+                    </div>
+
+                    <!-- KPI 4: Morosos / Vencidos -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Morosos / Vencidos</span>
+                            <div class="kpi-icon-box red"><i data-lucide="user-x"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="mkpi-overdue-members" style="color: #ef4444;">0</div>
+                        <span class="kpi-subtext" id="mkpi-overdue-sub">Sin membresía al día</span>
+                    </div>
+                </div>
+
+                <!-- NAVEGACIÓN DE SUB-PESTAÑAS DE SOCIOS CRM -->
+                <div class="payments-subtabs-nav">
+                    <button class="crm-subtab-btn active" data-mtab="dashboard">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Dashboard CRM</span>
+                    </button>
+                    <button class="crm-subtab-btn" data-mtab="directory">
+                        <i data-lucide="users"></i>
+                        <span>Directorio Maestro</span>
+                        <span class="subtab-counter-badge" id="badge-dir-total-count">0</span>
+                    </button>
+                    <button class="crm-subtab-btn" data-mtab="retention">
+                        <i data-lucide="shield-alert"></i>
+                        <span>Radar de Retención & Churn</span>
+                        <span class="subtab-counter-badge" id="badge-ret-risk-count" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">0</span>
+                    </button>
+                    <button class="crm-subtab-btn" data-mtab="communications">
+                        <i data-lucide="message-square"></i>
+                        <span>Comunicaciones</span>
+                    </button>
+                </div>
+
+                <!-- SUB-PESTAÑA 1: CRM DASHBOARD -->
+                <div class="crm-tab-view active" id="mtab-content-dashboard">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px;">
+                        <!-- Distribución por Plan -->
+                        <div class="desktop-table-card" style="padding: 22px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                                <div>
+                                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff;">Distribución por Plan de Membresía</h4>
+                                    <p style="font-size: 0.72rem; color: var(--text-muted);">Socios activos por categoría y revenue proyectado</p>
+                                </div>
+                                <span class="badge-method pasarela" id="crm-plans-total-badge">0 Planes</span>
+                            </div>
+                            <div id="crm-plan-distribution-container" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+
+                        <!-- Alertas Críticas Inmediatas -->
+                        <div class="desktop-table-card" style="padding: 22px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                                <div>
+                                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff;">⚡ Alertas Críticas de Renovación</h4>
+                                    <p style="font-size: 0.72rem; color: var(--text-muted);">Socios que requieren atención o contacto prioritario</p>
+                                </div>
+                                <span class="status-pill warning" id="crm-critical-count-badge">0 Alertas</span>
+                            </div>
+                            <div id="crm-critical-alerts-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto;">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PESTAÑA 2: DIRECTORIO MAESTRO -->
+                <div class="crm-tab-view" id="mtab-content-directory">
+                    <div class="tx-filter-bar">
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px;">
+                            <i data-lucide="search" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+                            <input type="text" class="input-dark" id="dir-search-input" placeholder="Buscar por nombre, email, rut o fono..." style="flex: 1;">
+                        </div>
+                        <select class="select-dark" id="dir-status-filter">
+                            <option value="all">Todos los estados</option>
+                            <option value="active">🟢 Activos</option>
+                            <option value="warning">🟡 Por vencer (≤5d)</option>
+                            <option value="overdue">🔴 Morosos / Vencidos</option>
+                            <option value="frozen">❄️ Congelados</option>
+                            <option value="inactive">⚪ Inactivos</option>
+                        </select>
+                        <select class="select-dark" id="dir-plan-filter">
+                            <option value="all">Todos los planes</option>
+                        </select>
+                        <button class="btn-secondary-action" id="btn-export-directory-csv">
+                            <i data-lucide="file-spreadsheet"></i>
+                            <span>Exportar CSV</span>
+                        </button>
+                    </div>
+
+                    <div class="desktop-table-card">
+                        <div class="table-responsive-wrapper">
+                            <table class="desktop-table">
+                                <thead>
+                                    <tr>
+                                        <th>Socio / Atleta</th>
+                                        <th>Contacto</th>
+                                        <th>Plan Asignado</th>
+                                        <th>Estado Membresía</th>
+                                        <th>Vencimiento</th>
+                                        <th>Última Asistencia</th>
+                                        <th style="text-align: right;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dir-table-body">
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                            Cargando directorio de socios desde Supabase...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-pagination-bar">
+                            <span class="pagination-info" id="dir-pagination-info">Mostrando 0 de 0 socios</span>
+                            <div class="pagination-controls">
+                                <button class="btn-secondary-action" id="btn-dir-prev-page" disabled><i data-lucide="chevron-left"></i></button>
+                                <button class="btn-secondary-action" id="btn-dir-next-page" disabled><i data-lucide="chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PESTAÑA 3: RADAR DE RETENCIÓN & CHURN RISK -->
+                <div class="crm-tab-view" id="mtab-content-retention">
+                    <div class="cobranza-filter-bar">
+                        <div class="cov-filter-pill active" data-risk="all">
+                            <span>Todos los Alumnos</span>
+                            <span class="pill-count" id="risk-cnt-all">0</span>
+                        </div>
+                        <div class="cov-filter-pill" data-risk="high">
+                            <span>🚨 Riesgo Alto (≥60)</span>
+                            <span class="pill-count" id="risk-cnt-high">0</span>
+                        </div>
+                        <div class="cov-filter-pill" data-risk="medium">
+                            <span>⚠️ Riesgo Medio (30-59)</span>
+                            <span class="pill-count" id="risk-cnt-medium">0</span>
+                        </div>
+                        <div class="cov-filter-pill" data-risk="low">
+                            <span>✅ Riesgo Bajo (&lt;30)</span>
+                            <span class="pill-count" id="risk-cnt-low">0</span>
+                        </div>
+                        <div class="cov-filter-pill" data-risk="inactive">
+                            <span>❄️ Inactivos / Congelados</span>
+                            <span class="pill-count" id="risk-cnt-inactive">0</span>
+                        </div>
+                    </div>
+
+                    <div id="retention-cards-grid" style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">Cargando matriz de riesgo de deserción...</div>
+                    </div>
+                </div>
+
+                <!-- SUB-PESTAÑA 4: COMUNICACIONES SEGMENTADAS -->
+                <div class="crm-tab-view" id="mtab-content-communications">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <!-- Constructor de Mensaje -->
+                        <div class="desktop-table-card" style="padding: 22px;">
+                            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 14px;">Redacción y Segmentación</h4>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 14px;">
+                                <div>
+                                    <label class="form-label">Segmento de Destinatarios</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <select class="select-dark" id="comm-segment-select" style="flex: 1;">
+                                            <option value="all">Todos los Socios</option>
+                                            <option value="active">Socios Activos</option>
+                                            <option value="warning">Por Vencer en ≤5 días</option>
+                                            <option value="overdue">Morosos / Cuota Vencida</option>
+                                            <option value="no_attendance">Sin Asistir > 14 días</option>
+                                        </select>
+                                        <span class="subtab-counter-badge" id="comm-target-badge" style="padding: 6px 12px; font-size: 0.78rem;">0 alumnos</span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="form-label">Plantilla Rápida</label>
+                                    <select class="select-dark" id="comm-template-select" style="width: 100%;">
+                                        <option value="custom">Mensaje Personalizado (Escribir libremente)</option>
+                                        <option value="vencimiento">🔔 Recordatorio de Vencimiento de Cuota</option>
+                                        <option value="comeback">🥋 Recuperación: Te extrañamos en el Tatami</option>
+                                        <option value="moroso">🚨 Regularización de Membresía Vencida</option>
+                                        <option value="seminario">🏆 Convocatoria a Seminario / Graduación</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="form-label">Cuerpo del Mensaje</label>
+                                    <textarea class="input-dark" id="comm-message-text" rows="6" style="width: 100%; resize: vertical; font-family: inherit; font-size: 0.85rem; line-height: 1.5;" placeholder="Redacta el mensaje aquí... Puedes usar {nombre}, {plan} y {vencimiento}"></textarea>
+                                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
+                                        Variables disponibles: <code style="color: var(--accent-gold);">{nombre}</code>, <code style="color: var(--accent-gold);">{plan}</code>, <code style="color: var(--accent-gold);">{vencimiento}</code>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; gap: 10px; margin-top: 6px;">
+                                    <button class="btn-secondary-action" id="btn-copy-comm-text" style="flex: 1; justify-content: center;">
+                                        <i data-lucide="copy"></i>
+                                        <span>Copiar Mensaje</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vista Previa y Destinatarios -->
+                        <div class="desktop-table-card" style="padding: 22px; display: flex; flex-direction: column;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                                <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff;">Vista Previa & Destinatarios</h4>
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">Envío 1-a-1 vía WhatsApp</span>
+                            </div>
+
+                            <!-- Preview Box -->
+                            <div style="background: rgba(255, 255, 255, 0.03); border: 1px dashed var(--border-glass); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 16px;">
+                                <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Ejemplo para el primer alumno:</div>
+                                <div id="comm-preview-content" style="font-size: 0.82rem; color: #e4e4e7; white-space: pre-wrap; font-style: italic;">
+                                    Selecciona una plantilla o escribe un mensaje para previsualizar.
+                                </div>
+                            </div>
+
+                            <!-- Lista de Alumnos del Segmento -->
+                            <div style="flex: 1; min-height: 200px; max-height: 320px; overflow-y: auto;" id="comm-recipients-list">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: CONTROL Y GESTIÓN DE PAGOS (COCKPIT OPERATIVO) -->
+            <section class="admin-section" id="section-payments">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Control y Gestión de Pagos</h2>
+                        <p>Cockpit operativo de validación de comprobantes, libro contable de transacciones y cobranza mensual.</p>
+                    </div>
+                    <div class="section-actions-group">
+                        <button class="btn-secondary-action" id="btn-refresh-payments">
+                            <i data-lucide="rotate-cw"></i>
+                            <span>Actualizar</span>
+                        </button>
+                        <button class="btn-primary-action" id="btn-open-quick-payment">
+                            <i data-lucide="plus-circle"></i>
+                            <span>Registrar Pago Presencial</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 TARJETAS KPIS CON DESGLOSE POR MÉTODO -->
+                <div class="payments-kpi-grid">
+                    <!-- KPI 1: Recaudación Mes Actual -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Recaudación Mes Actual</span>
+                            <div class="kpi-icon-box emerald"><i data-lucide="dollar-sign"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="pkpi-month-revenue">$0</div>
+                        <div class="kpi-method-breakdown">
+                            <div class="method-sub-item">
+                                <span class="method-label">🏦 Transf:</span>
+                                <span class="method-val" id="pkpi-sub-transfer">$0</span>
+                            </div>
+                            <div class="method-sub-item">
+                                <span class="method-label">💵 Efectivo:</span>
+                                <span class="method-val" id="pkpi-sub-cash">$0</span>
+                            </div>
+                            <div class="method-sub-item">
+                                <span class="method-label">💳 Digital:</span>
+                                <span class="method-val" id="pkpi-sub-gateway">$0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI 2: Pendientes por Auditar -->
+                    <div class="payments-kpi-card" id="pkpi-card-pending">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Pendientes de Validar</span>
+                            <div class="kpi-icon-box amber"><i data-lucide="clock"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="pkpi-pending-count" style="color: var(--accent-gold);">0</div>
+                        <span class="kpi-subtext" id="pkpi-pending-amount">$0 por revisar</span>
+                    </div>
+
+                    <!-- KPI 3: Cobertura del Mes -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Cobertura del Mes</span>
+                            <div class="kpi-icon-box cyan"><i data-lucide="user-check"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="pkpi-coverage-ratio" style="color: #fff;">0 / 0</div>
+                        <div class="kpi-progress-wrapper">
+                            <div class="kpi-progress-bar" id="pkpi-coverage-bar" style="width: 0%;"></div>
+                        </div>
+                        <span class="kpi-subtext" id="pkpi-coverage-pct">0% de socios al día</span>
+                    </div>
+
+                    <!-- KPI 4: Ticket Promedio & Volumen -->
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Ticket Promedio</span>
+                            <div class="kpi-icon-box purple"><i data-lucide="receipt"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="pkpi-avg-ticket">$0</div>
+                        <span class="kpi-subtext" id="pkpi-total-operations">0 operaciones registradas</span>
+                    </div>
+                </div>
+
+                <!-- BARRA DE SUB-PESTAÑAS OPERATIVAS -->
+                <div class="payments-subtabs-nav">
+                    <button class="payments-subtab-btn active" data-ptab="split">
+                        <i data-lucide="columns-2"></i>
+                        <span>1. Auditoría Split-View</span>
+                        <span class="subtab-counter-badge amber" id="badge-subtab-pending">0</span>
+                    </button>
+                    <button class="payments-subtab-btn" data-ptab="table">
+                        <i data-lucide="table"></i>
+                        <span>2. Libro de Transacciones</span>
+                        <span class="subtab-counter-badge neutral" id="badge-subtab-total">0</span>
+                    </button>
+                    <button class="payments-subtab-btn" data-ptab="cobranza">
+                        <i data-lucide="shield-alert"></i>
+                        <span>3. Cobranza y Morosidad</span>
+                        <span class="subtab-counter-badge red" id="badge-subtab-overdue">0</span>
+                    </button>
+                </div>
+
+                <!-- SUB-PESTAÑA 1: AUDITORÍA SPLIT-VIEW -->
+                <div class="payments-tab-view active" id="ptab-content-split">
+                    <div class="split-view-container">
+                        <!-- Columna Izquierda: Bandeja de Entrada -->
+                        <div class="split-list-col">
+                            <div class="split-list-header">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="font-size: 0.85rem; font-weight: 700; color: #fff;">Bandeja de Pagos</span>
+                                    <select class="select-dark" id="filter-payments-status" style="padding: 4px 8px; font-size: 0.75rem;">
+                                        <option value="pending">Pendientes (!)</option>
+                                        <option value="approved">Aprobados</option>
+                                        <option value="rejected">Rechazados</option>
+                                        <option value="all">Todos</option>
+                                    </select>
+                                </div>
+                                <input type="text" class="input-dark" id="split-search-input" placeholder="🔍 Filtrar por nombre o email..." style="font-size: 0.75rem; padding: 6px 10px;">
+                            </div>
+                            <div class="split-list-items" id="payments-list-container">
+                                <div style="text-align: center; color: var(--text-muted); padding: 30px; font-size: 0.8rem;">
+                                    Cargando pagos...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Columna Derecha: Panel de Inspección HD & Auditoría Ergonómica -->
+                        <div class="split-preview-col" id="payment-preview-panel">
+                            <!-- Cabecera de Inspección: Datos del Socio -->
+                            <div class="payment-preview-header">
+                                <div>
+                                    <h3 id="preview-payer-name" style="font-size: 1.15rem; color: #fff; font-weight: 800; margin: 0 0 2px 0;">Selecciona un comprobante</h3>
+                                    <p id="preview-payer-meta" style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">Haz clic en un ítem de la lista para auditar</p>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <button class="btn-secondary-action" id="btn-preview-view-member" style="padding: 4px 10px; font-size: 0.72rem; display: none;">
+                                        <i data-lucide="user" style="width: 12px; height: 12px;"></i>
+                                        <span>Ver Perfil</span>
+                                    </button>
+                                    <span id="preview-status-pill" class="status-pill pending">PENDIENTE</span>
+                                </div>
+                            </div>
+
+                            <!-- BARRA DE ACCIÓN RÁPIDA SUPERIOR (Monto Destacado + Botones de Validación) -->
+                            <div class="payment-audit-top-bar" id="preview-audit-top-bar">
+                                <div class="payment-audit-amount-chip" id="preview-amount-box">
+                                    <span class="chip-label">Monto a Validar</span>
+                                    <div class="chip-val" id="preview-amount-val">$0</div>
+                                </div>
+                                <div class="payment-audit-actions">
+                                    <button class="btn-ghost-danger" id="btn-reject-current-payment" disabled>
+                                        <i data-lucide="x"></i>
+                                        <span>Rechazar</span>
+                                    </button>
+                                    <button class="btn-primary-action" id="btn-approve-current-payment" style="background: var(--accent-emerald); color: #000; font-weight: 700;" disabled>
+                                        <i data-lucide="check-check"></i>
+                                        <span>Aprobar y Renovar</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- WORKSPACE DE AUDITORÍA: COMPROBANTE Y DETALLES EN GRID BALANCEADO -->
+                            <div class="payment-inspection-grid">
+                                <div class="receipt-viewer-box" id="receipt-viewer-box">
+                                    <div id="receipt-empty-state" style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 25px;">
+                                        <i data-lucide="receipt" style="width: 38px; height: 38px; margin-bottom: 8px; opacity: 0.4;"></i>
+                                        <p style="margin: 0;">Selecciona un pago de la bandeja para inspeccionar su comprobante.</p>
+                                    </div>
+                                    <div id="receipt-cash-state" style="display: none; text-align: center; padding: 25px 20px;">
+                                        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: var(--accent-emerald); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                                            <i data-lucide="banknote" style="width: 24px; height: 24px;"></i>
+                                        </div>
+                                        <h4 style="color: #fff; margin-bottom: 4px; font-size: 0.95rem;">Pago en Efectivo / Presencial</h4>
+                                        <p style="font-size: 0.78rem; color: var(--text-muted); max-width: 300px; margin: 0 auto;">Este pago fue recibido directamente en el dojo sin comprobante bancario digital.</p>
+                                    </div>
+                                    <div id="receipt-img-wrapper" style="display: none; width: 100%; height: 100%; position: relative;">
+                                        <img id="receipt-image-el" src="" alt="Comprobante Bancario" style="max-height: 100%; max-width: 100%; object-fit: contain; border-radius: 6px;">
+                                        <button class="btn-icon" id="btn-open-receipt-full" title="Abrir en pestaña nueva" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);">
+                                            <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Mini Ficha Lateral de Auditoría -->
+                                <div class="payment-audit-sidebar" id="payment-audit-sidebar">
+                                    <div class="audit-sidebar-title">
+                                        <i data-lucide="info" style="width: 13px; height: 13px; color: var(--accent-gold);"></i>
+                                        <span>Ficha de Transacción</span>
+                                    </div>
+                                    <div class="audit-kv-list">
+                                        <div class="audit-kv-item">
+                                            <span class="audit-kv-key">Concepto</span>
+                                            <span class="audit-kv-val" id="audit-detail-concept">-</span>
+                                        </div>
+                                        <div class="audit-kv-item">
+                                            <span class="audit-kv-key">Método</span>
+                                            <span class="audit-kv-val" id="audit-detail-method">-</span>
+                                        </div>
+                                        <div class="audit-kv-item">
+                                            <span class="audit-kv-key">Fecha y Hora</span>
+                                            <span class="audit-kv-val" id="audit-detail-date">-</span>
+                                        </div>
+                                        <div class="audit-kv-item">
+                                            <span class="audit-kv-key">Estado del Socio</span>
+                                            <span class="audit-kv-val" id="audit-detail-member-status">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PESTAÑA 2: LIBRO DE TRANSACCIONES -->
+                <div class="payments-tab-view" id="ptab-content-table">
+                    <!-- Barra de Filtros Avanzados -->
+                    <div class="tx-filter-bar">
+                        <div class="tx-filter-row">
+                            <input type="text" class="input-dark" id="tx-search-input" placeholder="🔍 Buscar por alumno, email o concepto..." style="flex: 1; min-width: 220px;">
+                            
+                            <select class="select-dark" id="tx-date-preset" style="min-width: 140px;">
+                                <option value="all">Todas las fechas</option>
+                                <option value="today">Hoy</option>
+                                <option value="week">Esta semana</option>
+                                <option value="month" selected>Este mes</option>
+                                <option value="prevmonth">Mes pasado</option>
+                            </select>
+
+                            <select class="select-dark" id="tx-method-filter" style="min-width: 150px;">
+                                <option value="all">Todos los métodos</option>
+                                <option value="transferencia">🏦 Transferencia</option>
+                                <option value="efectivo">💵 Efectivo</option>
+                                <option value="pasarela">💳 Pasarela / Digital</option>
+                            </select>
+
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <label class="status-check-label">
+                                    <input type="checkbox" id="tx-chk-approved" value="approved" checked>
+                                    <span style="color: var(--accent-emerald);">Aprobados</span>
+                                </label>
+                                <label class="status-check-label">
+                                    <input type="checkbox" id="tx-chk-pending" value="pending" checked>
+                                    <span style="color: var(--accent-gold);">Pendientes</span>
+                                </label>
+                                <label class="status-check-label">
+                                    <input type="checkbox" id="tx-chk-rejected" value="rejected">
+                                    <span style="color: var(--accent-red);">Rechazados</span>
+                                </label>
+                            </div>
+
+                            <button class="btn-secondary-action" id="btn-clear-tx-filters" style="padding: 7px 12px; font-size: 0.78rem;">
+                                <i data-lucide="x"></i>
+                                <span>Limpiar</span>
+                            </button>
+
+                            <button class="btn-secondary-action" id="btn-export-tx-csv" style="padding: 7px 14px; font-size: 0.78rem;">
+                                <i data-lucide="download"></i>
+                                <span>Exportar CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Transacciones -->
+                    <div class="desktop-table-card">
+                        <div class="table-responsive-wrapper">
+                            <table class="desktop-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha / Hora</th>
+                                        <th>Alumno</th>
+                                        <th>Concepto / Plan</th>
+                                        <th style="text-align: right;">Monto</th>
+                                        <th>Método</th>
+                                        <th>Estado</th>
+                                        <th>Mes Cobertura</th>
+                                        <th style="text-align: right;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tx-table-body">
+                                    <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Cargando transacciones...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-pagination-row">
+                            <span id="tx-pagination-info" style="font-size: 0.8rem; color: var(--text-muted);">Mostrando 0 de 0 transacciones</span>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-secondary-action" id="btn-tx-prev-page" style="padding: 5px 12px; font-size: 0.75rem;" disabled>Anterior</button>
+                                <button class="btn-secondary-action" id="btn-tx-next-page" style="padding: 5px 12px; font-size: 0.75rem;" disabled>Siguiente</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PESTAÑA 3: COBRANZA Y MOROSIDAD DEL MES -->
+                <div class="payments-tab-view" id="ptab-content-cobranza">
+                    <!-- Barra de Filtros del Semáforo -->
+                    <div class="cobranza-filter-bar">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <button class="cov-filter-pill active" data-cov="all">
+                                <span>Todos los Alumnos</span>
+                                <span class="cov-count" id="cov-cnt-all">0</span>
+                            </button>
+                            <button class="cov-filter-pill green" data-cov="ok">
+                                <span>🟢 Al día</span>
+                                <span class="cov-count" id="cov-cnt-ok">0</span>
+                            </button>
+                            <button class="cov-filter-pill amber" data-cov="warning">
+                                <span>🟡 Por vencer (≤5 días)</span>
+                                <span class="cov-count" id="cov-cnt-warning">0</span>
+                            </button>
+                            <button class="cov-filter-pill red" data-cov="overdue">
+                                <span>🔴 Morosos / Vencidos</span>
+                                <span class="cov-count" id="cov-cnt-overdue">0</span>
+                            </button>
+                            <button class="cov-filter-pill neutral" data-cov="none">
+                                <span>⚪ Sin registro</span>
+                                <span class="cov-count" id="cov-cnt-none">0</span>
+                            </button>
+                        </div>
+                        <input type="text" class="input-dark" id="cobranza-search-input" placeholder="🔍 Buscar alumno en nómina..." style="width: 240px; font-size: 0.78rem;">
+                    </div>
+
+                    <!-- Grid / Lista de Alumnos en Cobranza -->
+                    <div class="cobranza-cards-list" id="cobranza-list-container">
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">Cargando estado de cobranza de alumnos...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: PLANES Y MEMBRESÍAS -->
+            <section class="admin-section" id="section-plans">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Membresías y Tarifas</h2>
+                        <p>Configuración de planes, análisis de adopción por los alumnos y control de precios vigentes.</p>
+                    </div>
+                    <div class="section-actions-group">
+                        <button class="btn-secondary-action" id="btn-export-plans">
+                            <i data-lucide="download"></i>
+                            <span>Exportar Tarifario</span>
+                        </button>
+                        <button class="btn-primary-action" id="btn-create-plan">
+                            <i data-lucide="plus"></i>
+                            <span>Nuevo Plan</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ANALÍTICA Y KPIs DE MEMBRESÍAS -->
+                <div class="payments-kpi-grid" style="margin-bottom: 20px;">
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Membresía Más Utilizada</span>
+                            <div class="kpi-icon-box emerald"><i data-lucide="trophy"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="plans-kpi-popular" style="font-size: 1.25rem; line-height: 1.3;">--</div>
+                        <span class="kpi-subtext" id="plans-kpi-popular-sub">Calculando porcentaje de adopción...</span>
+                    </div>
+
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Mayor Facturación</span>
+                            <div class="kpi-icon-box gold"><i data-lucide="dollar-sign"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="plans-kpi-revenue" style="font-size: 1.25rem; line-height: 1.3;">--</div>
+                        <span class="kpi-subtext" id="plans-kpi-revenue-sub">Membresía con mayor aporte al dojo</span>
+                    </div>
+
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Total Socios en Planes</span>
+                            <div class="kpi-icon-box purple"><i data-lucide="users"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="plans-kpi-total-members">--</div>
+                        <span class="kpi-subtext" id="plans-kpi-total-sub">Con membresía activa o vigente</span>
+                    </div>
+                </div>
+
+                <!-- GRÁFICOS DE MEMBRESÍAS MÁS UTILIZADAS Y RECAUDACIÓN -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="glass-card" style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="pie-chart" style="width: 16px; height: 16px; color: var(--accent-purple);"></i>
+                                <span>Distribución de Socios por Membresía</span>
+                            </h4>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">Base de alumnos</span>
+                        </div>
+                        <div style="height: 240px; position: relative; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="chart-plans-distribution"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card" style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="bar-chart-3" style="width: 16px; height: 16px; color: var(--accent-gold);"></i>
+                                <span>Recaudación Mensual Estimada por Plan</span>
+                            </h4>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">Aporte $ CLP</span>
+                        </div>
+                        <div style="height: 240px; position: relative;">
+                            <canvas id="chart-plans-revenue"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CATÁLOGO DE PLANES ACTIVOS -->
+                <div class="section-header-row" style="margin-top: 10px; margin-bottom: 14px;">
+                    <h3 style="font-size: 1.1rem; color: #fff;">Catálogo de Planes y Tarifas Vigentes</h3>
+                </div>
+
+                <div class="metrics-grid" id="plans-grid-container">
+                    <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">
+                        Cargando planes de membresía...
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: DESCUENTOS -->
+            <section class="admin-section" id="section-discounts">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Códigos de Descuento</h2>
+                        <p>Gestión de promociones y seguimiento de códigos utilizados.</p>
+                    </div>
+                    <div class="section-actions-group">
+                        <button class="btn-primary-action" id="btn-create-discount">
+                            <i data-lucide="plus"></i>
+                            <span>Crear Cupón</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="desktop-table-card">
+                    <div class="table-responsive-wrapper">
+                        <table class="desktop-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descuento</th>
+                                    <th>Planes Aplicables</th>
+                                    <th>Veces Usado</th>
+                                    <th>Vencimiento</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="discounts-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                        Cargando descuentos...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: INGRESOS Y REPORTES -->
+            <section class="admin-section" id="section-revenue">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Ingresos y Reportes Financieros</h2>
+                        <p>Análisis de recaudación del dojo, balance por disciplina, proyecciones y exportaciones contables.</p>
+                    </div>
+                    <div class="section-actions-group" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn-secondary-action" id="btn-refresh-revenue" title="Actualizar datos financieros">
+                            <i data-lucide="refresh-cw"></i>
+                            <span>Actualizar</span>
+                        </button>
+                        <button class="btn-primary-action" id="btn-export-revenue-multiformat" style="background: var(--accent-emerald); color: #000; font-weight: 700;">
+                            <i data-lucide="download"></i>
+                            <span>Descargar Reporte (.xls, .pdf, .csv)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BARRA DE FILTROS TEMPORALES Y MÉTODO -->
+                <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Período:</span>
+                            <select class="select-dark" id="rev-filter-month" style="width: auto; min-width: 120px;">
+                                <option value="0">Enero</option>
+                                <option value="1">Febrero</option>
+                                <option value="2">Marzo</option>
+                                <option value="3">Abril</option>
+                                <option value="4">Mayo</option>
+                                <option value="5">Junio</option>
+                                <option value="6">Julio</option>
+                                <option value="7">Agosto</option>
+                                <option value="8">Septiembre</option>
+                                <option value="9">Octubre</option>
+                                <option value="10">Noviembre</option>
+                                <option value="11">Diciembre</option>
+                            </select>
+                            <select class="select-dark" id="rev-filter-year" style="width: auto; min-width: 90px;">
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Método:</span>
+                            <select class="select-dark" id="rev-filter-method" style="width: auto; min-width: 150px;">
+                                <option value="all">Todos los métodos</option>
+                                <option value="transferencia">🏦 Transferencia</option>
+                                <option value="efectivo">💵 Efectivo Dojo</option>
+                                <option value="pasarela">💳 Pasarela Digital</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="rev-live-badge" style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--accent-emerald); background: rgba(16, 185, 129, 0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                            <span style="width: 6px; height: 6px; background: var(--accent-emerald); border-radius: 50%;"></span>
+                            <span>Datos en Vivo</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 5 TARJETAS DE KPIS FINANCIEROS -->
+                <div class="payments-kpi-grid" style="margin-bottom: 24px;">
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Recaudación del Período</span>
+                            <div class="kpi-icon-box emerald"><i data-lucide="wallet"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="rev-kpi-total" style="color: var(--accent-emerald);">$0</div>
+                        <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                            <span class="kpi-subtext" id="rev-kpi-growth" style="font-weight: 700; color: var(--accent-emerald);">+0%</span>
+                            <span class="kpi-subtext">vs mes anterior</span>
+                        </div>
+                    </div>
+
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Socios Pagadores</span>
+                            <div class="kpi-icon-box purple"><i data-lucide="users"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="rev-kpi-payers" style="color: #a78bfa;">0</div>
+                        <span class="kpi-subtext" id="rev-kpi-payers-sub">Alumnos con pago aprobado</span>
+                    </div>
+
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Ticket Promedio (ARPU)</span>
+                            <div class="kpi-icon-box gold"><i data-lucide="tag"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="rev-kpi-ticket" style="color: var(--accent-gold);">$0</div>
+                        <span class="kpi-subtext">Promedio por transacción</span>
+                    </div>
+
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">MRR Estimado (Recurrente)</span>
+                            <div class="kpi-icon-box cyan"><i data-lucide="repeat"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="rev-kpi-mrr" style="color: #06b6d4;">$0</div>
+                        <span class="kpi-subtext" id="rev-kpi-mrr-sub">Potencial base activa</span>
+                    </div>
+
+                    <div class="payments-kpi-card">
+                        <div class="kpi-card-header">
+                            <span class="kpi-title">Por Validar / Pendiente</span>
+                            <div class="kpi-icon-box red"><i data-lucide="alert-circle"></i></div>
+                        </div>
+                        <div class="kpi-value-lg" id="rev-kpi-pending" style="color: #ef4444;">$0</div>
+                        <span class="kpi-subtext" id="rev-kpi-pending-sub">0 pagos en revisión</span>
+                    </div>
+                </div>
+
+                <!-- GRÁFICOS FINANCIEROS (EVOLUCIÓN & MÉTODOS) -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-bottom: 24px;">
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <h4 style="font-size: 1rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="trending-up" style="width: 16px; height: 16px; color: var(--accent-emerald);"></i>
+                                <span>Evolución Mensual de Recaudación (Últimos Meses)</span>
+                            </h4>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">Pagos Aprobados</span>
+                        </div>
+                        <div style="height: 280px; position: relative;">
+                            <canvas id="desktop-revenue-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <h4 style="font-size: 1rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="pie-chart" style="width: 16px; height: 16px; color: var(--accent-gold);"></i>
+                                <span>Desglose por Método de Pago</span>
+                            </h4>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">Canales de cobro</span>
+                        </div>
+                        <div style="height: 280px; position: relative; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="revenue-method-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HERRAMIENTAS DE ADMINISTRACIÓN FINANCIERA (RUN-RATE & WHAT-IF) -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 24px;">
+                    <!-- HERRAMIENTA 1: PROYECTOR DE CIERRE RUN-RATE -->
+                    <div class="glass-card" style="border: 1px solid rgba(16, 185, 129, 0.25); background: linear-gradient(180deg, rgba(16,185,129,0.04) 0%, rgba(11,12,19,0.7) 100%);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="gauge" style="width: 18px; height: 18px; color: var(--accent-emerald);"></i>
+                                <span>Proyector de Cierre de Mes (Run-Rate)</span>
+                            </h4>
+                            <span style="font-size: 0.75rem; color: var(--accent-emerald); font-weight: 700;" id="runrate-day-progress">Día -- de --</span>
+                        </div>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 14px;">
+                            Estimación matemática basada en el ritmo diario promedio de recaudación hasta hoy.
+                        </p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px 12px;">
+                                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Ritmo Diario Promedio</div>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: #fff; margin-top: 4px;" id="runrate-daily-pace">$0</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px 12px;">
+                                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Cierre Estimado al Fin de Mes</div>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: var(--accent-emerald); margin-top: 4px;" id="runrate-projected-close">$0</div>
+                            </div>
+                        </div>
+
+                        <!-- Meta Mensual del Dojo -->
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 0.78rem; font-weight: 600; color: #fff;">Meta Mensual del Dojo:</span>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 0.82rem; font-weight: 800; color: var(--accent-gold);" id="runrate-goal-display">$3.500.000</span>
+                                    <button id="btn-edit-revenue-goal" class="btn-icon-xs" title="Modificar meta" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer;"><i data-lucide="edit-3" style="width: 12px; height: 12px;"></i></button>
+                                </div>
+                            </div>
+                            <div class="kpi-progress-wrapper" style="height: 10px; border-radius: 6px; background: rgba(255,255,255,0.05);">
+                                <div class="kpi-progress-bar" id="runrate-goal-bar" style="width: 0%; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #10b981, #06b6d4);"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.72rem; color: var(--text-muted);">
+                                <span id="runrate-goal-percent">0% alcanzado</span>
+                                <span id="runrate-goal-missing">Faltan $0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HERRAMIENTA 2: SIMULADOR FINANCIERO WHAT-IF -->
+                    <div class="glass-card" style="border: 1px solid rgba(139, 92, 246, 0.25); background: linear-gradient(180deg, rgba(139,92,246,0.04) 0%, rgba(11,12,19,0.7) 100%);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="calculator" style="width: 18px; height: 18px; color: var(--accent-purple);"></i>
+                                <span>Simulador de Escenarios ("What-If")</span>
+                            </h4>
+                            <span style="font-size: 0.72rem; color: var(--accent-purple); font-weight: 700;">Simulación Proyectiva</span>
+                        </div>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 14px;">
+                            Simula en tiempo real el impacto económico de captar nuevos atletas o actualizar tarifas.
+                        </p>
+
+                        <!-- Sliders de simulación -->
+                        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+                                    <span style="color: var(--text-secondary);">Nuevos Socios a Sumar:</span>
+                                    <span style="font-weight: 800; color: var(--accent-purple);" id="sim-members-val">+10 alumnos</span>
+                                </div>
+                                <input type="range" id="sim-members-slider" min="0" max="50" step="1" value="10" style="width: 100%; accent-color: var(--accent-purple); cursor: pointer;">
+                            </div>
+
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+                                    <span style="color: var(--text-secondary);">Ajuste de Tarifa Promedio:</span>
+                                    <span style="font-weight: 800; color: var(--accent-gold);" id="sim-price-val">+0%</span>
+                                </div>
+                                <input type="range" id="sim-price-slider" min="-10" max="30" step="5" value="0" style="width: 100%; accent-color: var(--accent-gold); cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <!-- Resultado de la simulación -->
+                        <div style="background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.25); border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Aporte Adicional Estimado</div>
+                                    <div style="font-size: 1.15rem; font-weight: 900; color: #a78bfa; margin-top: 2px;" id="sim-extra-revenue">+$350.000 / mes</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Nuevo Total Proyectado</div>
+                                    <div style="font-size: 1.15rem; font-weight: 900; color: #fff; margin-top: 2px;" id="sim-total-projected">$0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LIBRO DIARIO CONTABLE DE TRANSACCIONES (LEDGER) -->
+                <div class="desktop-table-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-glass); flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 2px;">Libro Diario de Movimientos Contables</h4>
+                            <p style="font-size: 0.75rem; color: var(--text-muted);">Auditoría detallada de pagos aprobados en el período seleccionado.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <div style="position: relative; width: 240px;">
+                                <input type="text" class="input-dark" id="rev-ledger-search" placeholder="Buscar por socio o glosa..." style="font-size: 0.78rem; padding: 6px 10px 6px 28px; width: 100%;">
+                                <i data-lucide="search" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted);"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-wrapper">
+                        <table class="desktop-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha / Hora</th>
+                                    <th>Alumno / Socio</th>
+                                    <th>Concepto / Plan</th>
+                                    <th>Método</th>
+                                    <th>Mes Cobertura</th>
+                                    <th>Monto ($)</th>
+                                    <th>Comprobante</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rev-ledger-tbody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                        Cargando libro contable...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: AVISOS GLOBALES -->
+            <section class="admin-section" id="section-notifications">
+                <div class="section-header-row">
+                    <div class="section-title-group">
+                        <h2>Avisos Globales a Alumnos</h2>
+                        <p>Transmite alertas instantáneas sobre torneos, seminarios y cambios de horario.</p>
+                    </div>
+                    <div class="section-actions-group">
+                        <button class="btn-primary-action" id="btn-open-broadcast-modal">
+                            <i data-lucide="send"></i>
+                            <span>Nuevo Aviso</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="desktop-table-card">
+                    <div class="table-responsive-wrapper">
+                        <table class="desktop-table">
+                            <thead>
+                                <tr>
+                                    <th>Título</th>
+                                    <th>Mensaje</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha Envío</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notifications-table-body">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                        Cargando avisos emitidos...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ====================================================================
+         SLIDE-OVER DRAWER (CRM SOCIOS V2.0 - 5 PESTAÑAS)
+         ==================================================================== -->
+    <div class="drawer-backdrop" id="member-drawer-backdrop">
+        <aside class="slide-over-drawer" id="member-drawer">
+            <div class="drawer-header">
+                <div class="user-meta-cell">
+                    <div class="table-avatar" id="drawer-avatar" style="width: 44px; height: 44px; font-size: 1rem;">S</div>
+                    <div class="drawer-title-box">
+                        <h3 id="drawer-user-name">Ficha del Socio</h3>
+                        <p id="drawer-user-email">socio@email.com</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="btn-secondary-action" id="drawer-btn-edit-member" style="padding: 6px 12px; font-size: 0.75rem; color: #a855f7;" title="Editar datos del socio">
+                        <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
+                        <span>Editar</span>
+                    </button>
+                    <button class="btn-icon" id="btn-close-drawer">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 5 Pestañas de Navegación -->
+            <nav class="drawer-tabs">
+                <button class="drawer-tab-btn active" data-tab="tab-profile">Perfil</button>
+                <button class="drawer-tab-btn" data-tab="tab-membership">Membresía</button>
+                <button class="drawer-tab-btn" data-tab="tab-attendance">Asistencia</button>
+                <button class="drawer-tab-btn" data-tab="tab-payments">Pagos</button>
+                <button class="drawer-tab-btn" data-tab="tab-notes">Notas</button>
+            </nav>
+
+            <div class="drawer-body">
+                <!-- Pestaña 1: Perfil -->
+                <div class="tab-pane active" id="tab-profile">
+                    <div class="profile-kv-grid">
+                        <div class="kv-item">
+                            <div class="kv-key">Nombre Completo</div>
+                            <div class="kv-val" id="drawer-kv-name">-</div>
+                        </div>
+                        <div class="kv-item">
+                            <div class="kv-key">Teléfono / WhatsApp</div>
+                            <div class="kv-val" id="drawer-kv-phone">-</div>
+                        </div>
+                        <div class="kv-item">
+                            <div class="kv-key">RUT / Identificación</div>
+                            <div class="kv-val" id="drawer-kv-rut">-</div>
+                        </div>
+                        <div class="kv-item">
+                            <div class="kv-key">Rango / Cinturón</div>
+                            <div class="kv-val" id="drawer-kv-belt">-</div>
+                        </div>
+                        <div class="kv-item" style="grid-column: 1 / -1;">
+                            <div class="kv-key">Contacto de Emergencia</div>
+                            <div class="kv-val" id="drawer-kv-emergency">-</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <a id="drawer-btn-whatsapp" href="#" target="_blank" class="btn-secondary-action" style="flex: 1; justify-content: center; color: var(--accent-emerald);">
+                            <i data-lucide="message-circle"></i>
+                            <span>Abrir WhatsApp</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Pestaña 2: Membresía -->
+                <div class="tab-pane" id="tab-membership">
+                    <div class="profile-kv-grid">
+                        <div class="kv-item">
+                            <div class="kv-key">Plan Actual</div>
+                            <div class="kv-val" id="drawer-kv-plan">-</div>
+                        </div>
+                        <div class="kv-item">
+                            <div class="kv-key">Estado Cuota</div>
+                            <div class="kv-val" id="drawer-kv-plan-status">-</div>
+                        </div>
+                        <div class="kv-item">
+                            <div class="kv-key">Fecha Vencimiento</div>
+                            <div class="kv-val" id="drawer-kv-plan-expiry">-</div>
+                        </div>
+                        <div class="kv-item">
+                            <div class="kv-key">Clases Usadas Mes</div>
+                            <div class="kv-val" id="drawer-kv-plan-classes">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña 3: Asistencia -->
+                <div class="tab-pane" id="tab-attendance">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 12px;">Historial de Check-ins</h4>
+                    <div id="drawer-attendance-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <p style="color: var(--text-muted); font-size: 0.8rem;">Sin registros de asistencia recientes.</p>
+                    </div>
+                </div>
+
+                <!-- Pestaña 4: Pagos -->
+                <div class="tab-pane" id="tab-payments">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 12px;">Historial de Pagos</h4>
+                    <div id="drawer-payments-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <p style="color: var(--text-muted); font-size: 0.8rem;">Sin pagos registrados.</p>
+                    </div>
+                </div>
+
+                <!-- Pestaña 5: Notas -->
+                <div class="tab-pane" id="tab-notes">
+                    <div style="margin-bottom: 14px;">
+                        <textarea class="input-dark" id="drawer-notes-textarea" placeholder="Escribe notas internas sobre el socio (lesiones, compromisos, disciplina)..." style="width: 100%; height: 110px; resize: vertical;"></textarea>
+                        <button class="btn-primary-action" id="drawer-btn-save-notes" style="margin-top: 8px; width: 100%; justify-content: center;">
+                            Guardar Nota
+                        </button>
+                    </div>
+                    <div id="drawer-notes-history" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: NUEVA CLASE
+         ==================================================================== -->
+    <div class="admin-modal-overlay" id="class-modal-overlay">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h3 id="class-modal-title" style="font-size: 1.1rem; color: #fff;">Crear Horario de Clase</h3>
+                <button class="btn-icon" id="btn-close-class-modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="class-form">
+                <input type="hidden" id="class-input-id">
+                <div class="admin-modal-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <label class="form-label" style="margin-bottom: 0;">Disciplina</label>
+                                <button type="button" class="btn-link" id="btn-quick-manage-disciplines" style="font-size: 0.72rem; color: #a855f7; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0;">
+                                    ⚙️ Gestionar lista
+                                </button>
+                            </div>
+                            <select class="select-dark" id="class-input-discipline" required>
+                                <option value="NOGI 🤼‍♂️">NOGI 🤼‍♂️</option>
+                                <option value="MMA ⛓️">MMA ⛓️</option>
+                                <option value="GI 🥋">GI 🥋</option>
+                                <option value="Kick Boxing - K1 🥊">Kick Boxing - K1 🥊</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Día de la Semana</label>
+                            <select class="select-dark" id="class-input-day" required>
+                                <option value="lunes">Lunes</option>
+                                <option value="martes">Martes</option>
+                                <option value="miercoles">Miércoles</option>
+                                <option value="jueves">Jueves</option>
+                                <option value="viernes">Viernes</option>
+                                <option value="sabado">Sábado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Hora Inicio</label>
+                            <input type="time" class="input-dark" id="class-input-start" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Hora Fin</label>
+                            <input type="time" class="input-dark" id="class-input-end" required>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Instructor / Sensei</label>
+                            <input type="text" class="input-dark" id="class-input-instructor" placeholder="Ej: Sensei Amaruc" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Aforo Máximo (Cupos)</label>
+                            <input type="number" class="input-dark" id="class-input-capacity" value="20" min="1" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button type="button" class="btn-ghost-danger" id="btn-delete-class-modal" style="display: none; margin-right: auto;">
+                        <i data-lucide="trash-2"></i>
+                        <span>Eliminar Clase</span>
+                    </button>
+                    <button type="button" class="btn-secondary-action" id="btn-cancel-class-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary-action" id="btn-save-class-submit">Guardar Clase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: CREAR / EDITAR MEMBRESÍA
+         ==================================================================== -->
+    <div class="admin-modal-overlay" id="plan-modal-overlay">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h3 id="plan-modal-title" style="font-size: 1.15rem; color: #fff; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="award" style="color: var(--accent-gold);"></i>
+                    <span>Configurar Membresía</span>
+                </h3>
+                <button class="btn-icon" id="btn-close-plan-modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="plan-form">
+                <input type="hidden" id="plan-input-id">
+                <div class="admin-modal-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Nombre del Plan *</label>
+                            <input type="text" class="input-dark" id="plan-input-name" placeholder="Ej: Pase Libre Full Tatami" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Precio Mensual ($ CLP) *</label>
+                            <input type="number" class="input-dark" id="plan-input-price" placeholder="Ej: 35000" min="0" required>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Límite de Clases por Mes</label>
+                            <input type="number" class="input-dark" id="plan-input-monthly" placeholder="Ej: 12 (0 para ilimitadas)" min="0" value="0">
+                            <span style="font-size: 0.7rem; color: var(--text-muted);">Usa 0 o déjalo vacío para clases ilimitadas.</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Modalidad / Ubicación</label>
+                            <select class="select-dark" id="plan-input-type">
+                                <option value="presencial">Presencial en Dojo</option>
+                                <option value="hibrido">Híbrido (Dojo + Online)</option>
+                                <option value="personalizado">Entrenamiento Personalizado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descripción y Beneficios</label>
+                        <textarea class="input-dark" id="plan-input-description" placeholder="Describe disciplinas incluidas, días de acceso, equipamiento o beneficios para el alumno..." style="height: 90px; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button type="button" class="btn-ghost-danger" id="btn-delete-plan-modal" style="display: none; margin-right: auto;">
+                        <i data-lucide="trash-2"></i>
+                        <span>Eliminar Plan</span>
+                    </button>
+                    <button type="button" class="btn-secondary-action" id="btn-cancel-plan-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary-action" style="background: var(--accent-gold); color: #000; font-weight: 700;">
+                        <i data-lucide="check"></i>
+                        <span id="plan-btn-submit-text">Guardar Plan</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: EMITIR AVISO GLOBAL
+         ==================================================================== -->
+    <div class="admin-modal-overlay" id="broadcast-modal-overlay">
+        <div class="admin-modal-dialog">
+            <div class="admin-modal-header">
+                <h3 style="font-size: 1.1rem; color: #fff;">Emitir Aviso a los Alumnos</h3>
+                <button class="btn-icon" id="btn-close-broadcast-modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="broadcast-form">
+                <div class="admin-modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Título del Aviso</label>
+                        <input type="text" class="input-dark" id="broadcast-input-title" placeholder="Ej: Seminario especial de BJJ este sábado" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mensaje Completo</label>
+                        <textarea class="input-dark" id="broadcast-input-message" placeholder="Detalla la información..." style="height: 100px; resize: vertical;" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Notificación</label>
+                        <select class="select-dark" id="broadcast-input-type">
+                            <option value="info">Información General</option>
+                            <option value="tournament">Torneo / Competencia</option>
+                            <option value="alert">Alerta / Horario Urgente</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button type="button" class="btn-secondary-action" id="btn-cancel-broadcast-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary-action">Publicar Aviso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: EDITAR SOCIO / ALUMNO (DIRECTORIO MAESTRO)
+         ==================================================================== -->
+    <div class="admin-modal-overlay" id="edit-member-modal-overlay">
+        <div class="admin-modal-dialog" style="max-width: 620px;">
+            <div class="admin-modal-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="table-avatar" id="edit-member-avatar" style="width: 38px; height: 38px; font-size: 0.95rem;">S</div>
+                    <div>
+                        <h3 id="edit-member-modal-title" style="font-size: 1.1rem; color: #fff; margin: 0;">Editar Socio</h3>
+                        <p id="edit-member-modal-subtitle" style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Actualiza datos personales, contacto y membresía</p>
+                    </div>
+                </div>
+                <button class="btn-icon" id="btn-close-edit-member-modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="edit-member-form">
+                <input type="hidden" id="edit-member-input-id">
+                <div class="admin-modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Nombre Completo *</label>
+                            <input type="text" class="input-dark" id="edit-member-input-name" placeholder="Nombre y Apellido" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Correo Electrónico *</label>
+                            <input type="email" class="input-dark" id="edit-member-input-email" placeholder="correo@ejemplo.com" required>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Teléfono / WhatsApp</label>
+                            <input type="tel" class="input-dark" id="edit-member-input-phone" placeholder="+56 9 1234 5678">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">RUT / Identificación</label>
+                            <input type="text" class="input-dark" id="edit-member-input-rut" placeholder="12.345.678-9">
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Plan de Membresía</label>
+                            <select class="select-dark" id="edit-member-input-plan">
+                                <option value="">Sin Plan Asignado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Estado de la Membresía</label>
+                            <select class="select-dark" id="edit-member-input-status">
+                                <option value="active">🟢 Activo (Al Día)</option>
+                                <option value="warning">🟡 Por Vencer (≤5 días)</option>
+                                <option value="expired">🔴 Vencido / Moroso</option>
+                                <option value="frozen">❄️ Congelado</option>
+                                <option value="inactive">⚪ Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Fecha de Vencimiento de Cuota</label>
+                            <input type="date" class="input-dark" id="edit-member-input-expiry">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Rango / Cinturón / Estilo</label>
+                            <input type="text" class="input-dark" id="edit-member-input-belt" placeholder="Ej: Cinturón Azul / MMA Avanzado">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contacto de Emergencia</label>
+                        <input type="text" class="input-dark" id="edit-member-input-emergency" placeholder="Nombre y teléfono de contacto de emergencia">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notas Administrativas Internas</label>
+                        <textarea class="input-dark" id="edit-member-input-notes" placeholder="Observaciones sobre lesiones, acuerdos de pago, asistencia..." style="height: 75px; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button type="button" class="btn-ghost-danger" id="btn-toggle-active-member-modal" style="margin-right: auto;">
+                        <i data-lucide="user-x"></i>
+                        <span id="btn-toggle-active-member-text">Desactivar Socio</span>
+                    </button>
+                    <button type="button" class="btn-secondary-action" id="btn-cancel-edit-member-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary-action" style="background: var(--primary); color: #fff; font-weight: 700;">
+                        <i data-lucide="save"></i>
+                        <span>Guardar Cambios</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: GESTOR DE DISCIPLINAS DE CLASES
+         ==================================================================== -->
+    <div class="admin-modal-overlay" id="disciplines-modal-overlay">
+        <div class="admin-modal-dialog" style="max-width: 520px;">
+            <div class="admin-modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(168, 85, 247, 0.15); display: flex; align-items: center; justify-content: center; color: #a855f7;">
+                        <i data-lucide="swords" style="width: 20px; height: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1.1rem; color: #fff; margin: 0;">Gestor de Disciplinas</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Agrega, renombra o elimina disciplinas para las clases</p>
+                    </div>
+                </div>
+                <button class="btn-icon" id="btn-close-disciplines-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="admin-modal-body">
+                <!-- Formulario agregar nueva disciplina -->
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 18px;">
+                    <span style="font-size: 0.8rem; font-weight: 700; color: #fff; display: block; margin-bottom: 8px;">➕ Nueva Disciplina</span>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="input-dark" id="new-discipline-input-name" placeholder="Ej: Muay Thai 🥊 o Boxeo 🥊" style="flex: 1;">
+                        <button type="button" class="btn-primary-action" id="btn-add-discipline-submit" style="padding: 8px 14px; font-size: 0.8rem;">
+                            Agregar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de disciplinas activas -->
+                <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 8px;">Disciplinas Disponibles</span>
+                <div id="disciplines-list-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+                    <!-- Renderizado dinámico -->
+                </div>
+            </div>
+            <div class="admin-modal-footer">
+                <button type="button" class="btn-secondary-action" id="btn-reset-disciplines-default" style="margin-right: auto; font-size: 0.75rem; color: var(--text-muted);">
+                    Restaurar Predeterminadas
+                </button>
+                <button type="button" class="btn-primary-action" id="btn-done-disciplines-modal">Listo</button>
+            </div>
+        </div>
+    </div>
+        <!-- ====================================================================
+             MODAL: REGISTRO RÁPIDO DE PAGO PRESENCIAL
+             ==================================================================== -->
+        <div class="admin-modal-overlay" id="quick-pay-modal-overlay">
+            <div class="admin-modal-dialog">
+                <div class="admin-modal-header">
+                    <h3 style="font-size: 1.15rem; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="plus-circle" style="color: var(--accent-emerald);"></i>
+                        <span>Registrar Pago Presencial / Rápido</span>
+                    </h3>
+                    <button class="btn-icon" id="btn-close-quick-pay-modal"><i data-lucide="x"></i></button>
+                </div>
+                <form id="quick-pay-form">
+                    <div class="admin-modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Seleccionar Alumno / Socio</label>
+                            <select class="select-dark" id="qp-input-user" required>
+                                <option value="">Selecciona un socio...</option>
+                            </select>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Plan / Membresía</label>
+                                <select class="select-dark" id="qp-input-plan" required>
+                                    <option value="">Selecciona plan...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Monto Recibido ($)</label>
+                                <input type="number" class="input-dark" id="qp-input-amount" placeholder="Ej: 30000" min="0" required>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Método de Pago</label>
+                                <select class="select-dark" id="qp-input-method" required>
+                                    <option value="efectivo">💵 Efectivo en Dojo</option>
+                                    <option value="transferencia">🏦 Transferencia Directa</option>
+                                    <option value="pasarela">💳 Pasarela / Tarjeta</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Mes de Cobertura</label>
+                                <input type="text" class="input-dark" id="qp-input-coverage" placeholder="Ej: Mayo 2026" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Concepto / Glosa</label>
+                            <input type="text" class="input-dark" id="qp-input-concept" placeholder="Ej: Pago mensualidad - Presencial" required>
+                        </div>
+                        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 12px; margin-top: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #fff; cursor: pointer;">
+                                <input type="checkbox" id="qp-input-auto-renew" checked style="accent-color: var(--accent-emerald);">
+                                <span>Renovar automáticamente membresía del alumno (+30 días desde hoy o fecha vigente)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="admin-modal-footer">
+                        <button type="button" class="btn-secondary-action" id="btn-cancel-quick-pay-modal">Cancelar</button>
+                        <button type="submit" class="btn-primary-action" style="background: var(--accent-emerald); color: #000;">
+                            <i data-lucide="check"></i>
+                            <span>Confirmar y Guardar Pago</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             MODAL: MOTIVO DE RECHAZO DE COMPROBANTE
+             ==================================================================== -->
+        <div class="admin-modal-overlay" id="reject-pay-modal-overlay">
+            <div class="admin-modal-dialog" style="max-width: 460px;">
+                <div class="admin-modal-header">
+                    <h3 style="font-size: 1.1rem; color: var(--accent-red); display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="alert-triangle"></i>
+                        <span>Rechazar Comprobante</span>
+                    </h3>
+                    <button class="btn-icon" id="btn-close-reject-pay-modal"><i data-lucide="x"></i></button>
+                </div>
+                <form id="reject-pay-form">
+                    <div class="admin-modal-body">
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 14px;">
+                            El comprobante será marcado como rechazado y el alumno no renovará su membresía.
+                        </p>
+                        <div class="form-group">
+                            <label class="form-label">Motivo del Rechazo</label>
+                            <select class="select-dark" id="reject-reason-preset" style="margin-bottom: 8px;">
+                                <option value="Comprobante ilegible o borroso">Comprobante ilegible o borroso</option>
+                                <option value="Monto transferido no coincide con el plan">Monto transferido no coincide con el plan</option>
+                                <option value="Comprobante duplicado o ya utilizado">Comprobante duplicado o ya utilizado</option>
+                                <option value="Transferencia no reflejada en la cuenta del dojo">Transferencia no reflejada en la cuenta</option>
+                                <option value="otro">Otro motivo personalizado...</option>
+                            </select>
+                            <textarea class="input-dark" id="reject-reason-text" placeholder="Detalla el motivo para el alumno..." style="height: 80px; resize: vertical;"></textarea>
+                        </div>
+                    </div>
+                    <div class="admin-modal-footer">
+                        <button type="button" class="btn-secondary-action" id="btn-cancel-reject-pay-modal">Cancelar</button>
+                        <button type="submit" class="btn-ghost-danger">
+                            <i data-lucide="x-circle"></i>
+                            <span>Confirmar Rechazo</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             MODAL: EDICIÓN AUDITADA DE MONTO
+             ==================================================================== -->
+        <div class="admin-modal-overlay" id="edit-amount-modal-overlay">
+            <div class="admin-modal-dialog" style="max-width: 440px;">
+                <div class="admin-modal-header">
+                    <h3 style="font-size: 1.1rem; color: #fff;">Corregir Monto de Transacción</h3>
+                    <button class="btn-icon" id="btn-close-edit-amount-modal"><i data-lucide="x"></i></button>
+                </div>
+                <form id="edit-amount-form">
+                    <div class="admin-modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Monto Registrado Anterior</label>
+                            <input type="text" class="input-dark" id="edit-current-amount-display" disabled style="opacity: 0.6;">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nuevo Monto Corregido ($)</label>
+                            <input type="number" class="input-dark" id="edit-new-amount-input" required min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Motivo de la Modificación</label>
+                            <input type="text" class="input-dark" id="edit-amount-reason-input" placeholder="Ej: Corrección por descuento aplicado en caja" required>
+                        </div>
+                    </div>
+                    <div class="admin-modal-footer">
+                        <button type="button" class="btn-secondary-action" id="btn-cancel-edit-amount-modal">Cancelar</button>
+                        <button type="submit" class="btn-primary-action">Guardar Corrección</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             MODAL: CHECK-IN RÁPIDO MANUAL DE ASISTENCIA
+             ==================================================================== -->
+        <div class="admin-modal-overlay" id="manual-checkin-modal-overlay">
+            <div class="admin-modal-card" style="max-width: 520px;">
+                <div class="admin-modal-header">
+                    <div>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: #fff;">Check-in Rápido Manual</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">Registra la asistencia en tatami de cualquier alumno</p>
+                    </div>
+                    <button class="btn-close-modal" id="btn-close-manual-checkin">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="manual-checkin-form">
+                    <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+                        <div>
+                            <label class="form-label">Seleccionar Alumno / Atleta *</label>
+                            <select class="select-dark" id="mcheckin-student-select" required style="width: 100%;">
+                                <option value="">Cargando socios...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Clase de Tatami *</label>
+                            <select class="select-dark" id="mcheckin-class-select" required style="width: 100%;">
+                                <option value="">Selecciona clase...</option>
+                            </select>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div>
+                                <label class="form-label">Fecha de Asistencia</label>
+                                <input type="date" class="input-dark" id="mcheckin-date-input" required style="width: 100%;">
+                            </div>
+                            <div>
+                                <label class="form-label">Hora Check-in</label>
+                                <input type="time" class="input-dark" id="mcheckin-time-input" required style="width: 100%;">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label">Observación / Nota (Opcional)</label>
+                            <input type="text" class="input-dark" id="mcheckin-notes-input" placeholder="Ej. Ingreso presencial sin teléfono" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div class="admin-modal-footer">
+                        <button type="button" class="btn-secondary-action" id="btn-cancel-manual-checkin">Cancelar</button>
+                        <button type="submit" class="btn-primary-action" style="background: var(--accent-emerald); color: #000; font-weight: 800;">Confirmar Check-in</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        </main>
+    </div>
+
+    <!-- ====================================================================
+         COMMAND PALETTE (CTRL + K)
+         ==================================================================== -->
+    <div class="palette-overlay" id="command-palette">
+        <div class="palette-modal">
+            <div class="palette-search-row">
+                <i data-lucide="search" style="width: 18px; height: 18px; color: var(--text-muted);"></i>
+                <input type="text" class="palette-input" id="palette-search-input" placeholder="Escribe un comando o navega a una sección..." autocomplete="off">
+                <kbd class="shortcut-kbd">ESC</kbd>
+            </div>
+            <div class="palette-results" id="palette-results">
+                <div class="palette-item" data-goto="overview">
+                    <i data-lucide="layout-dashboard" style="width: 16px; height: 16px;"></i>
+                    <span>Ir a Vista General</span>
+                </div>
+                <div class="palette-item" data-goto="members">
+                    <i data-lucide="users" style="width: 16px; height: 16px;"></i>
+                    <span>Ir a CRM de Socios v2.0</span>
+                </div>
+                <div class="palette-item" data-goto="payments">
+                    <i data-lucide="receipt" style="width: 16px; height: 16px;"></i>
+                    <span>Ir a Control de Pagos</span>
+                </div>
+                <div class="palette-item" data-goto="classes">
+                    <i data-lucide="calendar-days" style="width: 16px; height: 16px;"></i>
+                    <span>Ir a Gestión de Clases</span>
+                </div>
+                <div class="palette-item" data-goto="revenue">
+                    <i data-lucide="trending-up" style="width: 16px; height: 16px;"></i>
+                    <span>Ir a Ingresos y Métricas</span>
+                </div>
+                <div class="palette-item" data-goto="notifications">
+                    <i data-lucide="bell-ring" style="width: 16px; height: 16px;"></i>
+                    <span>Ir a Avisos Globales</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Entry Point de la App Desktop -->
+    <script type="module" src="./admin.js"></script>
+</body>
+
+</html>

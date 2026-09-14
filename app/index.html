@@ -36,11 +36,6 @@
 
     <!-- App Config & Logic (Vite modules) -->
 
-    <!-- Firebase Config Removed -->
-    <script type="module" src="./supabase-config.js"></script>
-    <script type="module" src="./modules/validation.js"></script>
-    <script type="module" src="./modules/notifications.js"></script>
-    <script type="module" src="./modules/faq.js"></script>
     <script type="module" src="./app.js"></script>
 
     <script type="module">
@@ -798,167 +793,24 @@
                 </div>
             </section>
 
-            <!-- Admin Screen -->
+            <!-- Admin Redirect Screen -->
             <section id="admin-panel" class="screen">
-                <div class="admin-header-premium">
-                    <div style="display: flex; justify-content: flex-end; align-items: flex-start;">
-                        <button id="btn-exit-admin-mode" class="btn-glass"
-                            style="padding: 6px 14px; font-size: 0.65rem; border-color: rgba(255,255,255,0.3); display: flex; align-items: center; gap: 5px;">
-                            <i data-lucide="log-out" style="width: 12px;"></i> SALIR DEL MODO ADMIN
-                        </button>
-                    </div>
-                    <h1>Panel Administrativo</h1>
-                    <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Control central de operaciones y alumnos
-                    </p>
+                <div class="header-premium">
+                    <h1>Suite Administrativa</h1>
+                    <p>Gestión deportiva y control de alumnos 🥋</p>
                 </div>
-
-
-                <div class="admin-grid">
-                    <div class="admin-card glass" id="manage-classes-btn">
-                        <i data-lucide="calendar-days"></i>
-                        <div class="admin-card-text">
-                            <h3>Gestión de Clases</h3>
-                            <p>Crear, editar o eliminar horarios</p>
-                        </div>
+                <div style="padding: 30px 20px; text-align: center;">
+                    <div class="glass" style="padding: 36px 24px; border-radius: 16px; border: 1px solid rgba(239,68,68,0.3); max-width: 440px; margin: 0 auto;">
+                        <i data-lucide="shield-check" style="width: 52px; height: 52px; color: var(--primary); margin-bottom: 16px;"></i>
+                        <h3 style="color: #fff; margin-bottom: 8px; font-size: 1.25rem;">Panel de Escritorio Desacoplado</h3>
+                        <p style="color: var(--text-gray); font-size: 0.85rem; margin-bottom: 24px; line-height: 1.5;">
+                            La administración de Amarufighter ahora funciona como una aplicación web de escritorio independiente con vista panorámica, control de pagos en pantalla dividida y CRM de socios.
+                        </p>
+                        <a href="/admin/index.html" class="btn-primary glow-primary" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; width: 100%;">
+                            <i data-lucide="external-link" style="width: 18px; height: 18px;"></i>
+                            Abrir Suite de Escritorio
+                        </a>
                     </div>
-                    <div class="admin-card glass" id="view-attendance-btn">
-                        <i data-lucide="users"></i>
-                        <div class="admin-card-text">
-                            <h3>Control de Asistencia</h3>
-                            <p>Revisar registros de todos los alumnos</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-payments-btn">
-                        <i data-lucide="receipt"></i>
-                        <div class="admin-card-text">
-                            <h3>Control de Pagos</h3>
-                            <p>Validar comprobantes y mensualidades</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-users-btn">
-                        <i data-lucide="award"></i>
-                        <div class="admin-card-text">
-                            <h3>Gestión de Membresías</h3>
-                            <p>Membresías, límites y planes</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-active-users-btn">
-                        <i data-lucide="user-cog"></i>
-                        <div class="admin-card-text">
-                            <h3>Control de Socios</h3>
-                            <p>Resumen de cada socio activo</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-discounts-btn">
-                        <i data-lucide="percent"></i>
-                        <div class="admin-card-text">
-                            <h3>Descuentos</h3>
-                            <p>Promociones y códigos influencers</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="view-revenue-btn">
-
-                        <i data-lucide="trending-up"></i>
-                        <div class="admin-card-text">
-                            <h3>Ingresos 📊</h3>
-                            <p>Ver estadísticas de recaudación</p>
-                        </div>
-                    </div>
-                    <div class="admin-card glass" id="manage-notifications-btn">
-                        <i data-lucide="bell-ring"></i>
-                        <div class="admin-card-text">
-                            <h3>Avisos Globales 📢</h3>
-                            <p>Enviar comunicados a todos</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="admin-revenue-section" class="attendance-viz glass mt-20 hidden"
-                    style="padding: 25px; border-radius: 20px;">
-                    <div class="viz-header"
-                        style="flex-direction: column; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
-                        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                            <h3 style="font-size: 1.4rem; color: var(--accent-purple);">Evolución de Ingresos</h3>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <select id="revenue-timeframe"
-                                    style="background: rgba(139, 92, 246, 0.1); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3); padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; outline: none;">
-                                    <option value="mensual" style="color:black;">Comparar Meses</option>
-                                    <option value="anual" style="color:black;">Comparar Años</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- AI Insights Box -->
-                    <div id="revenue-insights" class="glass"
-                        style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                        <h4
-                            style="margin-bottom: 10px; display: flex; align-items: center; gap: 5px; color: var(--accent-purple); font-size: 0.9rem;">
-                            <i data-lucide="brain" style="width: 16px;"></i> Análisis Inteligente
-                        </h4>
-                        <div id="insights-content"
-                            style="font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.5; display: flex; flex-direction: column; gap: 8px;">
-                            <!-- Dinámico -->
-                        </div>
-                    </div>
-
-                    <!-- Chart & Summary -->
-                    <div style="display: flex; flex-direction: column; gap: 20px;">
-                        <div class="chart-container" style="flex: 1; min-height: 250px;">
-                            <canvas id="revenueChart"></canvas>
-                        </div>
-
-                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                            <div class="stat-mini glass"
-                                style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
-                                <span id="admin-total-label"
-                                    style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">TOTAL
-                                    PERIODO</span>
-                                <strong id="admin-total-month"
-                                    style="font-size: 1.5rem; color: var(--accent-green);">$0</strong>
-                            </div>
-                            <div class="stat-mini glass"
-                                style="flex: 1; min-width: 150px; padding: 15px; border-radius: 12px; text-align: center;">
-                                <span id="admin-growth-label"
-                                    style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 5px;">CRECIMIENTO</span>
-                                <strong id="admin-growth-value" style="font-size: 1.5rem;">0%</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Breakdown -->
-                    <div class="mt-20">
-                        <h4
-                            style="font-size: 0.9rem; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
-                            Desglose de Ingresos (Periodo Actual)</h4>
-                        <div id="revenue-breakdown" style="display: flex; flex-direction: column; gap: 10px;">
-                            <!-- Dinámico -->
-                        </div>
-                    </div>
-
-                    <!-- Export -->
-                    <div
-                        style="display: flex; gap: 8px; margin-top: 25px; align-items: center; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                        <select id="export-format-rev"
-                            style="background: rgba(255,255,255,0.05); color: var(--text-gray); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; outline: none;">
-                            <option value="csv" style="color: black;">Formato CSV</option>
-                            <option value="xls" style="color: black;">Formato XLS</option>
-                            <option value="pdf" style="color: black;">Formato PDF</option>
-                        </select>
-                        <button id="btn-export-report" class="btn-primary"
-                            style="padding: 8px 15px; font-size: 0.75rem; border-radius: 8px;">
-                            <i data-lucide="download"
-                                style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"></i>
-                            Exportar
-                        </button>
-                    </div>
-                </div>
-
-
-
-
-                <div id="admin-content-area" class="mt-20">
-                    <!-- Dynamic admin content will load here -->
                 </div>
             </section>
 

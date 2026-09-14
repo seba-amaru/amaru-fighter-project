@@ -41,9 +41,10 @@ export const SupabaseService = {
 
     async getProfile(uid) {
         try {
+            // Fetch profile and joined plan in a single network round-trip
             const { data, error } = await window.supabase
                 .from('profiles')
-                .select('*')
+                .select('*, membership_plans(id, name, theme, price, monthly)')
                 .eq('id', uid)
                 .maybeSingle();
 
@@ -51,19 +52,14 @@ export const SupabaseService = {
                 if (error.code !== 'PGRST116') {
                     console.warn(`[Supabase] getProfile error (ID: ${uid}): ${error.message}`);
                 }
-                return null;
-            }
-
-            if (data && data.membership_plan_id) {
-                const { data: plan, error: planError } = await window.supabase
-                    .from('membership_plans')
-                    .select('name')
-                    .eq('id', data.membership_plan_id)
+                // Fallback to basic query if join relation is not defined
+                const { data: fallbackData, error: fbError } = await window.supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', uid)
                     .maybeSingle();
-
-                if (!planError && plan) {
-                    data.membership_plans = plan;
-                }
+                if (fbError) return null;
+                return fallbackData;
             }
 
             return data;
