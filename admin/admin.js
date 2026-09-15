@@ -2824,7 +2824,7 @@ export async function handleEditMemberSubmit(e) {
             membership_plan_id: planId,
             membership_status: status,
             membership_expiry: expiry ? new Date(expiry + 'T23:59:59').toISOString() : null,
-            belt_rank: belt,
+            combat_style: belt,
             emergency_contact: emergency,
             admin_notes: notes,
             updated_at: new Date().toISOString()
@@ -2847,6 +2847,7 @@ export async function handleEditMemberSubmit(e) {
             member.membership_plan_id = planId;
             member.membership_status = status;
             member.membership_expiry = updatePayload.membership_expiry;
+            member.combat_style = belt;
             member.belt_rank = belt;
             member.emergency_contact = emergency;
             member.admin_notes = notes;
@@ -2951,6 +2952,93 @@ export async function toggleMemberActiveStatus() {
         }
     } catch (err) {
         console.error('Error al cambiar estado del socio:', err);
+    }
+}
+
+export async function deleteMemberPermanently(targetId) {
+    const id = targetId || document.getElementById('edit-member-input-id')?.value;
+    const member = (cachedMembers || []).find(m => m.id === id);
+    if (!member) return;
+
+    const memberName = member.full_name || member.username || 'este socio';
+
+    if (window.Swal) {
+        const confirm = await window.Swal.fire({
+            icon: 'warning',
+            title: '¿Eliminar socio definitivamente?',
+            text: `El socio "${memberName}" será dado de baja del sistema y se cancelarán sus reservas futuras asociadas.`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444',
+            background: '#09090B',
+            color: '#fff'
+        });
+        if (!confirm.isConfirmed) return;
+    }
+
+    try {
+        // Soft delete y cambio a inactivo en profiles
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ 
+                is_deleted: true, 
+                membership_status: 'inactive', 
+                updated_at: new Date().toISOString() 
+            })
+            .eq('id', id);
+
+        if (profileError) throw profileError;
+
+        // Cancelar reservas futuras
+        const todayStr = new Date().toISOString().split('T')[0];
+        try {
+            await supabase
+                .from('reservations')
+                .delete()
+                .eq('user_id', id)
+                .gte('reservation_date', todayStr);
+        } catch (resErr) {
+            console.warn('[Admin] Advertencia al limpiar reservas futuras:', resErr);
+        }
+
+        // Quitar de cachedMembers
+        const memberIdx = (cachedMembers || []).findIndex(m => m.id === id);
+        if (memberIdx !== -1) {
+            cachedMembers.splice(memberIdx, 1);
+        }
+
+        closeEditMemberModal();
+        closeMemberDrawer();
+
+        renderMembersDirectory();
+        renderMembersCrmDashboard(cachedPlans);
+        if (typeof loadDashboardKPIs === 'function') {
+            await loadDashboardKPIs();
+        }
+
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'success',
+                title: 'Socio Eliminado',
+                text: `Se dio de baja a ${memberName} correctamente.`,
+                timer: 2000,
+                showConfirmButton: false,
+                background: '#09090B',
+                color: '#fff'
+            });
+        }
+    } catch (err) {
+        console.error('Error al eliminar socio:', err);
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'error',
+                title: 'Error al eliminar',
+                text: err.message || 'No se pudo eliminar al socio.',
+                background: '#09090B',
+                color: '#fff'
+            });
+        }
     }
 }
 
@@ -3318,11 +3406,17 @@ function initMembersCRMUIHandlers() {
     const btnCancelEditMember = document.getElementById('btn-cancel-edit-member-modal');
     const formEditMember = document.getElementById('edit-member-form');
     const btnToggleActiveMember = document.getElementById('btn-toggle-active-member-modal');
+    const btnDeleteMemberModal = document.getElementById('btn-delete-member-modal');
+    const btnDeleteDrawerMember = document.getElementById('drawer-btn-delete-member');
 
     if (btnCloseEditMember) btnCloseEditMember.addEventListener('click', closeEditMemberModal);
     if (btnCancelEditMember) btnCancelEditMember.addEventListener('click', closeEditMemberModal);
     if (formEditMember) formEditMember.addEventListener('submit', handleEditMemberSubmit);
     if (btnToggleActiveMember) btnToggleActiveMember.addEventListener('click', toggleMemberActiveStatus);
+    if (btnDeleteMemberModal) btnDeleteMemberModal.addEventListener('click', () => deleteMemberPermanently());
+    if (btnDeleteDrawerMember) btnDeleteDrawerMember.addEventListener('click', () => {
+        if (adminState.activeDrawerMember) deleteMemberPermanently(adminState.activeDrawerMember.id);
+    });
 }
 
 function exportMembersDirectoryCSV() {
@@ -4909,46 +5003,351 @@ export async function confirmDeletePlan(planId, planName = 'este plan') {
 }
 
 // ============================================================================
-// MÓDULO 5: CÓDIGOS DE DESCUENTO
+// MÓDULO 5: CÓDIGOS DE DESCUENTO (GESTIÓN COMPLETA: CREAR, EDITAR, BORRAR)
 // ============================================================================
+let cachedDiscounts = [];
+let isDiscountControlsInit = false;
+
 export async function loadDiscountsTable() {
+    initDiscountControlsOnce();
     const tableBody = document.getElementById('discounts-table-body');
     if (!tableBody) return;
 
     try {
-        const { data: discounts, error } = await supabase
-            .from('discounts')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const [{ data: discounts, error }, { data: plans }] = await Promise.all([
+            supabase.from('discounts').select('*').order('created_at', { ascending: false }),
+            supabase.from('membership_plans').select('id, name').order('sort_order', { ascending: true })
+        ]);
 
         if (error) throw error;
 
-        if (!discounts || discounts.length === 0) {
+        cachedDiscounts = discounts || [];
+        const plansMap = new Map((plans || []).map(p => [p.id, p.name]));
+
+        if (!cachedDiscounts || cachedDiscounts.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">No hay cupones ni descuentos activos.</td></tr>';
             return;
         }
 
-        tableBody.innerHTML = discounts.map(d => {
+        tableBody.innerHTML = cachedDiscounts.map(d => {
             const val = d.percent ? `${d.percent}%` : (d.percentage ? `${d.percentage}%` : (d.amount ? `$${d.amount}` : 'Especial'));
             const isActive = d.is_active !== false;
             const exp = d.expiresAt || d.expires_at;
 
+            // Renderizar planes aplicables como badges
+            let plansDisplay = '<span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 4px;">Todos los planes</span>';
+            if (Array.isArray(d.plans) && d.plans.length > 0) {
+                plansDisplay = d.plans.map(pid => {
+                    const name = plansMap.get(pid) || pid;
+                    return `<span style="display: inline-block; font-size: 0.72rem; color: #a855f7; background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.25); padding: 2px 7px; border-radius: 4px; margin: 2px;">${name}</span>`;
+                }).join(' ');
+            }
+
             return `
                 <tr>
                     <td><strong style="color: #FFFFFF; font-family: monospace; font-size: 1rem; background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px;">${d.code || 'SIN CODIGO'}</strong></td>
-                    <td style="font-weight: 700; color: var(--accent-emerald);">${val}</td>
-                    <td>${d.name || d.applicable_plans || 'Todos los planes'}</td>
+                    <td style="font-weight: 700; color: var(--accent-emerald); font-size: 1.05rem;">${val}</td>
+                    <td>${plansDisplay}</td>
                     <td>${d.current_uses || d.used_count || 0} usos</td>
                     <td>${exp ? new Date(exp).toLocaleDateString('es-CL') : 'Sin expiración'}</td>
                     <td><span class="status-pill ${isActive ? 'active' : 'inactive'}">${isActive ? 'ACTIVO' : 'INACTIVO'}</span></td>
-                    <td>-</td>
+                    <td>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button type="button" class="btn-icon-action btn-edit-discount" data-id="${d.id}" title="Editar cupón" style="color: #60a5fa; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.25); border-radius: 6px; padding: 6px 9px; cursor: pointer;">
+                                <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
+                            </button>
+                            <button type="button" class="btn-icon-action btn-delete-discount" data-id="${d.id}" title="Eliminar cupón" style="color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; padding: 6px 9px; cursor: pointer;">
+                                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                            </button>
+                        </div>
+                    </td>
                 </tr>
             `;
         }).join('');
 
+        // Event listeners para editar y borrar
+        tableBody.querySelectorAll('.btn-edit-discount').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.getAttribute('data-id');
+                const disc = cachedDiscounts.find(x => x.id === id);
+                if (disc) openDiscountModal(disc);
+            };
+        });
+
+        tableBody.querySelectorAll('.btn-delete-discount').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.getAttribute('data-id');
+                deleteDiscount(id);
+            };
+        });
+
+        if (window.lucide) window.lucide.createIcons();
+
     } catch (err) {
         console.error('[Admin] Error cargando descuentos:', err);
         tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--primary); padding: 25px;">Error al cargar descuentos: ${err.message}</td></tr>`;
+    }
+}
+
+export async function openDiscountModal(discount = null) {
+    const modal = document.getElementById('discount-modal-overlay');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('discount-modal-title');
+    const inputId = document.getElementById('discount-input-id');
+    const inputCode = document.getElementById('discount-input-code');
+    const inputPercent = document.getElementById('discount-input-percent');
+    const inputExpiry = document.getElementById('discount-input-expiry');
+    const inputStatus = document.getElementById('discount-input-status');
+    const selectAllCheckbox = document.getElementById('discount-select-all-plans');
+    const plansContainer = document.getElementById('discount-plans-checkbox-container');
+    const saveBtnText = document.getElementById('btn-save-discount-text');
+
+    // Asegurar que tenemos los planes cargados
+    let plans = cachedPlans || [];
+    if (!plans || plans.length === 0) {
+        try {
+            const { data } = await supabase.from('membership_plans').select('*').order('sort_order', { ascending: true });
+            plans = data || [];
+        } catch (err) {
+            console.warn('[Admin] Error cargando planes para modal de descuentos:', err);
+        }
+    }
+
+    // Renderizar checkboxes de planes
+    if (plansContainer) {
+        if (plans.length === 0) {
+            plansContainer.innerHTML = '<p style="font-size:0.75rem; color:var(--text-muted); grid-column:1/-1;">No hay membresías creadas en el sistema.</p>';
+        } else {
+            plansContainer.innerHTML = plans.map(p => `
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #fff; cursor: pointer; background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                    <input type="checkbox" class="discount-plan-cb" value="${p.id}" style="accent-color: var(--accent-purple); cursor: pointer;">
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+                </label>
+            `).join('');
+        }
+    }
+
+    if (discount) {
+        // Modo Edición
+        if (titleEl) titleEl.textContent = `Editar Cupón: ${discount.code}`;
+        if (saveBtnText) saveBtnText.textContent = 'Actualizar Cupón';
+        if (inputId) inputId.value = discount.id;
+        if (inputCode) inputCode.value = discount.code || '';
+        if (inputPercent) inputPercent.value = discount.percent || discount.percentage || '';
+        if (inputStatus) inputStatus.value = discount.is_active !== false ? 'active' : 'inactive';
+        
+        if (inputExpiry) {
+            const exp = discount.expiresAt || discount.expires_at;
+            if (exp) {
+                try {
+                    inputExpiry.value = new Date(exp).toISOString().split('T')[0];
+                } catch {
+                    inputExpiry.value = '';
+                }
+            } else {
+                inputExpiry.value = '';
+            }
+        }
+
+        const selectedPlans = Array.isArray(discount.plans) ? discount.plans : [];
+        const allPlanCbs = document.querySelectorAll('.discount-plan-cb');
+        if (selectedPlans.length === 0) {
+            if (selectAllCheckbox) selectAllCheckbox.checked = true;
+            allPlanCbs.forEach(cb => cb.checked = true);
+        } else {
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+            allPlanCbs.forEach(cb => {
+                cb.checked = selectedPlans.includes(cb.value);
+            });
+        }
+    } else {
+        // Modo Creación
+        if (titleEl) titleEl.textContent = 'Nuevo Cupón de Descuento';
+        if (saveBtnText) saveBtnText.textContent = 'Guardar Cupón';
+        if (inputId) inputId.value = '';
+        if (inputCode) inputCode.value = '';
+        if (inputPercent) inputPercent.value = '';
+        if (inputExpiry) inputExpiry.value = '';
+        if (inputStatus) inputStatus.value = 'active';
+        if (selectAllCheckbox) selectAllCheckbox.checked = true;
+
+        document.querySelectorAll('.discount-plan-cb').forEach(cb => cb.checked = true);
+    }
+
+    modal.classList.add('open');
+    if (window.lucide) window.lucide.createIcons();
+}
+
+export function closeDiscountModal() {
+    const modal = document.getElementById('discount-modal-overlay');
+    if (modal) modal.classList.remove('open');
+}
+
+export async function handleSaveDiscountSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('discount-input-id')?.value?.trim();
+    const code = document.getElementById('discount-input-code')?.value?.trim().toUpperCase();
+    const percent = parseInt(document.getElementById('discount-input-percent')?.value, 10);
+    const expiryVal = document.getElementById('discount-input-expiry')?.value;
+    const statusVal = document.getElementById('discount-input-status')?.value || 'active';
+    const selectAll = document.getElementById('discount-select-all-plans')?.checked;
+
+    if (!code) {
+        if (window.Swal) window.Swal.fire({ icon: 'warning', title: 'Falta código', text: 'Por favor ingresa un código para el cupón.', background: '#09090B', color: '#fff' });
+        return;
+    }
+
+    if (isNaN(percent) || percent <= 0 || percent > 100) {
+        if (window.Swal) window.Swal.fire({ icon: 'warning', title: 'Porcentaje inválido', text: 'El porcentaje debe ser un valor entre 1 y 100.', background: '#09090B', color: '#fff' });
+        return;
+    }
+
+    const checkedCbs = Array.from(document.querySelectorAll('.discount-plan-cb:checked')).map(cb => cb.value);
+    const totalCbs = document.querySelectorAll('.discount-plan-cb').length;
+
+    const plansToSave = (selectAll || checkedCbs.length === 0 || checkedCbs.length === totalCbs) ? null : checkedCbs;
+
+    const payload = {
+        code: code,
+        name: `Descuento ${code} (${percent}%)`,
+        percent: percent,
+        plans: plansToSave,
+        expiresAt: expiryVal ? new Date(expiryVal + 'T23:59:59').toISOString() : null,
+        is_active: statusVal === 'active'
+    };
+
+    try {
+        if (id) {
+            const { error } = await supabase
+                .from('discounts')
+                .update(payload)
+                .eq('id', id);
+            if (error) throw error;
+
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'success',
+                    title: 'Cupón Actualizado',
+                    text: `El cupón ${code} ha sido actualizado con éxito.`,
+                    background: '#09090B',
+                    color: '#fff',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            }
+        } else {
+            const { error } = await supabase
+                .from('discounts')
+                .insert([payload]);
+            if (error) throw error;
+
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'success',
+                    title: 'Cupón Creado',
+                    text: `El cupón ${code} ya está listo para ser utilizado.`,
+                    background: '#09090B',
+                    color: '#fff',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            }
+        }
+
+        closeDiscountModal();
+        await loadDiscountsTable();
+
+    } catch (err) {
+        console.error('[Admin] Error guardando cupón:', err);
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'error',
+                title: 'Error al guardar cupón',
+                text: err.message || 'No se pudo guardar el descuento.',
+                background: '#09090B',
+                color: '#fff'
+            });
+        }
+    }
+}
+
+export async function deleteDiscount(id) {
+    if (!id) return;
+    const disc = cachedDiscounts.find(x => x.id === id);
+    const codeName = disc ? disc.code : 'este cupón';
+
+    if (window.Swal) {
+        const confirm = await window.Swal.fire({
+            icon: 'warning',
+            title: `¿Eliminar cupón "${codeName}"?`,
+            text: 'Los alumnos ya no podrán aplicar este descuento en sus membresías.',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444',
+            background: '#09090B',
+            color: '#fff'
+        });
+        if (!confirm.isConfirmed) return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('discounts')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'success',
+                title: 'Cupón Eliminado',
+                timer: 1600,
+                showConfirmButton: false,
+                background: '#09090B',
+                color: '#fff'
+            });
+        }
+
+        await loadDiscountsTable();
+    } catch (err) {
+        console.error('[Admin] Error eliminando cupón:', err);
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'error',
+                title: 'Error al eliminar',
+                text: err.message || 'No se pudo eliminar el cupón.',
+                background: '#09090B',
+                color: '#fff'
+            });
+        }
+    }
+}
+
+function initDiscountControlsOnce() {
+    if (isDiscountControlsInit) return;
+    isDiscountControlsInit = true;
+
+    const btnCreate = document.getElementById('btn-create-discount');
+    const btnClose = document.getElementById('btn-close-discount-modal');
+    const btnCancel = document.getElementById('btn-cancel-discount-modal');
+    const form = document.getElementById('discount-form');
+    const selectAllCb = document.getElementById('discount-select-all-plans');
+
+    if (btnCreate) btnCreate.addEventListener('click', () => openDiscountModal(null));
+    if (btnClose) btnClose.addEventListener('click', closeDiscountModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeDiscountModal);
+    if (form) form.addEventListener('submit', handleSaveDiscountSubmit);
+
+    if (selectAllCb) {
+        selectAllCb.addEventListener('change', () => {
+            const isChecked = selectAllCb.checked;
+            document.querySelectorAll('.discount-plan-cb').forEach(cb => {
+                cb.checked = isChecked;
+            });
+        });
     }
 }
 

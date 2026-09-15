@@ -66,12 +66,26 @@ export const AgendaEnhancer = {
             tag.addEventListener('click', function () {
                 document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
-                const type = this.textContent.trim();
-                document.querySelectorAll('.class-card-premium, .class-card').forEach((item, i) => {
-                    const show = type === 'Todas' || (item.dataset.type || '').includes(type);
-                    item.style.display = show ? '' : 'none';
-                    if (show) item.style.animation = `fadeSlideUp .4s ease ${i * .05}s both`;
-                });
+                const selectedType = this.dataset.type || this.textContent.trim();
+                
+                if (window.appState) {
+                    window.appState.activeFilter = selectedType;
+                }
+                
+                if (typeof window.renderSchedule === 'function') {
+                    window.renderSchedule();
+                } else {
+                    document.querySelectorAll('.stitch-class-card, .class-card-premium, .class-card').forEach((item, i) => {
+                        const tagEl = item.querySelector('.tag');
+                        const cardText = item.textContent || '';
+                        const show = selectedType === 'Todas' || 
+                                     (item.dataset.type && item.dataset.type.includes(selectedType)) ||
+                                     (tagEl && tagEl.textContent.includes(selectedType)) ||
+                                     cardText.toLowerCase().includes(selectedType.toLowerCase());
+                        item.style.display = show ? '' : 'none';
+                        if (show) item.style.animation = `fadeSlideUp .4s ease ${i * .05}s both`;
+                    });
+                }
             });
         });
     },

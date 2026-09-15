@@ -2,7 +2,7 @@
 // Control de Socios v2.0 — Panel Administrativo con 4 vistas
 // Dashboard | Directorio | Retención | Comunicaciones
 
-import { exportToFormat, exportUserData } from '../utils/exportUtils.js';
+import { exportUserData } from '../utils/exportUtils.js';
 import { openMemberModal, deleteMember } from './adminModals.js';
 import { openQuickPaymentModal } from './payments.js';
 const unknowAvatar = '../images/unknow.png';

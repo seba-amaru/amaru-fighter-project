@@ -18,14 +18,8 @@ import { Validation } from './modules/validation.js';
 import { NotificationSystem } from './modules/notifications.js';
 import { FAQ } from './modules/faq.js';
 import { SkeletonLoader, AgendaEnhancer } from './modules/integrations.js';
-// Firebase Auth removed, using Supabase Auth
-const auth = {
-    get currentUser() {
-        return window.appState?.user || null;
-    }
-};
-window.auth = auth;
-// Firebase removed
+// Auth session bridge
+window.auth = { get currentUser() { return window.appState?.user || null; } };
 
 document.addEventListener('DOMContentLoaded', () => {
     // Upsell Functions

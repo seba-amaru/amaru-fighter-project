@@ -1,5 +1,10 @@
 import supabase from './app/supabase-config.js';
-import { createIcons, icons } from 'lucide';
+
+function refreshLucideIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
+}
 
 /* global html2canvas */
 
@@ -98,80 +103,13 @@ const statsObserver = new IntersectionObserver((entries) => {
 
 stats.forEach(stat => statsObserver.observe(stat));
 
-const cards = document.querySelectorAll('.service-flip-card');
-cards.forEach(card => {
+// Flip cards interactivity
+const serviceCards = document.querySelectorAll('.service-flip-card');
+serviceCards.forEach(card => {
     card.addEventListener('click', () => {
-        const inner = card.querySelector('.service-card-inner');
+        card.classList.toggle('flipped');
     });
 });
-
-const galleryTrack = document.querySelector('.gallery-track');
-if (galleryTrack) {
-    let isPaused = false;
-    let animationId;
-    let speed = 1;
-
-    const galleryItems = Array.from(galleryTrack.children);
-    galleryItems.forEach(item => {
-        const clone = item.cloneNode(true);
-        clone.addEventListener('click', toggleSelection);
-        galleryTrack.appendChild(clone);
-    });
-
-    galleryTrack.style.scrollSnapType = 'none';
-
-    function autoScroll() {
-        if (!isPaused) {
-            galleryTrack.scrollLeft += speed;
-
-            if (galleryTrack.children.length > galleryItems.length) {
-                const firstClone = galleryTrack.children[galleryItems.length];
-                const singleSetWidth = firstClone.offsetLeft - galleryTrack.children[0].offsetLeft;
-                if (galleryTrack.scrollLeft >= singleSetWidth) {
-                    galleryTrack.scrollLeft -= singleSetWidth;
-                }
-            }
-        }
-        animationId = requestAnimationFrame(autoScroll);
-    }
-
-    autoScroll();
-
-    galleryTrack.addEventListener('mouseenter', () => isPaused = true);
-    galleryTrack.addEventListener('mouseleave', () => {
-        const hasSelected = galleryTrack.querySelector('.gallery-img.selected');
-        if (!hasSelected) isPaused = false;
-    });
-
-    galleryTrack.addEventListener('touchstart', () => isPaused = true);
-    galleryTrack.addEventListener('touchend', () => {
-        const hasSelected = galleryTrack.querySelector('.gallery-img.selected');
-        if (!hasSelected) {
-            setTimeout(() => isPaused = false, 1000);
-        }
-    });
-
-    function toggleSelection(e) {
-        galleryTrack.querySelectorAll('.gallery-img').forEach(img => {
-            if (img !== e.target) img.classList.remove('selected');
-        });
-        e.target.classList.toggle('selected');
-
-        if (e.target.classList.contains('selected')) {
-            isPaused = true;
-        } else {
-            if (window.matchMedia('(hover: hover)').matches) {
-                isPaused = galleryTrack.matches(':hover');
-            } else {
-                isPaused = false;
-            }
-        }
-    }
-
-    galleryItems.forEach(item => {
-        item.addEventListener('click', toggleSelection);
-    });
-}
 
 // --- Membership Plans Fetching & Rendering ---
 async function loadMemberships() {
@@ -193,7 +131,7 @@ async function loadMemberships() {
                 plansContainer.appendChild(card);
             });
             // Re-initialize lucide icons for dynamic content
-            createIcons({ icons });
+            refreshLucideIcons();
         } else {
             plansContainer.innerHTML = '<p class="loading-plans">No hay planes disponibles en este momento.</p>';
         }
@@ -242,7 +180,6 @@ function createPlanCard(plan) {
             </li>
             ${featuresHtml}
         </ul>
-        <a href="./app/index.html" class="btn-primary" style="text-align:center; margin-top: auto;">Seleccionar Plan</a>
         ${plan.theme === 'gold' ? '<div class="plan-badge">Popular</div>' : ''}
     `;
 
@@ -531,12 +468,135 @@ async function exportSchedule() {
     }
 }
 
+// --- Galería Editorial Inmersiva & Lightbox ---
+function initAmaruGalleryExperience() {
+    const frames = Array.from(document.querySelectorAll('.gallery-frame'));
+    const toggleBtn = document.getElementById('btn-toggle-gallery');
+    const INITIAL_VISIBLE_COUNT = 8;
+    let isExpanded = false;
+
+    // 1. Configuración de visibilidad inicial (primeras 8 fotos para mantener la carga limpia)
+    function applyVisibility() {
+        frames.forEach((frame, idx) => {
+            if (idx >= INITIAL_VISIBLE_COUNT) {
+                frame.classList.add('extra-photo');
+                if (isExpanded) {
+                    frame.classList.add('expanded');
+                } else {
+                    frame.classList.remove('expanded');
+                }
+            } else {
+                frame.classList.remove('extra-photo', 'expanded');
+            }
+        });
+
+        if (toggleBtn) {
+            toggleBtn.querySelector('span').textContent = isExpanded ? 'Mostrar Menos' : 'Explorar Galería Completa (18 fotos)';
+            if (isExpanded) {
+                toggleBtn.classList.add('expanded');
+            } else {
+                toggleBtn.classList.remove('expanded');
+            }
+        }
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            isExpanded = !isExpanded;
+            applyVisibility();
+        });
+    }
+
+    applyVisibility();
+
+    // 2. Lightbox Modal Minimalista
+    const lightbox = document.getElementById('gallery-lightbox');
+    const lightboxImg = document.getElementById('gallery-lightbox-img');
+    const lightboxCounter = document.getElementById('gallery-lightbox-counter');
+    const closeBtn = document.getElementById('gallery-lightbox-close');
+    const lbPrevBtn = document.getElementById('gallery-lightbox-prev');
+    const lbNextBtn = document.getElementById('gallery-lightbox-next');
+
+    if (!lightbox) return;
+
+    const allImages = frames.map((frame) => {
+        const img = frame.querySelector('img');
+        return {
+            src: img ? img.getAttribute('src') : '',
+            alt: img ? img.getAttribute('alt') : 'Amarufighter'
+        };
+    });
+
+    let currentIndex = 0;
+
+    function showImage(idx) {
+        if (allImages.length === 0) return;
+        if (idx < 0) idx = allImages.length - 1;
+        if (idx >= allImages.length) idx = 0;
+        currentIndex = idx;
+
+        const data = allImages[currentIndex];
+        lightboxImg.src = data.src;
+        lightboxImg.alt = data.alt;
+        if (lightboxCounter) {
+            lightboxCounter.textContent = `${currentIndex + 1} / ${allImages.length}`;
+        }
+    }
+
+    function openLightbox(index) {
+        showImage(index);
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        lightbox.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    frames.forEach((frame, idx) => {
+        frame.addEventListener('click', () => {
+            openLightbox(idx);
+        });
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', closeLightbox);
+    if (lbPrevBtn) lbPrevBtn.addEventListener('click', (e) => { e.stopPropagation(); showImage(currentIndex - 1); });
+    if (lbNextBtn) lbNextBtn.addEventListener('click', (e) => { e.stopPropagation(); showImage(currentIndex + 1); });
+
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) closeLightbox();
+    });
+
+    // Soporte para gestos táctiles Swipe en móvil
+    let touchStartX = 0;
+    lightbox.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    lightbox.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].screenX;
+        const diff = touchEndX - touchStartX;
+        if (Math.abs(diff) > 40) {
+            if (diff > 0) showImage(currentIndex - 1); // Swipe derecha -> anterior
+            else showImage(currentIndex + 1); // Swipe izquierda -> siguiente
+        }
+    }, { passive: true });
+
+    document.addEventListener('keydown', (e) => {
+        if (!lightbox.classList.contains('active')) return;
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft') showImage(currentIndex - 1);
+        if (e.key === 'ArrowRight') showImage(currentIndex + 1);
+    });
+}
+
 // Initial load
 loadMemberships();
 loadSchedule();
 
 // Initialize static icons
-createIcons({ icons });
+refreshLucideIcons();
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -544,5 +604,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (downloadBtn) {
         downloadBtn.addEventListener('click', exportSchedule);
     }
+    initAmaruGalleryExperience();
 });
 

@@ -4,7 +4,6 @@ const unknowAvatar = '../images/unknow.png';
 /* global Chart */
 
 const Swal = window.Swal;
-let coverageMonthStr = '';
 
 import { SupabaseService } from '../services/supabaseService.js';
 import { openClassModal, openPlanModal, openMemberModal, deleteClass, deletePlan, deleteMember } from './adminModals.js';
@@ -13,366 +12,9 @@ import { renderAdminMembers } from './members.js';
 
 const getAdminContent = () => document.getElementById('admin-content-area');
 
-export const renderAdminActiveUsers = async (filterType = 'active') => {
+export const renderAdminActiveUsers = async () => {
     // Delegate to the new v2.0 members module
     await renderAdminMembers();
-};
-
-const _renderAdminActiveUsersOld = async (filterType = 'active') => {
-    const area = document.getElementById('admin-content-area');
-    const revSection = document.getElementById('admin-revenue-section');
-    if (revSection) revSection.classList.add('hidden');
-    area.innerHTML = `<div class="p-20 text-center"><i data-lucide="loader" class="spin"></i> Cargando socios...</div>`;
-    window.lucide.createIcons();
-    try {
-        const users = await SupabaseService.getAllProfiles();
-        const allReservations = await SupabaseService.getAllReservations();
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        // Pre-compute logic for filtering
-        const processedUsers = users.map(u => {
-            const expiryDate = u.membership_expiry ? new Date(u.membership_expiry) : null;
-            const diffTime = expiryDate ? expiryDate - now : null;
-            const daysLeft = expiryDate ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : null;
-            const totalDays = 30;
-            const progress = expiryDate ? Math.max(0, Math.min(100, ((totalDays - (daysLeft || 0)) / totalDays) * 100)) : 0;
-            const isNearExpiry = daysLeft !== null && daysLeft > 0 && daysLeft <= 5;
-
-            // Reservation Stats
-            const userRes = allReservations.filter(r => r.user_id === u.id);
-            userRes.sort((a, b) => new Date(b.reservation_date) - new Date(a.reservation_date));
-            const lastAttendance = userRes.length > 0 ? new Date(userRes[0].reservation_date) : null;
-            const daysSinceLastAttendance = lastAttendance ? Math.floor((now - lastAttendance) / (1000 * 60 * 60 * 24)) : -1;
-
-            const totalRes = userRes.length;
-            const monthRes = userRes.filter(r => {
-                const rDate = new Date(r.reservation_date);
-                return rDate.getMonth() === currentMonth && rDate.getFullYear() === currentYear;
-            }).length;
-
-            const planLimit = u.membership_plans?.monthly || 0;
-            const remainingRes = Math.max(0, planLimit - monthRes);
-
-            // Advanced Status Logic
-            let status = "Activo";
-            let statusColor = "#22c55e"; // Green
-            let statusBg = "rgba(34, 197, 94, 0.15)";
-
-            if (u.is_frozen) {
-                status = "Congelado";
-                statusColor = "#3b82f6";
-                statusBg = "rgba(59, 130, 246, 0.15)";
-            } else if (u.membership_status === 'inactive') {
-                status = "Inactivo";
-                statusColor = "#ef4444"; // Red
-                statusBg = "rgba(239, 68, 68, 0.15)";
-            } else if (daysLeft !== null && daysLeft <= 0) {
-                if (daysLeft > -30) {
-                    status = "Moroso";
-                    statusColor = "#f97316"; // Orange
-                    statusBg = "rgba(249, 115, 22, 0.15)";
-                } else {
-                    status = "Inactivo";
-                    statusColor = "#ef4444"; // Red
-                    statusBg = "rgba(239, 68, 68, 0.15)";
-                }
-            } else if (daysLeft === null && u.membership_status !== 'active') {
-                status = "Inactivo";
-                statusColor = "#ef4444"; // Red
-                statusBg = "rgba(239, 68, 68, 0.15)";
-            }
-
-            return {
-                ...u,
-                _computedStatus: status,
-                _statusColor: statusColor,
-                _statusBg: statusBg,
-                _expiryDate: expiryDate,
-                _daysLeft: daysLeft,
-                _progress: progress,
-                _isNearExpiry: isNearExpiry,
-                _userRes: userRes,
-                _lastAttendance: lastAttendance,
-                _daysSinceLastAttendance: daysSinceLastAttendance,
-                _totalRes: totalRes,
-                _monthRes: monthRes,
-                _planLimit: planLimit,
-                _remainingRes: remainingRes
-            };
-        });
-
-        const filteredUsers = processedUsers.filter(u => {
-            if (filterType === 'all') return true;
-            if (filterType === 'active') return u._computedStatus === 'Activo';
-            if (filterType === 'inactive') return u._computedStatus === 'Inactivo';
-            if (filterType === 'debtor') return u._computedStatus === 'Moroso';
-            if (filterType === 'frozen') return u._computedStatus === 'Congelado';
-            if (filterType === 'migration') return !u.membership_plan_id || !u.membership_expiry;
-            return true;
-        });
-
-        getAdminContent().innerHTML = `
-                <div class="glass-premium p-20">
-                    <div class="header-split mb-20">
-                        <h3>Control de Socios (${filteredUsers.length})</h3>
-                        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-                            <div style="display:flex; align-items:center; gap: 8px; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                                <i data-lucide="filter" style="width:14px; height:14px; color:var(--text-gray);"></i>
-                                <select id="filter-status-users" style="background: transparent; color: white; border: none; font-size: 0.75rem; font-weight: 600; outline: none; cursor:pointer;">
-                                    <option value="all" ${filterType === 'all' ? 'selected' : ''} style="color: black;">Todos</option>
-                                    <option value="active" ${filterType === 'active' ? 'selected' : ''} style="color: black;">Activos</option>
-                                    <option value="inactive" ${filterType === 'inactive' ? 'selected' : ''} style="color: black;">Inactivos</option>
-
-                                    <option value="migration" ${filterType === 'migration' ? 'selected' : ''} style="color: black;">Migración (Revisar)</option>
-                                    <option value="debtor" ${filterType === 'debtor' ? 'selected' : ''} style="color: black;">Morosos</option>
-                                    <option value="frozen" ${filterType === 'frozen' ? 'selected' : ''} style="color: black;">Congelados</option>
-                                </select>
-                            </div>
-                            
-                            <div style="display:flex; align-items:center; gap: 8px; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                                <select id="export-format-users" style="background: transparent; color: var(--text-gray); border: none; font-size: 0.75rem; font-weight: 600; outline: none; padding-left: 5px; cursor:pointer;">
-                                    <option value="csv" style="color: black;">CSV</option>
-                                    <option value="xls" style="color: black;">XLS</option>
-                                    <option value="pdf" style="color: black;">PDF</option>
-                                </select>
-                                <button id="btn-export-users" class="btn-primary" style="padding: 4px 12px; font-size: 0.70rem; border-radius: 6px;">
-                                    Exportar
-                                </button>
-                            </div>
-                            <button class="btn-action-glow" id="btn-add-member-admin" style="width: 32px; height: 32px;"><i data-lucide="user-plus" style="width: 16px;"></i></button>
-                        </div>
-                    </div>
-
-                    <div class="admin-list-container">
-                        ${filteredUsers.length === 0 ? '<p class="opacity-50">No hay socios que coincidan con el filtro.</p>' : filteredUsers.map(u => {
-            const expiryDate = u._expiryDate;
-            const daysLeft = u._daysLeft;
-            const progress = u._progress;
-            const isNearExpiry = u._isNearExpiry;
-            const lastAttendance = u._lastAttendance;
-            const daysSinceLastAttendance = u._daysSinceLastAttendance;
-            const totalRes = u._totalRes;
-            const monthRes = u._monthRes;
-            const planLimit = u._planLimit;
-            let status = u._computedStatus;
-            let statusColor = u._statusColor;
-            let statusBg = u._statusBg;
-            // Churn Risk Logic
-            let churnRisk = null;
-            if (status === "Activo" || status === "Moroso") {
-                if (daysSinceLastAttendance > 14 && daysSinceLastAttendance !== -1) {
-                    churnRisk = "Riesgo de abandono: Ausente hace " + daysSinceLastAttendance + " días.";
-                } else if (daysSinceLastAttendance === -1 && daysLeft > 0 && daysLeft < 15) {
-                    churnRisk = "Riesgo: Pagó pero no asiste a clases.";
-                } else if (monthRes <= 1 && now.getDate() > 15) {
-                    churnRisk = "Riesgo: Baja frecuencia este mes.";
-                }
-            }
-
-            return `
-                            <div class="admin-item-card glass interactive-member-card" data-uid="${u.id}" style="flex-direction: column; align-items: stretch; gap:12px; padding:15px; cursor: pointer; transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.05); border-left: 4px solid ${statusColor};">
-                                <div style="display:flex; align-items:center; gap:15px;">
-                                    <img src="${u.photo_url || (typeof unknowAvatar !== 'undefined' ? unknowAvatar : '/app/images/icon-192.png')}" 
-                                         style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1);">
-                                    <div style="flex:1">
-                                        <div style="display:flex; align-items:center; gap:8px;">
-                                            <strong style="display:block;">${u.full_name || 'Sin Nombre'}</strong>
-                                            <div class="tag" style="background:${statusBg}; color:${statusColor}; font-size:9px; padding: 2px 6px;">${status}</div>
-                                            <div class="tag" style="background:rgba(139, 92, 246, 0.2); color:var(--accent-purple); font-size:8px; padding: 2px 6px;">LVL ${u.level || 0}</div>
-                                        </div>
-                                        <span style="font-size:0.75rem; color:var(--text-gray); opacity: 0.7;">${u.email}</span>
-                                        <div style="display:flex; gap:5px; align-items:center; margin-top:2px; flex-wrap:wrap;">
-                                            <span class="tag" style="background:rgba(255,255,255,0.05); font-size:9px; border:1px solid rgba(255,255,255,0.1); display:inline-block;">${u.membership_plans?.name || 'Sin Plan'}</span>
-                                            ${u.active_promo ? `<span class="tag" style="background:rgba(255, 215, 0, 0.1); color:#ffd700; font-size:9px; border:1px solid rgba(255, 215, 0, 0.3);"><i data-lucide="tag" style="width:10px;height:10px;margin-right:2px;"></i> ${u.active_promo}</span>` : ''}
-                                            ${churnRisk ? `<span class="tag" style="background:rgba(239, 68, 68, 0.1); color:#ef4444; font-size:9px; border:1px solid rgba(239, 68, 68, 0.3);"><i data-lucide="alert-triangle" style="width:10px;height:10px;margin-right:2px;"></i> ${churnRisk}</span>` : ''}
-                                        </div>
-                                    </div>
-                                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                                        <i data-lucide="chevron-down" class="expand-icon" style="width:16px; opacity:0.5; transition: transform 0.3s ease;"></i>
-                                    </div>
-                                </div>
-                                
-                                <div class="membership-progress-container">
-                                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 5px;">
-                                        <span>Progreso de Membresía</span>
-                                        <span style="color: ${isNearExpiry ? '#ef4444' : 'var(--text-gray)'}; font-weight: bold;">
-                                            ${expiryDate ? (daysLeft > 0 ? `${daysLeft} días restantes` : 'Expirado') : 'Sin Membresía'}
-                                        </span>
-                                    </div>
-                                    <div class="lvl-bar" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
-                                        <div class="lvl-fill" style="width: ${progress}%; height: 100%; transition: width 0.5s ease; background: ${isNearExpiry ? '#ef4444' : 'var(--accent-purple)'};"></div>
-                                    </div>
-                                </div>
-
-                                <!-- Expanded Details (Hidden by default) -->
-                                <div class="admin-user-details hidden" id="details-${u.id}" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; margin-top: 5px; animation: slideInUp 0.3s ease;">
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                        <div class="stat-box-mini" style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
-                                            <span style="font-size: 0.65rem; color: var(--text-gray); display: block; margin-bottom: 4px;">Reservas Totales</span>
-                                            <strong style="font-size: 1.1rem; color: var(--accent-cyan);">${totalRes}</strong>
-                                        </div>
-                                        <div class="stat-box-mini" style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
-                                            <span style="font-size: 0.65rem; color: var(--text-gray); display: block; margin-bottom: 4px;">Última Asistencia</span>
-                                            <strong style="font-size: 0.85rem; color: var(--accent-purple);">${lastAttendance ? lastAttendance.toLocaleDateString('es-CL') : 'Nunca'}</strong>
-                                        </div>
-                                    </div>
-                                    <div style="margin-top: 10px; font-size: 0.7rem; color: var(--text-gray); display: flex; justify-content: space-between;">
-                                        <span>Consumo mensual (${monthRes}/${planLimit}):</span>
-                                        <span style="color: white; font-weight: 700;">${planLimit > 0 ? Math.round((monthRes / planLimit) * 100) : 0}%</span>
-                                    </div>
-                                    
-                                    <div style="display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;">
-                                        <button class="btn-glass-small btn-quick-renew" data-id="${u.id}" style="border-color: #22c55e; color: #22c55e;"><i data-lucide="refresh-cw" style="width:14px;"></i> Renovar</button>
-                                        <button class="btn-glass-small btn-freeze-member" data-id="${u.id}" data-frozen="${u.is_frozen || false}" style="border-color: #3b82f6; color: #3b82f6;"><i data-lucide="snowflake" style="width:14px;"></i> ${u.is_frozen ? 'Descongelar' : 'Congelar'}</button>
-                                        <button class="btn-glass-small btn-toggle-active" data-id="${u.id}" data-active="${u.membership_status === 'active'}" style="border-color: ${u.membership_status === 'active' ? '#ef4444' : '#22c55e'}; color: ${u.membership_status === 'active' ? '#ef4444' : '#22c55e'};"><i data-lucide="${u.membership_status === 'active' ? 'power-off' : 'power'}" style="width:14px;"></i> ${u.membership_status === 'active' ? 'Inactivar' : 'Activar'}</button>
-                                    </div>
-                                </div>
-
-                                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
-                                    <div class="item-actions">
-                                        <button class="edit-member-btn btn-glass-small" data-id="${u.id}"><i data-lucide="edit-3" style="width:14px;"></i> Editar</button>
-                                        <button class="delete-member-btn btn-glass-small delete" data-id="${u.id}"><i data-lucide="trash-2" style="width:14px;"></i></button>
-                                    </div>
-                                </div>
-                            </div>
-                            `;
-        }).join('')}
-                    </div>
-                </div>
-        `;
-        window.lucide.createIcons();
-
-        // Interactivity: Toggle Details
-        document.querySelectorAll('.interactive-member-card').forEach(card => {
-            card.onclick = (e) => {
-                // Prevent toggle if clicking buttons or actions
-                if (e.target.closest('.item-actions') || e.target.closest('button')) return;
-
-                const uid = card.getAttribute('data-uid');
-                const details = document.getElementById(`details-${uid}`);
-                const icon = card.querySelector('.expand-icon');
-
-                if (details.classList.contains('hidden')) {
-                    details.classList.remove('hidden');
-                    if (icon) icon.style.transform = 'rotate(180deg)';
-                    card.style.borderColor = 'rgba(182, 229, 247, 0.3)';
-                    card.style.background = 'rgba(255,255,255,0.03)';
-                } else {
-                    details.classList.add('hidden');
-                    if (icon) icon.style.transform = 'rotate(0deg)';
-                    card.style.borderColor = 'rgba(255,255,255,0.05)';
-                    card.style.background = 'transparent';
-                }
-            };
-        });
-
-        // Filter Listener
-        const filterSelect = document.getElementById('filter-status-users');
-        if (filterSelect) {
-            filterSelect.onchange = (e) => {
-                renderAdminActiveUsers(e.target.value);
-            };
-        }
-
-        // Export Users Listener
-        document.getElementById('btn-export-users').onclick = () => {
-            const format = document.getElementById('export-format-users').value;
-            exportUserData(filteredUsers, format);
-        };
-
-        // Member CRUD Listeners
-        document.getElementById('btn-add-member-admin').onclick = () => openMemberModal();
-        document.querySelectorAll('.edit-member-btn').forEach(btn => {
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                openMemberModal(btn.getAttribute('data-id'), users);
-            }
-        });
-        document.querySelectorAll('.delete-member-btn').forEach(btn => {
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                deleteMember(btn.getAttribute('data-id'));
-            }
-        });
-
-        // Quick Actions
-        document.querySelectorAll('.btn-quick-renew').forEach(btn => {
-            btn.onclick = async (e) => {
-                e.stopPropagation();
-                const uid = btn.getAttribute('data-id');
-                const user = users.find(u => u.id === uid);
-                if (!user || !user.membership_plan_id) {
-                    window.showToast("El socio no tiene un plan asignado para renovar.", "#ef4444");
-                    return;
-                }
-                const confirmRenew = confirm(`¿Estás seguro que deseas renovar el plan de ${user.full_name} por 1 mes más?`);
-                if (confirmRenew) {
-                    try {
-                        const newExpiry = new Date();
-                        newExpiry.setMonth(newExpiry.getMonth() + 1);
-                        await SupabaseService.updateProfile(uid, {
-                            membership_expiry: newExpiry.toISOString(),
-                            membership_status: 'active',
-                            is_frozen: false
-                        });
-                        window.showToast("Plan renovado exitosamente ✅", "#22c55e");
-                        renderAdminActiveUsers();
-                    } catch (err) {
-                        window.showToast("Error al renovar plan.", "#ef4444");
-                    }
-                }
-            }
-        });
-
-        document.querySelectorAll('.btn-toggle-active').forEach(btn => {
-            btn.onclick = async (e) => {
-                e.stopPropagation();
-                const uid = btn.getAttribute('data-id');
-                const isActive = btn.getAttribute('data-active') === 'true';
-                try {
-                    const newStatus = isActive ? 'inactive' : 'active';
-                    const updateData = { membership_status: newStatus };
-
-                    if (!isActive) {
-                        const newExpiry = new Date();
-                        newExpiry.setDate(newExpiry.getDate() + 30);
-                        updateData.membership_expiry = newExpiry.toISOString();
-                    } else {
-                        updateData.membership_expiry = null;
-                    }
-
-                    await SupabaseService.updateProfile(uid, updateData);
-                    window.showToast(isActive ? "Socio Inactivado" : "Socio Activado (30 días)", isActive ? "#ef4444" : "#22c55e");
-                    renderAdminActiveUsers();
-                } catch (err) {
-                    window.showToast("Error al procesar la acción.", "#ef4444");
-                }
-            }
-        });
-
-        document.querySelectorAll('.btn-freeze-member').forEach(btn => {
-            btn.onclick = async (e) => {
-                e.stopPropagation();
-                const uid = btn.getAttribute('data-id');
-                const isFrozen = btn.getAttribute('data-frozen') === 'true';
-                try {
-                    await SupabaseService.updateProfile(uid, {
-                        is_frozen: !isFrozen
-                    });
-                    window.showToast(isFrozen ? "Membresía Descongelada 🧊" : "Membresía Congelada ❄️", "#3b82f6");
-                    renderAdminActiveUsers();
-                } catch (err) {
-                    window.showToast("Error al procesar la acción.", "#ef4444");
-                }
-            }
-        });
-
-    } catch (err) {
-        console.error(err);
-        window.showToast("Error al cargar socios ❌", "#ef4444");
-    }
 };
 
 export const renderAdminClasses = async () => {
@@ -1708,7 +1350,10 @@ export const renderAdminDiscounts = async () => {
                                     <p style="font-size:0.7rem; font-weight:700; margin-bottom:6px;">Usando este código:</p>
                                     ${activeUsers.map(u => `<div style="font-size:0.75rem; padding:3px 0;">${u.full_name || 'Usuario'}</div>`).join('')}
                                 </div>` : ''}
-                                <button class="btn-glass-small delete btn-delete-promo" data-id="${c.id}" style="width:40px; justify-content:center;">
+                                <button class="btn-glass-small btn-edit-promo" data-id="${c.id}" style="width:40px; justify-content:center; color:#60a5fa;" title="Editar código">
+                                    <i data-lucide="edit-2" style="width:14px;"></i>
+                                </button>
+                                <button class="btn-glass-small delete btn-delete-promo" data-id="${c.id}" style="width:40px; justify-content:center;" title="Eliminar código">
                                     <i data-lucide="trash-2" style="width:14px;"></i>
                                 </button>
                             </div>
@@ -1730,29 +1375,80 @@ export const renderAdminDiscounts = async () => {
             };
         }
 
-        // Create
+        // Edit state
+        let editingDiscountId = null;
+
+        // Edit button click
+        document.querySelectorAll('.btn-edit-promo').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const discount = codes.find(x => x.id === id);
+                if (!discount) return;
+
+                editingDiscountId = id;
+                document.getElementById('new-promo-code').value = discount.code;
+                document.getElementById('new-promo-perc').value = discount.percent;
+                if (discount.expiresAt) {
+                    try {
+                        document.getElementById('new-promo-exp').value = new Date(discount.expiresAt).toISOString().split('T')[0];
+                    } catch {
+                        document.getElementById('new-promo-exp').value = '';
+                    }
+                } else {
+                    document.getElementById('new-promo-exp').value = '';
+                }
+
+                const selected = Array.isArray(discount.plans) ? discount.plans : [];
+                document.querySelectorAll('.promo-plan-checkbox').forEach(cb => {
+                    cb.checked = selected.length === 0 || selected.includes(cb.value);
+                });
+
+                const createBtn = document.getElementById('btn-create-promo');
+                createBtn.textContent = 'Actualizar Código';
+                createBtn.style.background = 'var(--accent-emerald, #22c55e)';
+                document.getElementById('new-promo-code').scrollIntoView({ behavior: 'smooth' });
+            };
+        });
+
+        // Create / Update
         document.getElementById('btn-create-promo').onclick = async () => {
             const code = document.getElementById('new-promo-code').value.trim().toUpperCase();
             const percent = parseInt(document.getElementById('new-promo-perc').value);
             const expStr = document.getElementById('new-promo-exp').value;
             const checked = document.querySelectorAll('.promo-plan-checkbox:checked');
+            const totalCbs = document.querySelectorAll('.promo-plan-checkbox').length;
             const selectedPlans = Array.from(checked).map(cb => cb.value);
 
             if (!code || isNaN(percent) || percent <= 0 || percent > 100) {
                 return window.showToast("Código o porcentaje inválido", "#ef4444");
             }
-            if (codes.find(c => c.code === code)) {
-                return window.showToast("Ese código ya existe", "#ef4444");
-            }
+
+            const payload = { 
+                code, 
+                percent, 
+                plans: (selectedPlans.length > 0 && selectedPlans.length < totalCbs) ? selectedPlans : null, 
+                expiresAt: expStr ? new Date(expStr + 'T23:59:59').toISOString() : null 
+            };
+
             try {
-                const newDiscount = { code, percent, plans: selectedPlans.length > 0 ? selectedPlans : null, expiresAt: expStr ? new Date(expStr + 'T23:59:59').toISOString() : null };
-                const { error: insErr } = await window.supabase.from('discounts').insert(newDiscount);
-                if (insErr) throw insErr;
-                window.showToast(`Código ${code} creado ✅`, "#22c55e");
+                if (editingDiscountId) {
+                    const { error: upErr } = await window.supabase.from('discounts').update(payload).eq('id', editingDiscountId);
+                    if (upErr) throw upErr;
+                    window.showToast(`Código ${code} actualizado ✅`, "#22c55e");
+                } else {
+                    if (codes.find(c => c.code === code)) {
+                        return window.showToast("Ese código ya existe", "#ef4444");
+                    }
+                    const { error: insErr } = await window.supabase.from('discounts').insert(payload);
+                    if (insErr) throw insErr;
+                    window.showToast(`Código ${code} creado ✅`, "#22c55e");
+                }
+                editingDiscountId = null;
                 renderAdminDiscounts();
             } catch (err) {
                 console.error(err);
-                window.showToast("Error al crear código", "#ef4444");
+                window.showToast("Error al guardar código", "#ef4444");
             }
         };
 

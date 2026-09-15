@@ -62,7 +62,19 @@ export const renderSchedule = async () => {
     }
 
     const filteredClasses = appState.classes.filter(c => {
-        const matchesFilter = appState.activeFilter === 'Todas' || c.type === appState.activeFilter;
+        const filter = appState.activeFilter || 'Todas';
+        let matchesFilter = filter === 'Todas' || filter === 'all' || c.type === filter;
+        if (!matchesFilter) {
+            const fLow = filter.toLowerCase();
+            const tLow = (c.type || '').toLowerCase();
+            const nLow = (c.name || '').toLowerCase();
+            matchesFilter = tLow.includes(fLow) || fLow.includes(tLow) ||
+                            nLow.includes(fLow) ||
+                            (fLow.includes('striking') && (tLow.includes('striking') || nLow.includes('kick') || nLow.includes('box'))) ||
+                            (fLow.includes('bjj') && (tLow.includes('bjj') || nLow.includes('jiu jitsu') || nLow.includes('gi') || nLow.includes('nogi'))) ||
+                            (fLow.includes('mma') && (tLow.includes('mma') || nLow.includes('mma'))) ||
+                            (fLow.includes('funcional') && (tLow.includes('funcional') || nLow.includes('funcional')));
+        }
         let cDays = c.days;
         if (typeof cDays === 'string') {
             try { cDays = JSON.parse(cDays); }

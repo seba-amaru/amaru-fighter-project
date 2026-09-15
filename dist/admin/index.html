@@ -32,7 +32,7 @@
     <!-- jsPDF & AutoTable para exportación PDF profesional -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script type="module" crossorigin src="/assets/admin-BypbiSP_.js"></script>
+  <script type="module" crossorigin src="/assets/admin-BOIQ0aij.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/admin-DMtpTz9W.css">
 </head>
 
@@ -1605,6 +1605,10 @@
                         <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                         <span>Editar</span>
                     </button>
+                    <button class="btn-secondary-action" id="drawer-btn-delete-member" style="padding: 6px 12px; font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.25);" title="Eliminar socio definitivamente">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        <span>Eliminar</span>
+                    </button>
                     <button class="btn-icon" id="btn-close-drawer">
                         <i data-lucide="x"></i>
                     </button>
@@ -1949,9 +1953,13 @@
                     </div>
                 </div>
                 <div class="admin-modal-footer">
-                    <button type="button" class="btn-ghost-danger" id="btn-toggle-active-member-modal" style="margin-right: auto;">
+                    <button type="button" class="btn-ghost-danger" id="btn-toggle-active-member-modal">
                         <i data-lucide="user-x"></i>
                         <span id="btn-toggle-active-member-text">Desactivar Socio</span>
+                    </button>
+                    <button type="button" class="btn-ghost-danger" id="btn-delete-member-modal" style="margin-right: auto; color: #ef4444; border-color: rgba(239, 68, 68, 0.35);">
+                        <i data-lucide="trash-2"></i>
+                        <span>Eliminar Socio</span>
                     </button>
                     <button type="button" class="btn-secondary-action" id="btn-cancel-edit-member-modal">Cancelar</button>
                     <button type="submit" class="btn-primary-action" style="background: var(--primary); color: #fff; font-weight: 700;">
@@ -2006,6 +2014,77 @@
             </div>
         </div>
     </div>
+
+    <!-- ====================================================================
+         MODAL: GESTOR DE DESCUENTOS Y CUPONES (CREAR Y EDITAR)
+         ==================================================================== -->
+    <div class="admin-modal-overlay" id="discount-modal-overlay">
+        <div class="admin-modal-dialog" style="max-width: 540px;">
+            <div class="admin-modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(34, 197, 94, 0.15); display: flex; align-items: center; justify-content: center; color: #22c55e;">
+                        <i data-lucide="tag" style="width: 20px; height: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 id="discount-modal-title" style="font-size: 1.15rem; color: #fff; margin: 0;">Nuevo Cupón de Descuento</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Configura el código, porcentaje y membresías aplicables</p>
+                    </div>
+                </div>
+                <button class="btn-icon" id="btn-close-discount-modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="discount-form">
+                <input type="hidden" id="discount-input-id">
+                <div class="admin-modal-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Código del Cupón *</label>
+                            <input type="text" class="input-dark" id="discount-input-code" placeholder="Ej: AMARU20" style="text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 1px;" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Porcentaje de Descuento (%) *</label>
+                            <input type="number" class="input-dark" id="discount-input-percent" placeholder="Ej: 20" min="1" max="100" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label class="form-label" style="margin-bottom: 0;">Membresías Aplicables</label>
+                            <label style="font-size: 0.75rem; color: var(--accent-purple); cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" id="discount-select-all-plans" style="cursor: pointer; accent-color: var(--accent-purple);">
+                                <span>Todas las membresías</span>
+                            </label>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">Selecciona una, varias o todas las membresías a las que aplicará el beneficio:</p>
+                        <div id="discount-plans-checkbox-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 180px; overflow-y: auto; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 12px;">
+                            <!-- Checkboxes de planes renderizados dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Fecha de Expiración (Opcional)</label>
+                            <input type="date" class="input-dark" id="discount-input-expiry">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Estado del Cupón</label>
+                            <select class="select-dark" id="discount-input-status">
+                                <option value="active">Activo (Disponible)</option>
+                                <option value="inactive">Inactivo (Deshabilitado)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button type="button" class="btn-secondary-action" id="btn-cancel-discount-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary-action" style="background: var(--accent-emerald); color: #000; font-weight: 700;">
+                        <i data-lucide="check"></i>
+                        <span id="btn-save-discount-text">Guardar Cupón</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
         <!-- ====================================================================
              MODAL: REGISTRO RÁPIDO DE PAGO PRESENCIAL
              ==================================================================== -->
