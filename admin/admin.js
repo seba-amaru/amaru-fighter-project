@@ -19,7 +19,7 @@ const adminState = {
 // ============================================================================
 // INICIALIZACIÓN Y SEGURIDAD (ROUTE GUARD)
 // ============================================================================
-document.addEventListener('DOMContentLoaded', async () => {
+async function bootAdminApp() {
     initLucideIcons();
     initNavigation();
     initCommandPalette();
@@ -31,7 +31,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Carga de todas las secciones principales
     await loadInitialData();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootAdminApp);
+} else {
+    bootAdminApp();
+}
 
 function initLucideIcons() {
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -269,6 +275,9 @@ export function navigateToSection(sectionKey) {
     if (sectionKey === 'members') {
         loadMembersModule();
     }
+    if (sectionKey === 'revenue') {
+        loadRevenueSection();
+    }
 
     // Actualizar iconos
     initLucideIcons();
@@ -354,7 +363,10 @@ function initQuickActions() {
         const modal = document.getElementById('class-modal-overlay');
         if (modal) modal.classList.add('open');
     });
-    if (actMember) actMember.addEventListener('click', () => navigateToSection('members'));
+    if (actMember) actMember.addEventListener('click', () => {
+        navigateToSection('members');
+        openCreateMemberModal();
+    });
     if (actPayments) actPayments.addEventListener('click', () => navigateToSection('payments'));
     if (actBroadcast) actBroadcast.addEventListener('click', () => {
         navigateToSection('notifications');
@@ -843,6 +855,10 @@ function initDrawerAndModals() {
     initPaymentsUIHandlers();
     initAttendanceUIHandlers();
     initMembersCRMUIHandlers();
+
+    window.openCreateMemberModal = openCreateMemberModal;
+    window.closeEditMemberModal = closeEditMemberModal;
+    window.openEditMemberModal = openEditMemberModal;
 }
 
 export function openMemberDrawer(member) {
@@ -2790,6 +2806,76 @@ export function openEditMemberModal(memberId) {
         toggleBtnText.textContent = (member.membership_status === 'inactive') ? 'Reactivar Socio' : 'Desactivar Socio';
     }
 
+    // Asegurar que los botones de acción para editar estén visibles
+    const btnToggleActive = document.getElementById('btn-toggle-active-member-modal');
+    const btnDeleteMember = document.getElementById('btn-delete-member-modal');
+    const subtitleEl = document.getElementById('edit-member-modal-subtitle');
+    const submitBtnSpan = document.querySelector('#edit-member-form button[type="submit"] span');
+
+    if (btnToggleActive) btnToggleActive.style.display = '';
+    if (btnDeleteMember) btnDeleteMember.style.display = '';
+    if (submitBtnSpan) submitBtnSpan.textContent = 'Guardar Cambios';
+    if (subtitleEl) subtitleEl.textContent = 'Actualiza datos personales, contacto y membresía';
+
+    initLucideIcons();
+    if (modal) modal.classList.add('open');
+}
+
+export function openCreateMemberModal() {
+    const modal = document.getElementById('edit-member-modal-overlay');
+    const inputId = document.getElementById('edit-member-input-id');
+    const inputName = document.getElementById('edit-member-input-name');
+    const inputEmail = document.getElementById('edit-member-input-email');
+    const inputPhone = document.getElementById('edit-member-input-phone');
+    const inputRut = document.getElementById('edit-member-input-rut');
+    const inputPlan = document.getElementById('edit-member-input-plan');
+    const inputStatus = document.getElementById('edit-member-input-status');
+    const inputExpiry = document.getElementById('edit-member-input-expiry');
+    const inputBelt = document.getElementById('edit-member-input-belt');
+    const inputEmergency = document.getElementById('edit-member-input-emergency');
+    const inputNotes = document.getElementById('edit-member-input-notes');
+    const avatarEl = document.getElementById('edit-member-avatar');
+    const titleEl = document.getElementById('edit-member-modal-title');
+    const subtitleEl = document.getElementById('edit-member-modal-subtitle');
+    const btnToggleActive = document.getElementById('btn-toggle-active-member-modal');
+    const btnDeleteMember = document.getElementById('btn-delete-member-modal');
+    const submitBtnSpan = document.querySelector('#edit-member-form button[type="submit"] span');
+
+    if (inputId) inputId.value = '';
+    if (inputName) inputName.value = '';
+    if (inputEmail) inputEmail.value = '';
+    if (inputPhone) inputPhone.value = '';
+    if (inputRut) inputRut.value = '';
+    if (inputBelt) inputBelt.value = '';
+    if (inputEmergency) inputEmergency.value = '';
+    if (inputNotes) inputNotes.value = '';
+
+    if (avatarEl) avatarEl.textContent = '+';
+    if (titleEl) titleEl.textContent = 'Registrar Nuevo Socio';
+    if (subtitleEl) subtitleEl.textContent = 'Ingresa los datos personales y asigna su membresía inicial';
+
+    // Ocultar botones de acciones destructivas al crear nuevo
+    if (btnToggleActive) btnToggleActive.style.display = 'none';
+    if (btnDeleteMember) btnDeleteMember.style.display = 'none';
+    if (submitBtnSpan) submitBtnSpan.textContent = 'Crear Socio';
+
+    // Llenar selector de planes con los planes actuales
+    if (inputPlan) {
+        const plans = cachedPlans || [];
+        inputPlan.innerHTML = '<option value="">Sin Plan Asignado</option>' + plans.map(p => `
+            <option value="${p.id}">${p.name} ($${(p.price || 0).toLocaleString('es-CL')})</option>
+        `).join('');
+    }
+
+    if (inputStatus) inputStatus.value = 'active';
+
+    if (inputExpiry) {
+        // Por defecto vencimiento en 30 días
+        const expDate = new Date();
+        expDate.setDate(expDate.getDate() + 30);
+        inputExpiry.value = expDate.toISOString().split('T')[0];
+    }
+
     initLucideIcons();
     if (modal) modal.classList.add('open');
 }
@@ -2802,8 +2888,6 @@ export function closeEditMemberModal() {
 export async function handleEditMemberSubmit(e) {
     e.preventDefault();
     const id = document.getElementById('edit-member-input-id')?.value;
-    if (!id) return;
-
     const name = document.getElementById('edit-member-input-name')?.value?.trim();
     const email = document.getElementById('edit-member-input-email')?.value?.trim();
     const phone = document.getElementById('edit-member-input-phone')?.value?.trim();
@@ -2814,6 +2898,113 @@ export async function handleEditMemberSubmit(e) {
     const belt = document.getElementById('edit-member-input-belt')?.value?.trim();
     const emergency = document.getElementById('edit-member-input-emergency')?.value?.trim();
     const notes = document.getElementById('edit-member-input-notes')?.value?.trim();
+
+    // --- CASO 1: CREAR NUEVO SOCIO ---
+    if (!id) {
+        if (!name) {
+            if (window.Swal) window.Swal.fire({ icon: 'warning', title: 'Campo Requerido', text: 'El nombre completo es obligatorio.', background: '#09090B', color: '#fff' });
+            return;
+        }
+        if (!email) {
+            if (window.Swal) window.Swal.fire({ icon: 'warning', title: 'Campo Requerido', text: 'El correo electrónico es obligatorio.', background: '#09090B', color: '#fff' });
+            return;
+        }
+
+        try {
+            if (window.Swal) {
+                window.Swal.fire({
+                    title: 'Creando Socio...',
+                    text: 'Registrando perfil en la plataforma.',
+                    allowOutsideClick: false,
+                    didOpen: () => window.Swal.showLoading(),
+                    background: '#09090B',
+                    color: '#fff'
+                });
+            }
+
+            const expiryIso = expiry ? new Date(expiry + 'T23:59:59').toISOString() : null;
+            let newUserId = null;
+
+            // 1. Intentar registrar a través de Edge Function create-user
+            try {
+                const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('create-user', {
+                    body: {
+                        email,
+                        password: 'Amaru' + Math.floor(1000 + Math.random() * 9000) + '!',
+                        full_name: name,
+                        memberData: {
+                            phone: phone || null,
+                            rut: rut || null,
+                            membership_plan_id: planId,
+                            membership_status: status,
+                            membership_expiry: expiryIso,
+                            combat_style: belt || null,
+                            emergency_contact: emergency || null,
+                            admin_notes: notes || null
+                        }
+                    }
+                });
+
+                if (!edgeErr && edgeData && edgeData.userId) {
+                    newUserId = edgeData.userId;
+                }
+            } catch (efErr) {
+                console.warn('[Admin] Edge Function no disponible, usando fallback directo:', efErr);
+            }
+
+            // 2. Fallback: inserción directa en tabla profiles
+            if (!newUserId) {
+                newUserId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('user_' + Date.now());
+                const insertPayload = {
+                    id: newUserId,
+                    full_name: name,
+                    email: email,
+                    phone: phone || null,
+                    rut: rut || null,
+                    membership_plan_id: planId,
+                    membership_status: status,
+                    membership_expiry: expiryIso,
+                    combat_style: belt || null,
+                    emergency_contact: emergency || null,
+                    admin_notes: notes || null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
+                const { error: insErr } = await supabase.from('profiles').insert(insertPayload);
+                if (insErr) throw insErr;
+            }
+
+            closeEditMemberModal();
+            await loadMembersModule();
+            if (typeof loadDashboardKPIs === 'function') await loadDashboardKPIs();
+
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'success',
+                    title: '¡Socio Registrado!',
+                    text: `Se ha creado el perfil de ${name} con éxito.`,
+                    background: '#09090B',
+                    color: '#fff',
+                    timer: 2200,
+                    showConfirmButton: false
+                });
+            }
+            return;
+        } catch (createErr) {
+            console.error('[Admin] Error al registrar socio:', createErr);
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'error',
+                    title: 'Error al Registrar',
+                    text: createErr.message || 'No se pudo crear el socio. Verifica los datos.',
+                    background: '#09090B',
+                    color: '#fff'
+                });
+            }
+            return;
+        }
+    }
 
     try {
         const updatePayload = {
@@ -3310,13 +3501,20 @@ function initMembersCRMUIHandlers() {
         });
     });
 
-    // 2. Refrescar
+    // 2. Refrescar y Nuevo Socio
     const btnRef = document.getElementById('btn-refresh-members');
     if (btnRef) {
         btnRef.addEventListener('click', async () => {
             btnRef.classList.add('rotating');
             await loadMembersModule();
             setTimeout(() => btnRef.classList.remove('rotating'), 600);
+        });
+    }
+
+    const btnCreateMember = document.getElementById('btn-create-member');
+    if (btnCreateMember) {
+        btnCreateMember.addEventListener('click', () => {
+            openCreateMemberModal();
         });
     }
 
@@ -3417,6 +3615,8 @@ function initMembersCRMUIHandlers() {
     if (btnDeleteDrawerMember) btnDeleteDrawerMember.addEventListener('click', () => {
         if (adminState.activeDrawerMember) deleteMemberPermanently(adminState.activeDrawerMember.id);
     });
+    const btnCreateMemberModal = document.getElementById('btn-create-member');
+    if (btnCreateMemberModal) btnCreateMemberModal.addEventListener('click', openCreateMemberModal);
 }
 
 function exportMembersDirectoryCSV() {
@@ -5367,9 +5567,6 @@ let isRevenueControlsInit = false;
 export async function loadRevenueSection() {
     initRevenueControlsOnce();
 
-    const canvas = document.getElementById('desktop-revenue-chart');
-    if (!canvas || !window.Chart) return;
-
     try {
         const [paymentsRes, profilesRes, plansRes] = await Promise.all([
             supabase.from('payments').select('*, profiles:profiles(id, full_name, email, membership_plan_id)').order('created_at', { ascending: false }),
@@ -5440,12 +5637,12 @@ export async function loadRevenueSection() {
             growthEl.style.color = growth >= 0 ? 'var(--accent-emerald)' : '#ef4444';
         }
         if (payersEl) payersEl.textContent = uniquePayers;
-        if (ticketEl) ticketEl.textContent = `$${Math.round(avgTicket).toLocaleString('es-CL')}`;
+        if (ticketEl) ticketEl.textContent = `$${Math.round(avgTicket || (plans[0]?.price || 35000)).toLocaleString('es-CL')}`;
         if (mrrEl) mrrEl.textContent = `$${estimatedMRR.toLocaleString('es-CL')}`;
         if (pendingEl) pendingEl.textContent = `$${pendingTotal.toLocaleString('es-CL')}`;
         if (pendingSubEl) pendingSubEl.textContent = `${pendingPayments.length} en revisión`;
 
-        // Renderizar Gráficos Financieros
+        // Renderizar Gráficos Financieros (si los canvas y Chart están disponibles)
         renderRevenueEvolutionChart(approvedPayments);
         renderRevenueMethodChart(selPayments);
 
@@ -5463,6 +5660,10 @@ export async function loadRevenueSection() {
 }
 
 function initRevenueControlsOnce() {
+    const simMembersSlider = document.getElementById('sim-members-slider');
+    const simPriceSlider = document.getElementById('sim-price-slider');
+    if (!simMembersSlider || !simPriceSlider) return;
+
     if (isRevenueControlsInit) return;
     isRevenueControlsInit = true;
 
@@ -5472,8 +5673,6 @@ function initRevenueControlsOnce() {
     const btnRefresh = document.getElementById('btn-refresh-revenue');
     const btnExport = document.getElementById('btn-export-revenue-multiformat');
     const btnEditGoal = document.getElementById('btn-edit-revenue-goal');
-    const simMembersSlider = document.getElementById('sim-members-slider');
-    const simPriceSlider = document.getElementById('sim-price-slider');
     const searchInput = document.getElementById('rev-ledger-search');
 
     if (monthSelect) {
@@ -5552,38 +5751,43 @@ function initRevenueControlsOnce() {
         });
     }
 
-    if (simMembersSlider && simPriceSlider) {
-        const onSimChange = () => {
-            const addedMembers = parseInt(simMembersSlider.value, 10);
-            const priceDelta = parseInt(simPriceSlider.value, 10);
+    const onSimChange = () => {
+        const addedMembers = parseInt(simMembersSlider.value, 10) || 0;
+        const priceDelta = parseInt(simPriceSlider.value, 10) || 0;
 
-            const memValEl = document.getElementById('sim-members-val');
-            const priceValEl = document.getElementById('sim-price-val');
-            if (memValEl) memValEl.textContent = `+${addedMembers} alumnos`;
-            if (priceValEl) priceValEl.textContent = `${priceDelta >= 0 ? '+' : ''}${priceDelta}%`;
+        const memValEl = document.getElementById('sim-members-val');
+        const priceValEl = document.getElementById('sim-price-val');
+        if (memValEl) memValEl.textContent = `+${addedMembers} alumnos`;
+        if (priceValEl) priceValEl.textContent = `${priceDelta >= 0 ? '+' : ''}${priceDelta}%`;
 
-            // Calcular ingresos basados en el estado actual
-            const currentTotalStr = document.getElementById('rev-kpi-total')?.textContent || '$0';
-            const cleanTotal = Number(currentTotalStr.replace(/[^0-9]/g, '')) || 0;
-            const payersStr = document.getElementById('rev-kpi-payers')?.textContent || '0';
-            const cleanPayers = Number(payersStr.replace(/[^0-9]/g, '')) || 1;
-            const avgTicket = cleanPayers > 0 ? cleanTotal / cleanPayers : 35000;
+        // Calcular ingresos basados en el estado actual
+        const currentTotalStr = document.getElementById('rev-kpi-total')?.textContent || '$0';
+        const cleanTotal = Number(currentTotalStr.replace(/[^0-9]/g, '')) || 0;
+        const payersStr = document.getElementById('rev-kpi-payers')?.textContent || '0';
+        const cleanPayers = Number(payersStr.replace(/[^0-9]/g, '')) || 0;
 
-            const newTicket = avgTicket * (1 + priceDelta / 100);
-            const extraFromNew = addedMembers * newTicket;
-            const extraFromPrice = cleanPayers * (newTicket - avgTicket);
-            const totalExtra = Math.round(extraFromNew + extraFromPrice);
-            const newProjected = cleanTotal + totalExtra;
+        // Fallback robusto para ticket medio si no hay pagos aún en el período
+        let avgTicket = (cleanPayers > 0 && cleanTotal > 0) ? (cleanTotal / cleanPayers) : 35000;
+        if (avgTicket <= 0) avgTicket = 35000;
+        const basePayersCount = cleanPayers > 0 ? cleanPayers : 15;
 
-            const extraEl = document.getElementById('sim-extra-revenue');
-            const totalProjEl = document.getElementById('sim-total-projected');
-            if (extraEl) extraEl.textContent = `+${totalExtra >= 0 ? '$' : '-$'}${Math.abs(totalExtra).toLocaleString('es-CL')} / mes`;
-            if (totalProjEl) totalProjEl.textContent = `$${newProjected.toLocaleString('es-CL')}`;
-        };
+        const newTicket = avgTicket * (1 + priceDelta / 100);
+        const extraFromNew = addedMembers * newTicket;
+        const extraFromPrice = basePayersCount * (newTicket - avgTicket);
+        const totalExtra = Math.round(extraFromNew + extraFromPrice);
+        const newProjected = cleanTotal + totalExtra;
 
-        simMembersSlider.addEventListener('input', onSimChange);
-        simPriceSlider.addEventListener('input', onSimChange);
-    }
+        const extraEl = document.getElementById('sim-extra-revenue');
+        const totalProjEl = document.getElementById('sim-total-projected');
+        if (extraEl) extraEl.textContent = `+${totalExtra >= 0 ? '$' : '-$'}${Math.abs(totalExtra).toLocaleString('es-CL')} / mes`;
+        if (totalProjEl) totalProjEl.textContent = `$${newProjected.toLocaleString('es-CL')}`;
+    };
+
+    simMembersSlider.addEventListener('input', onSimChange);
+    simMembersSlider.addEventListener('change', onSimChange);
+    simPriceSlider.addEventListener('input', onSimChange);
+    simPriceSlider.addEventListener('change', onSimChange);
+    onSimChange();
 
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
@@ -5782,14 +5986,17 @@ function updateWhatIfSimulation(selTotal, uniquePayers, avgTicket) {
     const simPriceSlider = document.getElementById('sim-price-slider');
     if (!simMembersSlider || !simPriceSlider) return;
 
-    const addedMembers = parseInt(simMembersSlider.value, 10) || 10;
+    const addedMembers = parseInt(simMembersSlider.value, 10) || 0;
     const priceDelta = parseInt(simPriceSlider.value, 10) || 0;
 
-    const newTicket = (avgTicket || 35000) * (1 + priceDelta / 100);
+    const baseTicket = (avgTicket && avgTicket > 0) ? avgTicket : 35000;
+    const basePayers = (uniquePayers && uniquePayers > 0) ? uniquePayers : 15;
+
+    const newTicket = baseTicket * (1 + priceDelta / 100);
     const extraFromNew = addedMembers * newTicket;
-    const extraFromPrice = (uniquePayers || 1) * (newTicket - (avgTicket || 35000));
+    const extraFromPrice = basePayers * (newTicket - baseTicket);
     const totalExtra = Math.round(extraFromNew + extraFromPrice);
-    const newProjected = selTotal + totalExtra;
+    const newProjected = (selTotal || 0) + totalExtra;
 
     const extraEl = document.getElementById('sim-extra-revenue');
     const totalProjEl = document.getElementById('sim-total-projected');

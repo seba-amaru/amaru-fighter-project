@@ -1524,10 +1524,7 @@ Equipo Amaru 🥋`};o&&s&&(o.onchange=()=>{let e=c[o.value];e&&(s.value=e)});let
                 <div class="smoke-layer"></div>
                 <div class="stitch-class-content">
                     <div class="cls-info-main" style="flex:1;">
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
-                            <span class="tag" style="background:${c}22; color:${c}; border:1px solid ${c}44;">${e.type}</span>
-                            ${r?`<span class="tag" style="background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3);">✓ Reservado</span>`:``}
-                        </div>
+                        ${r?`<div style="margin-bottom:6px;"><span class="tag" style="background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3);">✓ Reservado</span></div>`:``}
                         <h4 style="margin:0; font-size:1.05rem; font-weight:800;">${e.name}</h4>
                         <p style="margin:4px 0 0; font-size:0.8rem; opacity:0.7;">${e.time} • Coach ${e.coach}</p>
                         <div style="display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap;">
