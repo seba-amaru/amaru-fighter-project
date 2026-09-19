@@ -150,5 +150,33 @@ describe('Utilidades de Finanzas y Formateo', () => {
         expect(payload.status).toBe('approved');
         expect(payload.currency).toBe('CLP');
     });
+
+    it('el payload de actualización de membresías debe usar campos compatibles del esquema', () => {
+        const preparePlanPayload = ({ name, price, monthly, type, description }) => {
+            const modalityLabel = type === 'hibrido' ? 'Híbrido (Dojo + Online)' : (type === 'personalizado' ? 'Entrenamiento Personalizado' : 'Presencial en Dojo');
+            return {
+                name,
+                price: Number(price) || 0,
+                monthly: monthly > 0 ? monthly : null,
+                subtitle: modalityLabel,
+                description: description || ''
+            };
+        };
+
+        const plan = preparePlanPayload({
+            name: 'Pase Libre Tatami',
+            price: 45000,
+            monthly: 0,
+            type: 'hibrido',
+            description: 'Acceso total a todas las clases'
+        });
+
+        expect(plan.name).toBe('Pase Libre Tatami');
+        expect(plan.price).toBe(45000);
+        expect(plan.monthly).toBeNull();
+        expect(plan.subtitle).toBe('Híbrido (Dojo + Online)');
+        expect(plan).not.toHaveProperty('type');
+    });
 });
+
 

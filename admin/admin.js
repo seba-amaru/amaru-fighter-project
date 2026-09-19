@@ -720,7 +720,8 @@ function initDrawerAndModals() {
             const name = document.getElementById('plan-input-name').value.trim();
             const price = parseInt(document.getElementById('plan-input-price').value, 10) || 0;
             const monthly = parseInt(document.getElementById('plan-input-monthly').value, 10) || 0;
-            const type = document.getElementById('plan-input-type').value;
+            const type = document.getElementById('plan-input-type')?.value;
+            const modalityLabel = type === 'hibrido' ? 'Híbrido (Dojo + Online)' : (type === 'personalizado' ? 'Entrenamiento Personalizado' : 'Presencial en Dojo');
             const description = document.getElementById('plan-input-description').value.trim();
 
             try {
@@ -730,7 +731,7 @@ function initDrawerAndModals() {
                         name,
                         price,
                         monthly: monthly > 0 ? monthly : null,
-                        type,
+                        subtitle: modalityLabel,
                         description
                     }).eq('id', planId);
 
@@ -755,7 +756,7 @@ function initDrawerAndModals() {
                         name,
                         price,
                         monthly: monthly > 0 ? monthly : null,
-                        type,
+                        subtitle: modalityLabel,
                         description
                     }]);
 
@@ -5137,7 +5138,16 @@ export function openEditPlanModal(planId) {
     if (nameInput) nameInput.value = plan.name || '';
     if (priceInput) priceInput.value = plan.price || 0;
     if (monthlyInput) monthlyInput.value = plan.monthly || 0;
-    if (typeSelect) typeSelect.value = plan.type || 'presencial';
+    if (typeSelect) {
+        const val = (plan.subtitle || plan.type || '').toLowerCase();
+        if (val.includes('hibrid') || val.includes('híbrid')) {
+            typeSelect.value = 'hibrido';
+        } else if (val.includes('personal')) {
+            typeSelect.value = 'personalizado';
+        } else {
+            typeSelect.value = 'presencial';
+        }
+    }
     if (descInput) descInput.value = plan.description || '';
 
     if (titleEl) titleEl.innerHTML = '<i data-lucide="award" style="color: var(--accent-gold);"></i><span>Editar Tarifa de Membresía</span>';
@@ -6474,7 +6484,7 @@ export async function exportPlansToMultiformat() {
             p.name,
             `$${Number(p.price || 0).toLocaleString('es-CL')}`,
             p.monthly ? `${p.monthly} clases/mes` : 'Ilimitadas',
-            p.type || 'Presencial Dojo',
+            p.subtitle || p.type || 'Presencial Dojo',
             p.description || ''
         ]);
 
