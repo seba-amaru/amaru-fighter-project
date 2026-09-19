@@ -383,7 +383,8 @@ async function loadDashboardKPIs() {
         // 1. Total Socios Activos en profiles
         const { count: membersCount, error: errMem } = await supabase
             .from('profiles')
-            .select('*', { count: 'exact', head: true });
+            .select('*', { count: 'exact', head: true })
+            .or('is_deleted.is.null,is_deleted.eq.false');
 
         if (!errMem && membersCount !== null) {
             adminState.kpis.activeMembers = membersCount;
@@ -1454,14 +1455,14 @@ export async function loadAttendanceModule() {
             supabase.from('attendance').select('*'),
             supabase.from('reservations').select('*').order('reservation_date', { ascending: false }),
             supabase.from('classes').select('*').order('time', { ascending: true }),
-            supabase.from('profiles').select('*').order('created_at', { ascending: false })
+            supabase.from('profiles').select('*').or('is_deleted.is.null,is_deleted.eq.false').order('created_at', { ascending: false })
         ]);
 
         if (attRes.error) {
             console.warn('[Admin] Aviso en consulta attendance (se continuará con reservas y clases):', attRes.error);
         }
 
-        const profiles = profRes.data || [];
+        const profiles = (profRes.data || []).filter(p => !p.is_deleted);
         cachedClassesForAtt = clsRes.data || [];
         cachedReservations = resRes.data || [];
 
@@ -2359,7 +2360,7 @@ export async function loadMembersTable() {
 export async function loadMembersModule() {
     try {
         const [profRes, planRes, attRes, payRes] = await Promise.all([
-            supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+            supabase.from('profiles').select('*').or('is_deleted.is.null,is_deleted.eq.false').order('created_at', { ascending: false }),
             supabase.from('membership_plans').select('*').order('price', { ascending: true }),
             supabase.from('attendance').select('*'),
             supabase.from('payments').select('id, user_id, amount, status, created_at')
@@ -2376,7 +2377,7 @@ export async function loadMembersModule() {
         const now = new Date();
 
         // Enriquecer datos de miembros
-        cachedMembers = (profRes.data || []).map(m => {
+        cachedMembers = (profRes.data || []).filter(m => !m.is_deleted).map(m => {
             const planName = plansMap[m.membership_plan_id] || (m.membership_status === 'active' ? 'Plan Activo' : 'Sin Plan');
 
             // Última asistencia
@@ -3681,13 +3682,13 @@ export async function loadPaymentsModule() {
     try {
         const [payRes, profRes, planRes] = await Promise.all([
             supabase.from('payments').select('*').order('created_at', { ascending: false }),
-            supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+            supabase.from('profiles').select('*').or('is_deleted.is.null,is_deleted.eq.false').order('created_at', { ascending: false }),
             supabase.from('membership_plans').select('*').order('price', { ascending: true })
         ]);
 
         if (payRes.error) throw payRes.error;
 
-        cachedMembers = profRes.data || [];
+        cachedMembers = (profRes.data || []).filter(m => !m.is_deleted);
         cachedPlans = planRes.data || [];
 
         // Mapear nombres de planes
@@ -4643,11 +4644,8 @@ function initQuickPaymentModalHandlers() {
             const autoRenew = document.getElementById('qp-input-auto-renew')?.checked;
 
             try {
-                const newId = 'p' + Date.now();
-
-                // 1. Insertar pago aprobado en Supabase
+                // 1. Insertar pago aprobado en Supabase (UUID autogenerado por la base de datos)
                 const { error: pErr } = await supabase.from('payments').insert([{
-                    id: newId,
                     user_id: userId,
                     amount,
                     currency: 'CLP',
@@ -4860,14 +4858,14 @@ export async function loadPlansGrid() {
     try {
         const [plansRes, profilesRes, paymentsRes] = await Promise.all([
             supabase.from('membership_plans').select('*').order('price', { ascending: true }),
-            supabase.from('profiles').select('id, full_name, membership_plan_id, plan_name, membership_status'),
+            supabase.from('profiles').select('id, full_name, membership_plan_id, plan_name, membership_status, is_deleted').or('is_deleted.is.null,is_deleted.eq.false'),
             supabase.from('payments').select('id, amount, concept, plan_name, status').eq('status', 'approved')
         ]);
 
         if (plansRes.error) throw plansRes.error;
 
         const plans = plansRes.data || [];
-        const profiles = profilesRes.data || [];
+        const profiles = (profilesRes.data || []).filter(p => !p.is_deleted);
         const payments = paymentsRes.data || [];
         cachedRawPlans = plans;
 
@@ -5570,14 +5568,14 @@ export async function loadRevenueSection() {
     try {
         const [paymentsRes, profilesRes, plansRes] = await Promise.all([
             supabase.from('payments').select('*, profiles:profiles(id, full_name, email, membership_plan_id)').order('created_at', { ascending: false }),
-            supabase.from('profiles').select('id, full_name, email, membership_plan_id, membership_status'),
+            supabase.from('profiles').select('id, full_name, email, membership_plan_id, membership_status, is_deleted').or('is_deleted.is.null,is_deleted.eq.false'),
             supabase.from('membership_plans').select('*')
         ]);
 
         if (paymentsRes.error) throw paymentsRes.error;
 
         const payments = paymentsRes.data || [];
-        const profiles = profilesRes.data || [];
+        const profiles = (profilesRes.data || []).filter(p => !p.is_deleted);
         const plans = plansRes.data || [];
         cachedAllPaymentsForRev = payments;
 

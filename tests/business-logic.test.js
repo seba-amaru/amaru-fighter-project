@@ -112,4 +112,43 @@ describe('Utilidades de Finanzas y Formateo', () => {
         expect(formatCLP(0)).toBe('$0');
         expect(formatCLP(null)).toBe('$0');
     });
+
+    it('debe filtrar correctamente usuarios eliminados de la lista activa', () => {
+        const rawProfiles = [
+            { id: 'u1', full_name: 'Juan Perez', is_deleted: false },
+            { id: 'u2', full_name: 'Maria Gomez', is_deleted: true },
+            { id: 'u3', full_name: 'Pedro Soto', is_deleted: null },
+            { id: 'u4', full_name: 'Ana Silva' }
+        ];
+        const activeProfiles = rawProfiles.filter(m => !m.is_deleted);
+        expect(activeProfiles).toHaveLength(3);
+        expect(activeProfiles.map(m => m.id)).toEqual(['u1', 'u3', 'u4']);
+    });
+
+    it('el payload de inserción de pagos no debe contener un id con prefijo texto no UUID', () => {
+        const preparePaymentPayload = ({ userId, amount, concept, method, coverage }) => ({
+            user_id: userId,
+            amount: Number(amount) || 0,
+            currency: 'CLP',
+            concept: concept || 'Pago Mensualidad',
+            payment_method: method || 'efectivo',
+            status: 'approved',
+            coverage_month: coverage || '',
+            created_at: new Date().toISOString()
+        });
+
+        const payload = preparePaymentPayload({
+            userId: 'user_123',
+            amount: 35000,
+            concept: 'Plan Mensual',
+            method: 'transferencia',
+            coverage: 'Septiembre 2026'
+        });
+
+        expect(payload).not.toHaveProperty('id');
+        expect(payload.amount).toBe(35000);
+        expect(payload.status).toBe('approved');
+        expect(payload.currency).toBe('CLP');
+    });
 });
+

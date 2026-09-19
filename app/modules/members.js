@@ -41,12 +41,12 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 // ─── Fetch unificado ────────────────────────────────────────────────────────
 const fetchAllMembersData = async () => {
     try {
-        const users = await window.supabase.from('profiles').select('*').eq('is_deleted', false);
+        const users = await window.supabase.from('profiles').select('*').or('is_deleted.is.null,is_deleted.eq.false');
         const res = await window.supabase.from('reservations').select('*');
         const plans = await window.supabase.from('membership_plans').select('*');
         const pays = await window.supabase.from('payments').select('*');
 
-        membersData = users.data || [];
+        membersData = (users.data || []).filter(u => !u.is_deleted);
         allReservations = res.data || [];
         plansData = plans.data || [];
         paymentsData = pays.data || [];
