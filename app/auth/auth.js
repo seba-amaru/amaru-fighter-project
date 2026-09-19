@@ -100,7 +100,7 @@ export const initAuthUI = (switchScreen, renderMembershipPlans) => {
         btnGoogle.onclick = async () => {
             try {
                 showToast("Conectando con Google... 🚀");
-                const { data, error } = await window.supabase.auth.signInWithOAuth({
+                const { error } = await window.supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
                         redirectTo: window.location.origin
@@ -119,21 +119,65 @@ export const initAuthUI = (switchScreen, renderMembershipPlans) => {
     if (btnForgot) {
         btnForgot.onclick = async () => {
             const emailField = document.getElementById('login-email');
-            const email = emailField.value.trim();
-            if (!email) return showToast("Ingresa tu email para restablecer contraseña ⚠️", "#eab308");
-            
+            let email = emailField ? emailField.value.trim() : '';
+
+            if (!email) {
+                if (window.Swal) {
+                    const { value: inputEmail } = await window.Swal.fire({
+                        title: 'Recuperar Contraseña 🔐',
+                        text: 'Ingresa el correo electrónico con el que te registraste en Amaru App:',
+                        input: 'email',
+                        inputPlaceholder: 'tu@email.com',
+                        showCancelButton: true,
+                        confirmButtonText: 'Enviar Enlace 📧',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#8b5cf6',
+                        background: '#09090B',
+                        color: '#fff',
+                        inputValidator: (val) => {
+                            if (!val || !val.includes('@')) {
+                                return 'Por favor ingresa un correo electrónico válido.';
+                            }
+                        }
+                    });
+                    if (!inputEmail) return;
+                    email = inputEmail.trim();
+                } else {
+                    const res = prompt('Ingresa tu correo electrónico para restablecer contraseña:');
+                    if (!res) return;
+                    email = res.trim();
+                }
+            }
+
             try {
-                showToast("Enviando enlace... 📧");
+                showToast("Enviando enlace de recuperación... 📧", "#8b5cf6");
                 const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
                     redirectTo: window.location.origin + '/app/'
                 });
                 if (error) throw error;
-                showToast("Email de restablecimiento enviado ✅", "#22c55e");
+
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'success',
+                        title: '¡Correo Enviado! 📬',
+                        html: `Hemos enviado las instrucciones para restablecer tu contraseña a:<br><strong style="color: #a855f7;">${email}</strong>.<br><br><small style="color: #94a3b8;">Abre el enlace recibido en tu correo para crear tu nueva contraseña. Revisa también la carpeta de Spam.</small>`,
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#8b5cf6',
+                        background: '#09090B',
+                        color: '#fff'
+                    });
+                } else {
+                    showToast("Email de restablecimiento enviado ✅", "#22c55e");
+                }
             } catch (error) {
-                showToast("Error: " + error.message, "#ef4444");
+                console.error('[Auth] Error resetPasswordForEmail:', error);
+                showToast("Error: " + (error.message || 'No se pudo enviar el correo'), "#ef4444");
             }
         };
     }
+
+    // Inicializar manejador de restablecimiento de contraseña entrante
+    initPasswordRecoveryHandler();
 
     // Logout
     const btnLogout = document.getElementById('btn-logout');
@@ -142,6 +186,106 @@ export const initAuthUI = (switchScreen, renderMembershipPlans) => {
             localStorage.removeItem('isAdminMode'); // Clear mode on logout
             await window.supabase.auth.signOut();
             window.location.reload();
+        };
+    }
+};
+
+/**
+ * Maneja el flujo cuando un usuario llega a la app desde el link de su correo (type=recovery)
+ */
+export const initPasswordRecoveryHandler = () => {
+    const recoveryModal = document.getElementById('password-recovery-modal');
+    const recoveryForm = document.getElementById('password-recovery-form');
+    const newPassInput = document.getElementById('recovery-new-password');
+    const confirmPassInput = document.getElementById('recovery-confirm-password');
+
+    const openRecoveryModal = () => {
+        if (!recoveryModal) return;
+        recoveryModal.style.display = 'flex';
+        recoveryModal.classList.add('active');
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+        }
+        if (newPassInput) newPassInput.focus();
+    };
+
+    const closeRecoveryModal = () => {
+        if (!recoveryModal) return;
+        recoveryModal.style.display = 'none';
+        recoveryModal.classList.remove('active');
+        if (recoveryForm) recoveryForm.reset();
+    };
+
+    // Detección automática en URL (Hash o Query con type=recovery)
+    const checkUrlForRecovery = () => {
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+        if (hash.includes('type=recovery') || search.includes('type=recovery')) {
+            openRecoveryModal();
+        }
+    };
+
+    checkUrlForRecovery();
+
+    // Listener de eventos de autenticación de Supabase
+    if (window.supabase && window.supabase.auth) {
+        window.supabase.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                openRecoveryModal();
+            }
+        });
+    }
+
+    if (recoveryForm) {
+        recoveryForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const newPassword = newPassInput?.value?.trim();
+            const confirmPassword = confirmPassInput?.value?.trim();
+
+            if (!newPassword || newPassword.length < 6) {
+                if (window.showToast) window.showToast('La contraseña debe tener al menos 6 caracteres ⚠️', '#ef4444');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                if (window.showToast) window.showToast('Las contraseñas no coinciden ❌', '#ef4444');
+                return;
+            }
+
+            try {
+                if (window.showToast) window.showToast('Actualizando contraseña... 🔐', '#8b5cf6');
+                const { error } = await window.supabase.auth.updateUser({ password: newPassword });
+                if (error) throw error;
+
+                closeRecoveryModal();
+
+                // Limpiar fragmento de URL
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState(null, '', window.location.pathname);
+                }
+
+                if (window.Swal) {
+                    await window.Swal.fire({
+                        icon: 'success',
+                        title: '¡Contraseña Actualizada! 🥋',
+                        text: 'Tu contraseña ha sido restablecida exitosamente. Ya puedes ingresar a tu cuenta con tu nueva clave.',
+                        confirmButtonText: 'Continuar a la App',
+                        confirmButtonColor: '#8b5cf6',
+                        background: '#09090B',
+                        color: '#fff'
+                    });
+                } else if (window.showToast) {
+                    window.showToast('¡Contraseña actualizada exitosamente! 🥋', '#22c55e');
+                }
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } catch (err) {
+                console.error('[Auth] Error updating password:', err);
+                if (window.showToast) {
+                    window.showToast('Error: ' + (err.message || 'No se pudo actualizar la contraseña'), '#ef4444');
+                }
+            }
         };
     }
 };

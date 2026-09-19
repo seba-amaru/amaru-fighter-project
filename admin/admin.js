@@ -928,6 +928,16 @@ export function openMemberDrawer(member) {
         btnDrawerEdit.onclick = () => openEditMemberModal(member.id);
     }
 
+    const btnDrawerResetPass = document.getElementById('drawer-btn-reset-password');
+    if (btnDrawerResetPass) {
+        if (member.email && !member.is_generated_email) {
+            btnDrawerResetPass.style.display = 'inline-flex';
+            btnDrawerResetPass.onclick = () => sendMemberPasswordReset(member.id);
+        } else {
+            btnDrawerResetPass.style.display = 'none';
+        }
+    }
+
     backdrop.classList.add('open');
     initLucideIcons();
 }
@@ -2811,11 +2821,13 @@ export function openEditMemberModal(memberId) {
     // Asegurar que los botones de acción para editar estén visibles
     const btnToggleActive = document.getElementById('btn-toggle-active-member-modal');
     const btnDeleteMember = document.getElementById('btn-delete-member-modal');
+    const btnResetPass = document.getElementById('btn-reset-pass-member-modal');
     const subtitleEl = document.getElementById('edit-member-modal-subtitle');
     const submitBtnSpan = document.querySelector('#edit-member-form button[type="submit"] span');
 
     if (btnToggleActive) btnToggleActive.style.display = '';
     if (btnDeleteMember) btnDeleteMember.style.display = '';
+    if (btnResetPass) btnResetPass.style.display = (member.email && !member.is_generated_email) ? '' : 'none';
     if (submitBtnSpan) submitBtnSpan.textContent = 'Guardar Cambios';
     if (subtitleEl) subtitleEl.textContent = 'Actualiza datos personales, contacto y membresía';
 
@@ -2841,6 +2853,7 @@ export function openCreateMemberModal() {
     const subtitleEl = document.getElementById('edit-member-modal-subtitle');
     const btnToggleActive = document.getElementById('btn-toggle-active-member-modal');
     const btnDeleteMember = document.getElementById('btn-delete-member-modal');
+    const btnResetPass = document.getElementById('btn-reset-pass-member-modal');
     const submitBtnSpan = document.querySelector('#edit-member-form button[type="submit"] span');
 
     if (inputId) inputId.value = '';
@@ -2856,9 +2869,10 @@ export function openCreateMemberModal() {
     if (titleEl) titleEl.textContent = 'Registrar Nuevo Socio';
     if (subtitleEl) subtitleEl.textContent = 'Ingresa los datos personales y asigna su membresía inicial';
 
-    // Ocultar botones de acciones destructivas al crear nuevo
+    // Ocultar botones de acciones destructivas / reset al crear nuevo
     if (btnToggleActive) btnToggleActive.style.display = 'none';
     if (btnDeleteMember) btnDeleteMember.style.display = 'none';
+    if (btnResetPass) btnResetPass.style.display = 'none';
     if (submitBtnSpan) submitBtnSpan.textContent = 'Crear Socio';
 
     // Llenar selector de planes con los planes actuales
@@ -3228,6 +3242,60 @@ export async function deleteMemberPermanently(targetId) {
                 icon: 'error',
                 title: 'Error al eliminar',
                 text: err.message || 'No se pudo eliminar al socio.',
+                background: '#09090B',
+                color: '#fff'
+            });
+        }
+    }
+}
+
+export async function sendMemberPasswordReset(targetId) {
+    const id = targetId || document.getElementById('edit-member-input-id')?.value;
+    const member = (cachedMembers || []).find(m => m.id === id) || adminState.activeDrawerMember;
+    if (!member || !member.email) {
+        if (window.Swal) window.Swal.fire({ icon: 'warning', title: 'Sin correo', text: 'El socio no tiene un correo válido registrado.', background: '#09090B', color: '#fff' });
+        return;
+    }
+
+    if (window.Swal) {
+        const confirm = await window.Swal.fire({
+            icon: 'question',
+            title: '¿Enviar enlace de contraseña?',
+            html: `Se enviará un correo a <strong style="color:#a855f7;">${member.email}</strong> para que el socio pueda restablecer o crear su contraseña de acceso.`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, enviar enlace 📧',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#8b5cf6',
+            background: '#09090B',
+            color: '#fff'
+        });
+        if (!confirm.isConfirmed) return;
+    }
+
+    try {
+        const { error } = await supabase.auth.resetPasswordForEmail(member.email, {
+            redirectTo: window.location.origin + '/app/'
+        });
+        if (error) throw error;
+
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'success',
+                title: '¡Enlace Enviado!',
+                html: `Se ha enviado el enlace de restablecimiento a <strong>${member.email}</strong> exitosamente.`,
+                background: '#09090B',
+                color: '#fff',
+                timer: 2500,
+                showConfirmButton: false
+            });
+        }
+    } catch (err) {
+        console.error('[Admin] Error enviando reset de clave:', err);
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'error',
+                title: 'Error al enviar enlace',
+                text: err.message || 'No se pudo enviar el correo de recuperación.',
                 background: '#09090B',
                 color: '#fff'
             });
@@ -3617,6 +3685,8 @@ function initMembersCRMUIHandlers() {
     if (btnDeleteDrawerMember) btnDeleteDrawerMember.addEventListener('click', () => {
         if (adminState.activeDrawerMember) deleteMemberPermanently(adminState.activeDrawerMember.id);
     });
+    const btnResetPassModal = document.getElementById('btn-reset-pass-member-modal');
+    if (btnResetPassModal) btnResetPassModal.addEventListener('click', () => sendMemberPasswordReset());
     const btnCreateMemberModal = document.getElementById('btn-create-member');
     if (btnCreateMemberModal) btnCreateMemberModal.addEventListener('click', openCreateMemberModal);
 }

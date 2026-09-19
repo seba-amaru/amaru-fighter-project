@@ -179,4 +179,48 @@ describe('Utilidades de Finanzas y Formateo', () => {
     });
 });
 
+describe('Lógica de Recuperación y Reseteo de Contraseñas', () => {
+    function validatePasswordReset(password, confirmPassword) {
+        if (!password || password.trim().length < 6) {
+            return { valid: false, error: 'La contraseña debe tener al menos 6 caracteres' };
+        }
+        if (password !== confirmPassword) {
+            return { valid: false, error: 'Las contraseñas no coinciden' };
+        }
+        return { valid: true, error: null };
+    }
+
+    function canSendPasswordReset(member) {
+        if (!member || !member.email) return false;
+        const email = member.email.trim().toLowerCase();
+        if (email.endsWith('@amaru.local') || member.is_generated_email) return false;
+        return email.includes('@') && email.includes('.');
+    }
+
+    it('debe rechazar contraseñas con menos de 6 caracteres', () => {
+        const res = validatePasswordReset('12345', '12345');
+        expect(res.valid).toBe(false);
+        expect(res.error).toBe('La contraseña debe tener al menos 6 caracteres');
+    });
+
+    it('debe rechazar cuando la contraseña y la confirmación no coinciden', () => {
+        const res = validatePasswordReset('Amaru2026!', 'Amaru2025!');
+        expect(res.valid).toBe(false);
+        expect(res.error).toBe('Las contraseñas no coinciden');
+    });
+
+    it('debe aceptar contraseñas válidas que coincidan', () => {
+        const res = validatePasswordReset('SuperSecret2026!', 'SuperSecret2026!');
+        expect(res.valid).toBe(true);
+        expect(res.error).toBeNull();
+    });
+
+    it('debe permitir enviar reset solo a socios con correo personal válido y no auto-generado', () => {
+        expect(canSendPasswordReset({ email: 'atleta@gmail.com', is_generated_email: false })).toBe(true);
+        expect(canSendPasswordReset({ email: 'usuario_temp_123@amaru.local', is_generated_email: true })).toBe(false);
+        expect(canSendPasswordReset({ email: '', is_generated_email: false })).toBe(false);
+        expect(canSendPasswordReset(null)).toBe(false);
+    });
+});
+
 

@@ -1648,11 +1648,15 @@
                             <div class="kv-val" id="drawer-kv-emergency">-</div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
                         <a id="drawer-btn-whatsapp" href="#" target="_blank" class="btn-secondary-action" style="flex: 1; justify-content: center; color: var(--accent-emerald);">
                             <i data-lucide="message-circle"></i>
                             <span>Abrir WhatsApp</span>
                         </a>
+                        <button type="button" id="drawer-btn-reset-password" class="btn-secondary-action" style="flex: 1; justify-content: center; color: #a855f7; border-color: rgba(168,85,247,0.3);" title="Enviar correo de restablecimiento de contraseña">
+                            <i data-lucide="key"></i>
+                            <span>Restablecer Clave</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1952,6 +1956,10 @@
                     </div>
                 </div>
                 <div class="admin-modal-footer">
+                    <button type="button" class="btn-secondary-action" id="btn-reset-pass-member-modal" style="color: #a855f7; border-color: rgba(168, 85, 247, 0.35);" title="Enviar enlace de restablecimiento al correo del socio">
+                        <i data-lucide="key"></i>
+                        <span>Resetear Clave</span>
+                    </button>
                     <button type="button" class="btn-ghost-danger" id="btn-toggle-active-member-modal">
                         <i data-lucide="user-x"></i>
                         <span id="btn-toggle-active-member-text">Desactivar Socio</span>

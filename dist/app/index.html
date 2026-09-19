@@ -37,7 +37,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
-  <script type="module" crossorigin src="/assets/app-BBKMYJgX.js"></script>
+  <script type="module" crossorigin src="/assets/app-N4X-zm9A.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/app-C3MCjiR-.css">
 </head>
 
@@ -1492,8 +1492,38 @@
             </form>
         </div>
     </div>
+
+    <!-- Password Recovery Modal (Establecer Nueva Contraseña) -->
+    <div id="password-recovery-modal" class="overlay" style="display: none; align-items: center; justify-content: center; z-index: 99999; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);">
+        <div class="modal-content glass" style="max-width: 420px; width: 92%; padding: 25px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.15); background: #09090B; color: #fff; box-shadow: 0 25px 60px rgba(0,0,0,0.9);">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; color: var(--accent-purple, #a855f7);">
+                    <i data-lucide="key-round" style="width: 26px; height: 26px;"></i>
+                </div>
+                <h3 style="font-size: 1.3rem; font-weight: 800; margin: 0 0 6px 0;">Restablecer Contraseña</h3>
+                <p style="font-size: 0.82rem; color: #94a3b8; margin: 0;">Ingresa tu nueva contraseña para acceder a tu cuenta de Amaru App.</p>
+            </div>
+            <form id="password-recovery-form">
+                <div class="form-group" style="margin-bottom: 16px; text-align: left;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 6px;">NUEVA CONTRASEÑA</label>
+                    <div style="position: relative; display: flex; align-items: center; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0 12px;">
+                        <i data-lucide="lock" style="width: 16px; height: 16px; color: #94a3b8; flex-shrink: 0;"></i>
+                        <input type="password" id="recovery-new-password" placeholder="Mínimo 6 caracteres" required minlength="6" style="width: 100%; background: transparent; border: none; padding: 12px 10px; color: #fff; outline: none; font-size: 0.9rem;">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 22px; text-align: left;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 6px;">CONFIRMAR NUEVA CONTRASEÑA</label>
+                    <div style="position: relative; display: flex; align-items: center; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0 12px;">
+                        <i data-lucide="check-circle-2" style="width: 16px; height: 16px; color: #94a3b8; flex-shrink: 0;"></i>
+                        <input type="password" id="recovery-confirm-password" placeholder="Repite la contraseña" required minlength="6" style="width: 100%; background: transparent; border: none; padding: 12px 10px; color: #fff; outline: none; font-size: 0.9rem;">
+                    </div>
+                </div>
+                <button type="submit" id="btn-save-new-password" class="auth-btn" style="width: 100%; padding: 13px; background: linear-gradient(135deg, #8b5cf6, #6366f1); border: none; border-radius: 10px; color: #fff; font-weight: 800; font-size: 0.92rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(139,92,246,0.35);">
+                    GUARDAR NUEVA CONTRASEÑA 🥋
+                </button>
+            </form>
+        </div>
+    </div>
 </body>
-
-
 
 </html>
