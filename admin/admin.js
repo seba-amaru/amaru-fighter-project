@@ -1,4 +1,5 @@
 import { supabase, getCurrentSession, verifyAdminRole } from './supabaseClient.js';
+import { recordMembershipPayment, calculateDiscountedAmount, setupRealtimeSync } from './paymentService.js';
 
 // ============================================================================
 // ESTADO LOCAL DE LA APLICACIÓN DE ESCRITORIO
@@ -31,6 +32,20 @@ async function bootAdminApp() {
 
     // Carga de todas las secciones principales
     await loadInitialData();
+
+    // Suscripción reactiva en tiempo real (Supabase Realtime)
+    setupRealtimeSync((payload) => {
+        console.log('[Admin Realtime Sync]', payload.table, payload.event);
+        if (payload.table === 'payments') {
+            loadPaymentsModule();
+            if (typeof loadDashboardKPIs === 'function') loadDashboardKPIs();
+            if (typeof loadRevenueSection === 'function') loadRevenueSection();
+        } else if (payload.table === 'profiles') {
+            loadMembersModule();
+            loadPaymentsModule();
+            if (typeof loadDashboardKPIs === 'function') loadDashboardKPIs();
+        }
+    });
 }
 
 if (document.readyState === 'loading') {
@@ -2755,6 +2770,88 @@ function renderMembersDirectory() {
     initLucideIcons();
 }
 
+function setupMemberModalPaymentFields(isNewMember) {
+    const chk = document.getElementById('edit-member-check-record-payment');
+    const payFields = document.getElementById('edit-member-payment-fields');
+    const previewEl = document.getElementById('edit-member-payment-calc-preview');
+    const selectPlan = document.getElementById('edit-member-input-plan');
+    const selectMethod = document.getElementById('edit-member-input-pay-method');
+    const selectDiscType = document.getElementById('edit-member-input-discount-type');
+    const discDetailRow = document.getElementById('edit-member-discount-detail-row');
+    const discValLabel = document.getElementById('edit-member-discount-val-label');
+    const discValInput = document.getElementById('edit-member-input-discount-value');
+    const discReasonInput = document.getElementById('edit-member-input-discount-reason');
+
+    if (!chk) return;
+
+    // Por defecto checked si es nuevo socio
+    chk.checked = isNewMember ? true : false;
+    if (payFields) payFields.style.display = chk.checked ? 'flex' : 'none';
+
+    if (selectMethod) selectMethod.value = 'transferencia';
+    if (selectDiscType) selectDiscType.value = 'none';
+    if (discValInput) discValInput.value = '';
+    if (discReasonInput) discReasonInput.value = '';
+    if (discDetailRow) discDetailRow.style.display = 'none';
+
+    function updatePreview() {
+        if (!chk.checked) {
+            if (previewEl) previewEl.textContent = 'Sin cobro';
+            if (payFields) payFields.style.display = 'none';
+            return;
+        }
+        if (payFields) payFields.style.display = 'flex';
+
+        const planId = selectPlan?.value;
+        const selectedPlan = (cachedPlans || []).find(p => p.id === planId);
+        const basePrice = selectedPlan ? Number(selectedPlan.price) || 0 : 0;
+
+        const discType = selectDiscType?.value || 'none';
+        let discOpts = { type: discType, reason: discReasonInput?.value };
+
+        if (discType === 'none') {
+            if (discDetailRow) discDetailRow.style.display = 'none';
+        } else {
+            if (discDetailRow) discDetailRow.style.display = 'grid';
+            if (discType === 'code') {
+                if (discValLabel) discValLabel.textContent = 'Código de Cupón';
+                if (discValInput) discValInput.placeholder = 'Ej: LFNM2026';
+                discOpts.code = discValInput?.value;
+                discOpts.percent = (discValInput?.value?.trim().toUpperCase() === 'LFNM2026') ? 20 : 0;
+            } else if (discType === 'percent') {
+                if (discValLabel) discValLabel.textContent = 'Porcentaje (%)';
+                if (discValInput) discValInput.placeholder = 'Ej: 15';
+                discOpts.percent = Number(discValInput?.value) || 0;
+            } else if (discType === 'fixed') {
+                if (discValLabel) discValLabel.textContent = 'Monto Rebaja ($)';
+                if (discValInput) discValInput.placeholder = 'Ej: 5000';
+                discOpts.fixedAmount = Number(discValInput?.value) || 0;
+            } else if (discType === 'custom_price') {
+                if (discValLabel) discValLabel.textContent = 'Tarifa Final ($)';
+                if (discValInput) discValInput.placeholder = 'Ej: 25000';
+                discOpts.customPrice = Number(discValInput?.value) || 0;
+            }
+        }
+
+        const { finalAmount, discountAmount } = calculateDiscountedAmount(basePrice, discOpts);
+        if (previewEl) {
+            if (discountAmount > 0) {
+                previewEl.innerHTML = `<span style="text-decoration: line-through; opacity: 0.6; font-size: 0.75rem; margin-right: 4px;">$${basePrice.toLocaleString('es-CL')}</span> $${finalAmount.toLocaleString('es-CL')}`;
+            } else {
+                previewEl.textContent = `$${finalAmount.toLocaleString('es-CL')}`;
+            }
+        }
+    }
+
+    chk.onchange = updatePreview;
+    if (selectPlan) selectPlan.onchange = updatePreview;
+    if (selectDiscType) selectDiscType.onchange = updatePreview;
+    if (discValInput) discValInput.oninput = updatePreview;
+    if (discReasonInput) discReasonInput.oninput = updatePreview;
+
+    updatePreview();
+}
+
 export function openEditMemberModal(memberId) {
     const member = (cachedMembers || []).find(m => m.id === memberId);
     if (!member) return;
@@ -2831,6 +2928,8 @@ export function openEditMemberModal(memberId) {
     if (submitBtnSpan) submitBtnSpan.textContent = 'Guardar Cambios';
     if (subtitleEl) subtitleEl.textContent = 'Actualiza datos personales, contacto y membresía';
 
+    setupMemberModalPaymentFields(false, member);
+
     initLucideIcons();
     if (modal) modal.classList.add('open');
 }
@@ -2891,6 +2990,8 @@ export function openCreateMemberModal() {
         expDate.setDate(expDate.getDate() + 30);
         inputExpiry.value = expDate.toISOString().split('T')[0];
     }
+
+    setupMemberModalPaymentFields(true, null);
 
     initLucideIcons();
     if (modal) modal.classList.add('open');
@@ -2991,9 +3092,48 @@ export async function handleEditMemberSubmit(e) {
                 if (insErr) throw insErr;
             }
 
+            // Registrar pago si está marcado y hay un plan seleccionado
+            const shouldRecordPayCreate = document.getElementById('edit-member-check-record-payment')?.checked;
+            if (shouldRecordPayCreate && planId) {
+                const selectedPlan = (cachedPlans || []).find(p => p.id === planId);
+                const payMethod = document.getElementById('edit-member-input-pay-method')?.value || 'transferencia';
+                const discType = document.getElementById('edit-member-input-discount-type')?.value || 'none';
+                const discVal = document.getElementById('edit-member-input-discount-value')?.value;
+                const discReason = document.getElementById('edit-member-input-discount-reason')?.value;
+
+                let discOpts = { type: discType, reason: discReason };
+                if (discType === 'code') {
+                    discOpts.code = discVal;
+                    discOpts.percent = (discVal?.trim().toUpperCase() === 'LFNM2026') ? 20 : 0;
+                } else if (discType === 'percent') {
+                    discOpts.percent = Number(discVal) || 0;
+                } else if (discType === 'fixed') {
+                    discOpts.fixedAmount = Number(discVal) || 0;
+                } else if (discType === 'custom_price') {
+                    discOpts.customPrice = Number(discVal) || 0;
+                }
+
+                try {
+                    await recordMembershipPayment({
+                        userId: newUserId,
+                        userName: name,
+                        planId: planId,
+                        planName: selectedPlan?.name || 'Membresía',
+                        baseAmount: selectedPlan?.price || 30000,
+                        paymentMethod: payMethod,
+                        discount: discOpts,
+                        status: 'approved'
+                    });
+                } catch (payErr) {
+                    console.warn('[Admin] Error registrando pago en nuevo socio:', payErr);
+                }
+            }
+
             closeEditMemberModal();
             await loadMembersModule();
+            await loadPaymentsModule();
             if (typeof loadDashboardKPIs === 'function') await loadDashboardKPIs();
+            if (typeof loadRevenueSection === 'function') await loadRevenueSection();
 
             if (window.Swal) {
                 window.Swal.fire({
@@ -3044,6 +3184,43 @@ export async function handleEditMemberSubmit(e) {
 
         if (error) throw error;
 
+        // Registrar pago si está marcado y hay un plan seleccionado
+        const shouldRecordPayEdit = document.getElementById('edit-member-check-record-payment')?.checked;
+        if (shouldRecordPayEdit && planId) {
+            const selectedPlan = (cachedPlans || []).find(p => p.id === planId);
+            const payMethod = document.getElementById('edit-member-input-pay-method')?.value || 'transferencia';
+            const discType = document.getElementById('edit-member-input-discount-type')?.value || 'none';
+            const discVal = document.getElementById('edit-member-input-discount-value')?.value;
+            const discReason = document.getElementById('edit-member-input-discount-reason')?.value;
+
+            let discOpts = { type: discType, reason: discReason };
+            if (discType === 'code') {
+                discOpts.code = discVal;
+                discOpts.percent = (discVal?.trim().toUpperCase() === 'LFNM2026') ? 20 : 0;
+            } else if (discType === 'percent') {
+                discOpts.percent = Number(discVal) || 0;
+            } else if (discType === 'fixed') {
+                discOpts.fixedAmount = Number(discVal) || 0;
+            } else if (discType === 'custom_price') {
+                discOpts.customPrice = Number(discVal) || 0;
+            }
+
+            try {
+                await recordMembershipPayment({
+                    userId: id,
+                    userName: name,
+                    planId: planId,
+                    planName: selectedPlan?.name || 'Membresía',
+                    baseAmount: selectedPlan?.price || 30000,
+                    paymentMethod: payMethod,
+                    discount: discOpts,
+                    status: 'approved'
+                });
+            } catch (payErr) {
+                console.warn('[Admin] Error registrando pago en socio editado:', payErr);
+            }
+        }
+
         // Actualizar datos en memoria cachedMembers
         const member = (cachedMembers || []).find(m => m.id === id);
         if (member) {
@@ -3079,6 +3256,9 @@ export async function handleEditMemberSubmit(e) {
 
         renderMembersDirectory();
         renderMembersCrmDashboard(cachedPlans);
+        await loadPaymentsModule();
+        if (typeof loadDashboardKPIs === 'function') await loadDashboardKPIs();
+        if (typeof loadRevenueSection === 'function') await loadRevenueSection();
 
         if (window.Swal) {
             window.Swal.fire({
@@ -3514,6 +3694,25 @@ async function quickRenewMember(memberId) {
 
         if (error) throw error;
 
+        // Registrar pago de la renovación en payments
+        if (member && member.membership_plan_id) {
+            const plan = (cachedPlans || []).find(p => p.id === member.membership_plan_id);
+            try {
+                await recordMembershipPayment({
+                    userId: memberId,
+                    userName: member.full_name || member.email,
+                    planId: member.membership_plan_id,
+                    planName: plan?.name || 'Membresía',
+                    baseAmount: plan?.price || 30000,
+                    paymentMethod: 'manual',
+                    coverageMonth: new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' }),
+                    status: 'approved'
+                });
+            } catch (pErr) {
+                console.warn('[Admin] No se pudo registrar pago automático de renovación:', pErr);
+            }
+        }
+
         if (window.Swal) {
             window.Swal.fire({
                 icon: 'success',
@@ -3527,7 +3726,9 @@ async function quickRenewMember(memberId) {
         }
 
         await loadMembersModule();
-        await loadDashboardKPIs();
+        await loadPaymentsModule();
+        if (typeof loadDashboardKPIs === 'function') await loadDashboardKPIs();
+        if (typeof loadRevenueSection === 'function') await loadRevenueSection();
 
     } catch (err) {
         console.error('[Admin] Error renovando membresía:', err);
@@ -4044,8 +4245,26 @@ function selectPaymentForPreview(payment) {
 
     // Botones de auditoría
     const isPending = (payment.status === 'pending');
-    if (btnApprove) btnApprove.disabled = !isPending;
-    if (btnReject) btnReject.disabled = !isPending;
+    if (btnApprove) {
+        btnApprove.disabled = false;
+        if (isPending) {
+            btnApprove.innerHTML = '<i data-lucide="check-check"></i><span>Aprobar y Renovar</span>';
+            btnApprove.style.background = 'var(--accent-emerald)';
+            btnApprove.style.color = '#000';
+            btnApprove.style.border = 'none';
+            btnApprove.title = 'Aprobar este pago y extender membresía +30 días';
+        } else {
+            btnApprove.innerHTML = '<i data-lucide="refresh-cw"></i><span>Renovar Membresía (+30d)</span>';
+            btnApprove.style.background = 'rgba(16, 185, 129, 0.18)';
+            btnApprove.style.color = 'var(--accent-emerald)';
+            btnApprove.style.border = '1px solid var(--accent-emerald)';
+            btnApprove.title = 'Extender vigencia de membresía por 30 días más';
+        }
+    }
+    if (btnReject) {
+        btnReject.disabled = !isPending;
+    }
+    initLucideIcons();
 
     // Ficha de metadatos de auditoría
     const detailConcept = document.getElementById('audit-detail-concept');
@@ -4098,42 +4317,56 @@ async function approvePaymentAndRenew(payment) {
     if (!payment) return;
 
     try {
-        // 1. Actualizar estado del pago a 'approved'
-        const { error: errPay } = await supabase
-            .from('payments')
-            .update({ status: 'approved', updated_at: new Date().toISOString() })
-            .eq('id', payment.id);
+        const isAlreadyApproved = (payment.status === 'approved');
 
-        if (errPay) throw errPay;
+        // 1. Si está pendiente, actualizar estado del pago a 'approved'
+        if (!isAlreadyApproved) {
+            const { error: errPay } = await supabase
+                .from('payments')
+                .update({ status: 'approved', updated_at: new Date().toISOString() })
+                .eq('id', payment.id);
+
+            if (errPay) throw errPay;
+            payment.status = 'approved';
+        }
 
         // 2. Renovar la membresía en profiles (+30 días)
         if (payment.user_id) {
-            const member = cachedMembers.find(m => m.id === payment.user_id);
+            const { data: currentProf } = await supabase
+                .from('profiles')
+                .select('id, membership_expiry, membership_status, membership_plan_id')
+                .eq('id', payment.user_id)
+                .single();
+
             const now = new Date();
             let baseDate = now;
 
-            if (member?.membership_expiry) {
-                const currentExp = new Date(member.membership_expiry);
+            if (currentProf?.membership_expiry) {
+                const currentExp = new Date(currentProf.membership_expiry);
                 if (currentExp > now) baseDate = currentExp;
             }
 
             const newExpiry = new Date(baseDate.getTime() + (30 * 24 * 60 * 60 * 1000)).toISOString();
 
-            await supabase
+            const updateFields = {
+                membership_status: 'active',
+                membership_expiry: newExpiry,
+                updated_at: new Date().toISOString()
+            };
+
+            const { error: errProf } = await supabase
                 .from('profiles')
-                .update({
-                    membership_status: 'active',
-                    membership_expiry: newExpiry,
-                    updated_at: new Date().toISOString()
-                })
+                .update(updateFields)
                 .eq('id', payment.user_id);
+
+            if (errProf) throw errProf;
         }
 
         if (window.Swal) {
             window.Swal.fire({
                 icon: 'success',
-                title: 'Pago Aprobado y Membresía Renovada',
-                html: `Se acreditó el pago de <strong>${payment.user_display_name}</strong>.<br><span style="color:#10b981;">Membresía extendida +30 días con éxito.</span>`,
+                title: isAlreadyApproved ? 'Membresía Renovada (+30 Días)' : 'Pago Aprobado y Membresía Renovada',
+                html: `Socio: <strong>${payment.user_display_name}</strong>.<br><span style="color:#10b981;">Vigencia extendida +30 días exitosamente.</span>`,
                 background: '#09090B',
                 color: '#fff',
                 timer: 2200,
@@ -4141,11 +4374,15 @@ async function approvePaymentAndRenew(payment) {
             });
         }
 
+        await loadMembersModule();
         await loadPaymentsModule();
-        await loadDashboardKPIs();
+        if (typeof loadDashboardKPIs === 'function') await loadDashboardKPIs();
+        if (typeof loadRevenueSection === 'function') await loadRevenueSection();
+
+        selectPaymentForPreview(payment);
 
     } catch (err) {
-        console.error('[Admin] Error aprobando pago:', err);
+        console.error('[Admin] Error aprobando/renovando pago:', err);
         if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: err.message, background: '#09090B', color: '#fff' });
     }
 }
@@ -4328,15 +4565,15 @@ function renderPaymentsCobranza() {
         } else if (prof.membership_expiry) {
             const expiry = new Date(prof.membership_expiry);
             const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
-            if (daysLeft > 0 && daysLeft <= 5) {
+            if (daysLeft > 5) {
+                status = 'ok';
+                statusLabel = 'Al día';
+            } else if (daysLeft > 0 && daysLeft <= 5) {
                 status = 'warning';
                 statusLabel = `Vence en ${daysLeft} d`;
             } else if (daysLeft <= 0) {
                 status = 'overdue';
                 statusLabel = `Vencido (${Math.abs(daysLeft)} d)`;
-            } else {
-                status = 'warning';
-                statusLabel = 'Pendiente cuota';
             }
         }
 

@@ -10,26 +10,27 @@ const SUPABASE_ANON_KEY = (typeof import.meta !== 'undefined' && import.meta.env
     : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqdnZpdW5wZHBjd2ZrcXV4eXRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzIyMDMsImV4cCI6MjA4NzcwODIwM30.uZGN-7CNyxIevMVvOR60ueSGf6tkiIacl-jGX2z9zcE';
 
 export function getSupabaseClient() {
-    if (window.supabaseClientInstance) {
-        return window.supabaseClientInstance;
+    const globalObj = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    if (globalObj.supabaseClientInstance) {
+        return globalObj.supabaseClientInstance;
     }
 
-    // 1. Si la librería fue cargada por script CDN (window.supabase.createClient)
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
-        window.supabaseClientInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    // 1. Si la librería fue cargada por script CDN o módulo
+    if (globalObj.supabase && typeof globalObj.supabase.createClient === 'function') {
+        globalObj.supabaseClientInstance = globalObj.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
                 autoRefreshToken: true,
                 persistSession: true,
                 detectSessionInUrl: true
             }
         });
-        return window.supabaseClientInstance;
+        return globalObj.supabaseClientInstance;
     }
 
-    // 2. Fallback: buscar si ya hay un cliente creado previamente en window
-    if (window.supabase && typeof window.supabase.from === 'function') {
-        window.supabaseClientInstance = window.supabase;
-        return window.supabase;
+    // 2. Fallback: buscar si ya hay un cliente creado previamente
+    if (globalObj.supabase && typeof globalObj.supabase.from === 'function') {
+        globalObj.supabaseClientInstance = globalObj.supabase;
+        return globalObj.supabase;
     }
 
     console.warn('[Supabase Admin] Supabase SDK aún no está disponible.');

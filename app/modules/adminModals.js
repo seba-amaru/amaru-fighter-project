@@ -35,15 +35,28 @@ export const handlePaymentAction = async (id, status) => {
             const payment = await SupabaseService.getPayment(id);
 
             if (payment && payment.user_id) {
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() + 30);
+                const { data: currentProf } = await window.supabase
+                    .from('profiles')
+                    .select('membership_expiry, membership_plan_id')
+                    .eq('id', payment.user_id)
+                    .single();
 
-                await SupabaseService.updateProfile(payment.user_id, {
+                const now = new Date();
+                let baseDate = now;
+                if (currentProf?.membership_expiry) {
+                    const curExp = new Date(currentProf.membership_expiry);
+                    if (curExp > now) baseDate = curExp;
+                }
+                const expiryDate = new Date(baseDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+
+                const profPayload = {
                     membership_status: 'active',
                     membership_expiry: expiryDate.toISOString(),
-                    membership_plan_id: payment.plan_id || null,
                     updated_at: new Date().toISOString()
-                });
+                };
+                if (payment.plan_id) profPayload.membership_plan_id = payment.plan_id;
+
+                await SupabaseService.updateProfile(payment.user_id, profPayload);
 
                 await SupabaseService.deletePendingPayments(payment.user_id);
             }

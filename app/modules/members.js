@@ -1136,7 +1136,24 @@ const quickRenew = async (uid) => {
             membership_status: 'active',
             is_frozen: false
         }).eq('id', uid);
-        window.showToast('Plan renovado exitosamente ✅', '#22c55e');
+
+        // Registrar pago correspondiente en payments
+        const plan = (plansData || []).find(p => p.id === user.membership_plan_id);
+        const curMonthName = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+        const formattedMonth = curMonthName.charAt(0).toUpperCase() + curMonthName.slice(1);
+        await window.supabase.from('payments').insert([{
+            user_id: uid,
+            amount: plan?.price || 30000,
+            currency: 'CLP',
+            concept: `Pago ${plan?.name || 'Membresía'}`,
+            status: 'approved',
+            payment_method: 'manual',
+            coverage_month: formattedMonth,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }]);
+
+        window.showToast('Plan renovado y pago registrado exitosamente ✅', '#22c55e');
         renderAdminMembers();
     } catch (err) {
         console.error(err);

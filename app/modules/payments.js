@@ -699,32 +699,29 @@ const renderCobranzaView = (container) => {
         let statusColor = '#9ca3af';
         let statusBg = 'rgba(156,163,175,0.15)';
 
-        if (!lastPayment) {
-            // status ya es 'none' por defecto
-        } else if (cov && cov.month === currentMonth && cov.year === currentYear) {
+        if (cov && cov.month === currentMonth && cov.year === currentYear) {
             status = 'ok';
             statusLabel = 'Al día';
             statusColor = '#22c55e';
             statusBg = 'rgba(34,197,94,0.15)';
-        } else {
-            // Verificar si está por vencer (membresía expira en <= 5 días)
-            const expiry = prof.membership_expiry ? new Date(prof.membership_expiry) : null;
-            const daysLeft = expiry ? Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)) : null;
-            if (daysLeft !== null && daysLeft > 0 && daysLeft <= 5) {
+        } else if (prof.membership_expiry) {
+            const expiry = new Date(prof.membership_expiry);
+            const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+            if (daysLeft > 5) {
+                status = 'ok';
+                statusLabel = 'Al día';
+                statusColor = '#22c55e';
+                statusBg = 'rgba(34,197,94,0.15)';
+            } else if (daysLeft > 0 && daysLeft <= 5) {
                 status = 'warning';
                 statusLabel = 'Por vencer';
                 statusColor = '#fbbf24';
                 statusBg = 'rgba(251,191,36,0.15)';
-            } else if (daysLeft !== null && daysLeft <= 0) {
+            } else if (daysLeft <= 0) {
                 status = 'overdue';
                 statusLabel = 'Moroso';
                 statusColor = '#ef4444';
                 statusBg = 'rgba(239,68,68,0.15)';
-            } else {
-                status = 'warning';
-                statusLabel = 'Pendiente';
-                statusColor = '#fbbf24';
-                statusBg = 'rgba(251,191,36,0.15)';
             }
         }
 

@@ -32,7 +32,7 @@
     <!-- jsPDF & AutoTable para exportación PDF profesional -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script type="module" crossorigin src="/assets/admin-BbUqqujr.js"></script>
+  <script type="module" crossorigin src="/assets/admin-Cz46aUrc.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/admin-DMtpTz9W.css">
 </head>
 
@@ -1954,6 +1954,51 @@
                     <div class="form-group">
                         <label class="form-label">Notas Administrativas Internas</label>
                         <textarea class="input-dark" id="edit-member-input-notes" placeholder="Observaciones sobre lesiones, acuerdos de pago, asistencia..." style="height: 75px; resize: vertical;"></textarea>
+                    </div>
+                    <!-- SECCIÓN: REGISTRO DE PAGO Y DESCUENTO -->
+                    <div class="glass-nested-card" style="padding: 14px; margin-top: 14px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: #fff;">
+                                <input type="checkbox" id="edit-member-check-record-payment" checked style="accent-color: var(--primary); width: 16px; height: 16px;">
+                                <span>Registrar pago en Control de Pagos</span>
+                            </label>
+                            <span id="edit-member-payment-calc-preview" style="font-size: 0.85rem; font-weight: 700; color: var(--accent-emerald);">$0</span>
+                        </div>
+
+                        <div id="edit-member-payment-fields" style="display: flex; flex-direction: column; gap: 10px;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label" style="font-size: 0.76rem;">Método de Pago</label>
+                                    <select class="select-dark" id="edit-member-input-pay-method" style="font-size: 0.8rem; padding: 6px 10px;">
+                                        <option value="transferencia">Transferencia Bancaria</option>
+                                        <option value="efectivo">Efectivo / Caja</option>
+                                        <option value="manual">Manual / POS</option>
+                                        <option value="pasarela">Webpay / Pasarela</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" style="font-size: 0.76rem;">Tipo de Descuento</label>
+                                    <select class="select-dark" id="edit-member-input-discount-type" style="font-size: 0.8rem; padding: 6px 10px;">
+                                        <option value="none">Sin Descuento (Tarifa Normal)</option>
+                                        <option value="code">Código de Cupón / Promo</option>
+                                        <option value="percent">Porcentaje Manual (%)</option>
+                                        <option value="fixed">Rebaja en Pesos ($)</option>
+                                        <option value="custom_price">Tarifa Final Acordada ($)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-grid" id="edit-member-discount-detail-row" style="display: none;">
+                                <div class="form-group" id="edit-member-discount-val-group">
+                                    <label class="form-label" id="edit-member-discount-val-label" style="font-size: 0.76rem;">Valor del Descuento</label>
+                                    <input type="text" class="input-dark" id="edit-member-input-discount-value" placeholder="Ej: 20 ó LFNM2026" style="font-size: 0.8rem; padding: 6px 10px;">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" style="font-size: 0.76rem;">Motivo / Glosa del Descuento</label>
+                                    <input type="text" class="input-dark" id="edit-member-input-discount-reason" placeholder="Ej: Familiar / Amigo / Beca" style="font-size: 0.8rem; padding: 6px 10px;">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="admin-modal-footer">
