@@ -5,7 +5,37 @@
 import { exportUserData } from '../utils/exportUtils.js';
 import { openMemberModal, deleteMember } from './adminModals.js';
 import { openQuickPaymentModal } from './payments.js';
+import { SupabaseService } from '../services/supabaseService.js';
 const unknowAvatar = '../images/unknow.png';
+
+const handleSendWhatsAppCobranza = (member) => {
+    if (!member) return;
+    const phone = member.phone || member.phone_number || '';
+    if (!phone) {
+        if (window.showToast) window.showToast('El socio no tiene un teléfono registrado.', '#ef4444');
+        return;
+    }
+    const service = SupabaseService || window.SupabaseService;
+    if (!service || !service.generateWhatsAppCobranzaUrl) {
+        if (window.showToast) window.showToast('Servicio de WhatsApp no disponible.', '#ef4444');
+        return;
+    }
+    const res = service.generateWhatsAppCobranzaUrl({
+        phone: phone,
+        name: member.full_name,
+        planName: member.membership_plans?.name || 'Membresía Dojo',
+        expiryDate: member.membership_expiry || member._expiryDate,
+        daysLeft: member._daysLeft !== undefined ? member._daysLeft : 0,
+        amount: member.membership_plans?.price || 0
+    });
+
+    if (res && res.success && res.url) {
+        window.open(res.url, '_blank');
+        if (window.showToast) window.showToast('Abriendo WhatsApp... 💬', '#25D366');
+    } else {
+        if (window.showToast) window.showToast(res?.error || 'Número de teléfono inválido para WhatsApp.', '#ef4444');
+    }
+};
 
 /* global Chart */
 
@@ -325,6 +355,12 @@ const renderDashboardView = (container) => {
     renderDashboardCharts(evolutionData, planDist, last7Days);
 
     // Listeners para acciones rápidas en alertas
+    container.querySelectorAll('.alert-action-whatsapp').forEach(btn => {
+        btn.onclick = () => {
+            const member = processed.find(u => u.id === btn.getAttribute('data-id'));
+            handleSendWhatsAppCobranza(member);
+        };
+    });
     container.querySelectorAll('.alert-action-renew').forEach(btn => {
         btn.onclick = () => quickRenew(btn.getAttribute('data-id'));
     });
@@ -353,8 +389,13 @@ const renderAlertCard = (p, type) => {
                 <span style="font-size:0.7rem; color:var(--text-gray); display:block;">${cfg.text} — ${p.membership_plans?.name || 'Sin plan'}</span>
             </div>
             <div style="display:flex; gap:6px;">
-                ${type === 'expiring' || type === 'overdue' ? `<button class="alert-action-register btn-glass-small" data-uid="${p.id}" style="border-color:var(--accent-purple); color:var(--accent-purple); font-size:0.7rem;"><i data-lucide="dollar-sign" style="width:12px;"></i></button>` : ''}
-                <button class="alert-action-edit btn-glass-small" data-id="${p.id}" style="font-size:0.7rem;"><i data-lucide="edit-2" style="width:12px;"></i></button>
+                ${(type === 'expiring' || type === 'overdue') ? `
+                    <button class="alert-action-whatsapp btn-glass-small" data-id="${p.id}" style="border-color:#25D366; color:#25D366; font-size:0.7rem;" title="Cobrar / Recordar por WhatsApp">
+                        <i data-lucide="message-circle" style="width:12px;"></i>
+                    </button>
+                    <button class="alert-action-register btn-glass-small" data-uid="${p.id}" style="border-color:var(--accent-purple); color:var(--accent-purple); font-size:0.7rem;" title="Registrar Pago"><i data-lucide="dollar-sign" style="width:12px;"></i></button>
+                ` : ''}
+                <button class="alert-action-edit btn-glass-small" data-id="${p.id}" style="font-size:0.7rem;" title="Editar"><i data-lucide="edit-2" style="width:12px;"></i></button>
             </div>
         </div>
     `;
@@ -599,6 +640,7 @@ const renderDirectorioView = (container) => {
                                     </td>
                                     <td style="padding:10px 12px; text-align:center;">LVL ${p.level || 0}</td>
                                     <td style="padding:10px 12px; text-align:right; white-space:nowrap;">
+                                        <button class="dir-whatsapp-btn btn-glass-small" data-id="${p.id}" style="border-color:#25D366; color:#25D366; padding:3px 8px; font-size:0.7rem;" title="Cobrar / Contactar por WhatsApp"><i data-lucide="message-circle" style="width:12px;"></i></button>
                                         <button class="dir-edit-btn btn-glass-small" data-id="${p.id}" style="padding:3px 8px; font-size:0.7rem;"><i data-lucide="edit-2" style="width:12px;"></i></button>
                                         <button class="dir-renew-btn btn-glass-small" data-id="${p.id}" style="border-color:#22c55e; color:#22c55e; padding:3px 8px; font-size:0.7rem;"><i data-lucide="refresh-cw" style="width:12px;"></i></button>
                                         <button class="dir-delete-btn btn-glass-small delete" data-id="${p.id}" style="padding:3px 8px; font-size:0.7rem;"><i data-lucide="trash-2" style="width:12px;"></i></button>
@@ -694,6 +736,12 @@ const attachDirectorioListeners = (container, filteredList) => {
     if (perPageSelect) perPageSelect.onchange = () => { dirPerPage = parseInt(perPageSelect.value); dirPage = 1; renderMembersDashboard(); };
 
     // Acciones inline
+    container.querySelectorAll('.dir-whatsapp-btn').forEach(btn => {
+        btn.onclick = () => {
+            const member = membersData.find(u => u.id === btn.getAttribute('data-id'));
+            handleSendWhatsAppCobranza(member);
+        };
+    });
     container.querySelectorAll('.dir-edit-btn').forEach(btn => {
         btn.onclick = () => openMemberModal(btn.getAttribute('data-id'), membersData);
     });
@@ -813,6 +861,7 @@ const renderRetencionView = (container) => {
                                 </span>
                             </div>
                             <div style="flex-shrink:0; display:flex; gap:6px;">
+                                <button class="risk-action-whatsapp btn-glass-small" data-id="${p.id}" style="border-color:#25D366; color:#25D366; font-size:0.7rem;" title="Cobrar / Recordar por WhatsApp"><i data-lucide="message-circle" style="width:12px;"></i></button>
                                 <button class="risk-action-edit btn-glass-small" data-id="${p.id}" style="font-size:0.7rem;"><i data-lucide="edit-2" style="width:12px;"></i></button>
                                 ${p._status !== 'Inactivo' ? `<button class="risk-action-register btn-glass-small" data-uid="${p.id}" style="border-color:var(--accent-purple); color:var(--accent-purple); font-size:0.7rem;"><i data-lucide="dollar-sign" style="width:12px;"></i></button>` : ''}
                             </div>
@@ -828,6 +877,13 @@ const renderRetencionView = (container) => {
         btn.onclick = () => {
             riskFilter = btn.getAttribute('data-filter');
             renderMembersDashboard();
+        };
+    });
+
+    container.querySelectorAll('.risk-action-whatsapp').forEach(btn => {
+        btn.onclick = () => {
+            const member = membersData.find(u => u.id === btn.getAttribute('data-id'));
+            handleSendWhatsAppCobranza(member);
         };
     });
 

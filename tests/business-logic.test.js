@@ -223,4 +223,88 @@ describe('Lógica de Recuperación y Reseteo de Contraseñas', () => {
     });
 });
 
+describe('Lógica de Negocio: Restricciones de Cancelación de Reservas', () => {
+    function testCanCancel({ classTime, reservationDate, deadlineHours = 1, userRole = 'athlete', now = new Date('2026-10-12T10:00:00') }) {
+        if (userRole === 'admin') return { allowed: true, reason: 'Acceso de Administrador' };
+        const [hours, minutes] = classTime.split(':').map(Number);
+        const [year, month, day] = reservationDate.split('-').map(Number);
+        const classDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+        const diffHours = (classDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+        if (diffHours < deadlineHours) {
+            return {
+                allowed: false,
+                hoursLeft: Math.max(0, diffHours),
+                reason: `No puedes cancelar a menos de ${deadlineHours} ${deadlineHours === 1 ? 'hora' : 'horas'} antes de la clase ⏳`
+            };
+        }
+        return { allowed: true, hoursLeft: diffHours };
+    }
+
+    const testNow = new Date('2026-10-12T10:00:00');
+
+    it('debe permitir cancelar si faltan más de deadlineHours (ej: 2h cuando el límite es 1h)', () => {
+        const res = testCanCancel({ classTime: '12:00', reservationDate: '2026-10-12', deadlineHours: 1, now: testNow });
+        expect(res.allowed).toBe(true);
+    });
+
+    it('debe bloquear la cancelación si faltan menos de deadlineHours (ej: 45 min cuando el límite es 1h)', () => {
+        const res = testCanCancel({ classTime: '10:45', reservationDate: '2026-10-12', deadlineHours: 1, now: testNow });
+        expect(res.allowed).toBe(false);
+        expect(res.reason).toContain('No puedes cancelar a menos de 1 hora');
+    });
+
+    it('debe bloquear la cancelación si la clase ya comenzó o pasó', () => {
+        const res = testCanCancel({ classTime: '09:00', reservationDate: '2026-10-12', deadlineHours: 1, now: testNow });
+        expect(res.allowed).toBe(false);
+    });
+
+    it('debe permitir al administrador cancelar en cualquier momento (bypass)', () => {
+        const res = testCanCancel({ classTime: '10:15', reservationDate: '2026-10-12', deadlineHours: 1, userRole: 'admin', now: testNow });
+        expect(res.allowed).toBe(true);
+        expect(res.reason).toBe('Acceso de Administrador');
+    });
+
+    it('debe respetar un límite configurado mayor (ej: 2 horas de anticipación)', () => {
+        // A las 10:00 para clase de 11:30 faltan 1.5h. Con límite de 2h debe bloquearse.
+        const res = testCanCancel({ classTime: '11:30', reservationDate: '2026-10-12', deadlineHours: 2, now: testNow });
+        expect(res.allowed).toBe(false);
+        expect(res.reason).toContain('No puedes cancelar a menos de 2 horas');
+    });
+});
+
+describe('Lógica de Negocio: Tokens QR de Asistencia Tatami', () => {
+    function generateQRToken(classId, date, time, className = '') {
+        const payload = { app: 'amarufighter', class_id: classId, class_name: className, date, time };
+        return `AF_QR:${btoa(JSON.stringify(payload))}`;
+    }
+
+    function parseQRToken(str) {
+        if (!str || !str.startsWith('AF_QR:')) return null;
+        try {
+            return JSON.parse(atob(str.slice(6)));
+        } catch {
+            return null;
+        }
+    }
+
+    it('debe generar y decodificar correctamente un token QR para clase', () => {
+        const token = generateQRToken('striking-01', '2026-10-12', '19:00', 'Striking Pro');
+        expect(token.startsWith('AF_QR:')).toBe(true);
+
+        const decoded = parseQRToken(token);
+        expect(decoded).not.toBeNull();
+        expect(decoded.app).toBe('amarufighter');
+        expect(decoded.class_id).toBe('striking-01');
+        expect(decoded.class_name).toBe('Striking Pro');
+        expect(decoded.date).toBe('2026-10-12');
+        expect(decoded.time).toBe('19:00');
+    });
+
+    it('debe rechazar tokens corruptos o de formato desconocido', () => {
+        expect(parseQRToken('INVALID_TOKEN_123')).toBeNull();
+        expect(parseQRToken(null)).toBeNull();
+    });
+});
+
 

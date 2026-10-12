@@ -118,10 +118,30 @@ export const renderSchedule = async () => {
 
     container.innerHTML = filteredClasses.map((cls, idx) => {
         const isBooked = appState.reservations.includes(cls.id);
+        let canCancel = true;
+        let cancelReason = '';
+        if (isBooked && appState.role !== 'admin') {
+            const check = SupabaseService.canCancelReservation({
+                classTime: cls.time,
+                reservationDate: appState.selectedDate,
+                userRole: appState.role
+            });
+            canCancel = check.allowed;
+            cancelReason = check.reason;
+        }
         const classReservations = allReservationsForDate.filter(r => r.class_id === cls.id);
-        const attendeeCount = classReservations.length;
-        const attendeeNames = classReservations.map(r => r.user_name || r.profiles?.full_name || 'Atleta').slice(0, 5);
-        const hasMoreAttendees = classReservations.length > 5;
+        const activeReservations = classReservations.filter(r => !(r.class_name || '').includes('[Waitlist]'));
+        const waitlistReservations = classReservations.filter(r => (r.class_name || '').includes('[Waitlist]'));
+        const attendeeCount = activeReservations.length;
+        const capacity = Number(cls.capacity) || 20;
+        const isFull = attendeeCount >= capacity;
+
+        const currentUserId = auth?.currentUser?.uid || '';
+        const userWaitlistIdx = waitlistReservations.findIndex(w => w.user_id === currentUserId);
+        const isInWaitlist = userWaitlistIdx !== -1;
+
+        const attendeeNames = activeReservations.map(r => r.user_name || r.profiles?.full_name || 'Atleta').slice(0, 5);
+        const hasMoreAttendees = activeReservations.length > 5;
 
         const typeColor = {
             'Striking': '#ef4444',
@@ -144,8 +164,13 @@ export const renderSchedule = async () => {
                         <p style="margin:4px 0 0; font-size:0.8rem; opacity:0.7;">${cls.time} • Coach ${cls.coach}</p>
                         <div style="display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap;">
                             <span style="font-size:0.7rem; opacity:0.5; display:flex; align-items:center; gap:4px;">
-                                <i data-lucide="users" style="width:12px;"></i> ${attendeeCount} inscrito${attendeeCount !== 1 ? 's' : ''}
+                                <i data-lucide="users" style="width:12px;"></i> ${attendeeCount}/${capacity} inscrito${attendeeCount !== 1 ? 's' : ''}
                             </span>
+                            ${waitlistReservations.length > 0 ? `
+                                <span class="tag" style="background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.25); font-size:0.65rem; padding:1px 6px;">
+                                    ⏳ ${waitlistReservations.length} en espera
+                                </span>
+                            ` : ''}
                             ${attendeeCount > 0 ? `<span style="font-size:0.65rem; opacity:0.4;">• ${attendeeNames.join(', ')}${hasMoreAttendees ? '...' : ''}</span>` : ''}
                         </div>
                     </div>
@@ -155,10 +180,38 @@ export const renderSchedule = async () => {
                             onclick="event.stopPropagation();">
                             <i data-lucide="eye" style="width:12px; margin-right:4px;"></i> Ver asistencia
                         </button>` : `
-                        <button class="btn-reserve-stitch ${isBooked ? 'booked' : ''}" data-id="${cls.id}" style="min-width:100px;"
-                            onclick="event.stopPropagation();">
-                            ${isBooked ? 'CANCELAR' : 'RESERVAR'}
-                        </button>
+                        ${isBooked ? (
+                            canCancel ? `
+                                <button class="btn-reserve-stitch booked" data-id="${cls.id}" style="min-width:100px;"
+                                    onclick="event.stopPropagation();">
+                                    CANCELAR
+                                </button>
+                            ` : `
+                                <button class="btn-reserve-stitch booked locked" data-id="${cls.id}" style="min-width:100px;"
+                                    title="${cancelReason}" onclick="event.stopPropagation(); window.showToast && window.showToast('${cancelReason}', '#ef4444');">
+                                    <i data-lucide="lock" style="width:11px; vertical-align:middle; margin-right:3px;"></i> BLOQUEADA
+                                </button>
+                            `
+                        ) : (
+                            isInWaitlist ? `
+                                <button class="btn-reserve-stitch waitlist-btn in-waitlist" data-id="${cls.id}" data-action="leave-waitlist" style="min-width:115px; background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.45); color:#fbbf24;"
+                                    onclick="event.stopPropagation();" title="Pulsa para salir de la lista de espera">
+                                    <i data-lucide="clock" style="width:11px; vertical-align:middle; margin-right:3px;"></i> ESPERA (#${userWaitlistIdx + 1}) • SALIR
+                                </button>
+                            ` : (
+                                isFull ? `
+                                    <button class="btn-reserve-stitch waitlist-btn join-waitlist" data-id="${cls.id}" data-action="join-waitlist" style="min-width:115px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:#f59e0b;"
+                                        onclick="event.stopPropagation();" title="Clase llena. Únete a la lista de espera para optar a cupos liberados.">
+                                        <i data-lucide="user-plus" style="width:11px; vertical-align:middle; margin-right:3px;"></i> LISTA ESPERA
+                                    </button>
+                                ` : `
+                                    <button class="btn-reserve-stitch" data-id="${cls.id}" style="min-width:100px;"
+                                        onclick="event.stopPropagation();">
+                                        RESERVAR
+                                    </button>
+                                `
+                            )
+                        )}
                         `}
                     </div>
                 </div>
@@ -197,9 +250,16 @@ export const renderSchedule = async () => {
     document.querySelectorAll('.btn-reserve-stitch').forEach(btn => {
         btn.onclick = () => {
             const id = btn.getAttribute('data-id');
+            const action = btn.getAttribute('data-action');
             if (appState.role === 'admin') {
                 if (openClassModal) openClassModal(id, appState.classes);
                 else window.showToast("Función de edición no disponible", "#ef4444");
+            } else if (action === 'leave-waitlist') {
+                if (window.handleLeaveWaitlist) window.handleLeaveWaitlist(id);
+                else window.showToast("Función no disponible", "#ef4444");
+            } else if (action === 'join-waitlist') {
+                if (window.handleJoinWaitlist) window.handleJoinWaitlist(id);
+                else window.showToast("Función no disponible", "#ef4444");
             } else {
                 if (toggleReservation) toggleReservation(id);
             }

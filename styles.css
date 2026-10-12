@@ -1786,4 +1786,65 @@ h3 {
     .btn-primary-glow {
         justify-content: center;
     }
+}
+
+/* --- REGLAS DE CANCELACIÓN Y QR SCANNER (FASE 2) --- */
+.btn-reserve-stitch.locked {
+    opacity: 0.65;
+    cursor: not-allowed !important;
+    background: rgba(239, 68, 68, 0.15) !important;
+    border: 1px solid rgba(239, 68, 68, 0.4) !important;
+    color: #fca5a5 !important;
+}
+
+@keyframes scanline {
+    0% {
+        top: 0%;
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        top: 100%;
+        opacity: 0.8;
+    }
+}
+
+/* --- RUTA 1: COBRANZA WHATSAPP & WAITLIST INTELIGENTE --- */
+.dir-whatsapp-btn, .risk-action-whatsapp, .alert-action-whatsapp {
+    transition: all 0.25s ease !important;
+}
+.dir-whatsapp-btn:hover, .risk-action-whatsapp:hover, .alert-action-whatsapp:hover {
+    background: rgba(37, 211, 102, 0.2) !important;
+    box-shadow: 0 0 12px rgba(37, 211, 102, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+.btn-reserve-stitch.join-waitlist {
+    background: rgba(245, 158, 11, 0.12) !important;
+    border: 1px solid rgba(245, 158, 11, 0.4) !important;
+    color: #fbbf24 !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px;
+    transition: all 0.25s ease;
+}
+.btn-reserve-stitch.join-waitlist:hover {
+    background: rgba(245, 158, 11, 0.25) !important;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.4) !important;
+    transform: translateY(-2px);
+}
+
+.btn-reserve-stitch.in-waitlist {
+    background: rgba(245, 158, 11, 0.22) !important;
+    border: 1px solid rgba(245, 158, 11, 0.6) !important;
+    color: #fef08a !important;
+    font-weight: 800 !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+    transition: all 0.25s ease;
+}
+.btn-reserve-stitch.in-waitlist:hover {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-color: rgba(239, 68, 68, 0.6) !important;
+    color: #fca5a5 !important;
 }

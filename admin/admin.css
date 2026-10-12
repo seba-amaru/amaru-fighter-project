@@ -2143,3 +2143,559 @@ h1, h2, h3, h4, .brand-title {
     box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
 }
 
+/* ==========================================================================
+   MODO PANTALLA TATAMI / KIOSCO TV EN VIVO (RUTA 2)
+   ========================================================================== */
+.kiosk-fullscreen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at 50% 20%, #15102a 0%, #09090b 70%, #030304 100%);
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    animation: kioskFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes kioskFadeIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.kiosk-header {
+    height: 78px;
+    padding: 0 32px;
+    background: rgba(9, 9, 11, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.kiosk-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.kiosk-logo {
+    height: 48px;
+    width: auto;
+    filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.4));
+}
+
+.kiosk-title {
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    background: linear-gradient(135deg, #fff, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.1;
+}
+
+.kiosk-subtitle {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-emerald);
+}
+
+.kiosk-header-center {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.kiosk-clock-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.kiosk-clock {
+    font-size: 2.1rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    line-height: 1;
+}
+
+.kiosk-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: capitalize;
+    margin-top: 2px;
+}
+
+.kiosk-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
+.kiosk-status-badge.live {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #34d399;
+}
+
+.kiosk-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 10px currentColor;
+    animation: kioskDotPulse 1.4s infinite ease-in-out;
+}
+
+@keyframes kioskDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+.kiosk-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.kiosk-class-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    padding: 6px 12px;
+    border-radius: 10px;
+}
+
+.kiosk-select {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    max-width: 200px;
+}
+.kiosk-select option {
+    background: #09090b;
+    color: #fff;
+}
+
+.btn-kiosk-icon, .btn-kiosk-close {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    color: #fff;
+    border-radius: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-kiosk-icon {
+    width: 38px;
+    height: 38px;
+}
+.btn-kiosk-icon:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-kiosk-close {
+    padding: 8px 16px;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+.btn-kiosk-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.6);
+}
+
+/* Contenedor Principal */
+.kiosk-main-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    padding: 24px 32px;
+    overflow: hidden;
+}
+
+/* Columna Izquierda */
+.kiosk-left-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+}
+
+.kiosk-class-hero {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+.kiosk-class-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #7c3aed, #10b981);
+}
+
+.kiosk-discipline-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: rgba(124, 58, 237, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(124, 58, 237, 0.4);
+    margin-bottom: 8px;
+}
+
+.kiosk-class-name {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 8px;
+    line-height: 1.2;
+}
+
+.kiosk-class-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+.kiosk-class-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.kiosk-class-meta strong {
+    color: #fff;
+}
+
+/* QR Box */
+.kiosk-qr-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.kiosk-qr-scanner-frame {
+    position: relative;
+    padding: 12px;
+    background: #09090b;
+    border: 2px solid rgba(124, 58, 237, 0.5);
+    border-radius: 16px;
+    box-shadow: 0 0 35px rgba(124, 58, 237, 0.35);
+}
+
+.kiosk-qr-img {
+    width: 250px;
+    height: 250px;
+    display: block;
+    border-radius: 8px;
+}
+
+.kiosk-scan-glow-line {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #34d399, transparent);
+    box-shadow: 0 0 15px #34d399;
+    animation: kioskScanMove 3s infinite ease-in-out;
+}
+
+@keyframes kioskScanMove {
+    0%, 100% { top: 12px; opacity: 0.3; }
+    50% { top: 250px; opacity: 1; }
+}
+
+.kiosk-qr-instruction {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    padding: 10px 14px;
+    border-radius: 12px;
+    width: 100%;
+}
+.kiosk-qr-instruction strong {
+    display: block;
+    font-size: 0.85rem;
+    color: #34d399;
+}
+.kiosk-qr-instruction p {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+}
+
+/* Capacidad */
+.kiosk-capacity-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 18px 20px;
+}
+
+.kiosk-capacity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.kiosk-capacity-track {
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.kiosk-capacity-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #06b6d4);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+    border-radius: 6px;
+    transition: width 0.5s ease;
+}
+
+.kiosk-capacity-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+}
+
+/* Columna Derecha: Roster en Vivo */
+.kiosk-right-panel {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.kiosk-roster-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+    gap: 16px;
+}
+
+.kiosk-roster-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.kiosk-roster-title-group h3 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.kiosk-counter-badge {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.kiosk-roster-filter-pills {
+    display: flex;
+    gap: 8px;
+}
+
+.kiosk-filter-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-glass);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.kiosk-filter-pill.active {
+    background: rgba(124, 58, 237, 0.25);
+    border-color: #a855f7;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.3);
+}
+
+.kiosk-athletes-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+    align-content: start;
+    padding-right: 6px;
+}
+
+/* Tarjeta de Atleta en Tatami */
+.kiosk-athlete-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.3s ease;
+    animation: kioskCardSlide 0.3s ease forwards;
+}
+
+@keyframes kioskCardSlide {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.kiosk-athlete-card.attended {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.12);
+}
+
+.kiosk-athlete-card.new-checkin {
+    animation: kioskPopHighlight 2s ease;
+}
+
+@keyframes kioskPopHighlight {
+    0% { transform: scale(0.95); box-shadow: 0 0 30px rgba(16, 185, 129, 0.9); }
+    50% { transform: scale(1.03); box-shadow: 0 0 35px rgba(16, 185, 129, 0.7); }
+    100% { transform: scale(1); }
+}
+
+.kiosk-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+.kiosk-athlete-card.attended .kiosk-avatar {
+    border-color: #34d399;
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+}
+
+.kiosk-avatar-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+.kiosk-athlete-card.attended .kiosk-avatar-placeholder {
+    background: linear-gradient(135deg, #059669, #10b981);
+    border-color: #34d399;
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+}
+
+.kiosk-athlete-info {
+    flex: 1;
+    min-width: 0;
+}
+.kiosk-athlete-name {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+.kiosk-athlete-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+}
+
+.kiosk-badge-status {
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.kiosk-badge-status.attended {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.kiosk-badge-status.pending {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 1024px) {
+    .kiosk-main-content {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+}
+

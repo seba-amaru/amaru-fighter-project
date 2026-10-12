@@ -129,6 +129,11 @@
             </div>
 
             <div class="topbar-right">
+                <button type="button" class="btn-primary-action" id="btn-open-tatami-kiosk" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border: none; cursor: pointer; box-shadow: 0 0 12px rgba(124, 58, 237, 0.35);" title="Abrir Modo Pantalla Tatami / Kiosco TV Fullscreen">
+                    <i data-lucide="tv" style="width: 14px; height: 14px;"></i>
+                    <span>Pantalla Tatami TV</span>
+                </button>
+
                 <!-- Disparador de Command Palette -->
                 <button class="search-trigger" id="btn-open-palette">
                     <i data-lucide="search" style="width: 14px; height: 14px;"></i>
@@ -330,6 +335,22 @@
                         <p>Monitoreo en tiempo real de check-ins, roster diario por clase, auditoría global y retención por asistencia.</p>
                     </div>
                     <div class="section-actions-group">
+                        <div class="cancel-deadline-selector-wrap" style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 6px 12px;" title="Tiempo mínimo antes de la clase en que el alumno puede cancelar">
+                            <i data-lucide="shield-alert" style="width: 14px; height: 14px; color: var(--accent-gold, #f59e0b);"></i>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary, #A1A1AA); white-space: nowrap;">Límite Cancelación:</span>
+                            <select id="select-cancel-deadline" style="background: transparent; border: none; color: #fff; font-size: 0.78rem; font-weight: 700; cursor: pointer; outline: none;">
+                                <option value="1" style="background: #09090b; color: #fff;">1 hora antes (Default)</option>
+                                <option value="2" style="background: #09090b; color: #fff;">2 horas antes</option>
+                                <option value="3" style="background: #09090b; color: #fff;">3 horas antes</option>
+                                <option value="4" style="background: #09090b; color: #fff;">4 horas antes</option>
+                                <option value="6" style="background: #09090b; color: #fff;">6 horas antes</option>
+                                <option value="12" style="background: #09090b; color: #fff;">12 horas antes</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-primary-action" id="btn-open-tatami-kiosk-attendance" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-weight: 700;">
+                            <i data-lucide="tv"></i>
+                            <span>Pantalla Tatami TV</span>
+                        </button>
                         <button class="btn-secondary-action" id="btn-refresh-attendance">
                             <i data-lucide="rotate-cw"></i>
                             <span>Actualizar</span>
@@ -1278,6 +1299,10 @@
                         <p>Análisis de recaudación del dojo, balance por disciplina, proyecciones y exportaciones contables.</p>
                     </div>
                     <div class="section-actions-group" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn-secondary-action" id="btn-config-bank-details" title="Configurar datos de cuenta bancaria del Dojo" style="border: 1px solid rgba(16, 185, 129, 0.4); color: var(--accent-emerald);">
+                            <i data-lucide="landmark"></i>
+                            <span>Datos Bancarios</span>
+                        </button>
                         <button class="btn-secondary-action" id="btn-refresh-revenue" title="Actualizar datos financieros">
                             <i data-lucide="refresh-cw"></i>
                             <span>Actualizar</span>
@@ -2366,6 +2391,115 @@
                     <span>Ir a Avisos Globales</span>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         MODO PANTALLA TATAMI / KIOSCO TV EN VIVO (RUTA 2)
+         ==================================================================== -->
+    <div id="tatami-kiosk-overlay" class="kiosk-fullscreen-overlay" style="display: none;">
+        <!-- Cabecera Kiosco -->
+        <header class="kiosk-header">
+            <div class="kiosk-brand">
+                <img src="./images/AMARU-LFNM.png" alt="Amarufighter" class="kiosk-logo">
+                <div>
+                    <h2 class="kiosk-title">AMARUFIGHTER DOJO</h2>
+                    <span class="kiosk-subtitle">TATAMI LIVE COCKPIT</span>
+                </div>
+            </div>
+
+            <div class="kiosk-header-center">
+                <div class="kiosk-clock-box">
+                    <span id="kiosk-clock-time" class="kiosk-clock">00:00:00</span>
+                    <span id="kiosk-clock-date" class="kiosk-date">Cargando fecha...</span>
+                </div>
+                <div id="kiosk-live-badge" class="kiosk-status-badge live">
+                    <span class="kiosk-badge-dot"></span>
+                    <span id="kiosk-status-text">TATAMI ACTIVO 🔴</span>
+                </div>
+            </div>
+
+            <div class="kiosk-header-actions">
+                <div class="kiosk-class-select-wrap">
+                    <i data-lucide="layers" style="width: 14px; height: 14px; color: var(--accent-gold);"></i>
+                    <select id="kiosk-class-select" class="kiosk-select" title="Seleccionar clase a proyectar">
+                        <!-- Opciones de clases cargadas dinámicamente -->
+                    </select>
+                </div>
+                <button type="button" id="btn-kiosk-fullscreen-toggle" class="btn-kiosk-icon" title="Pantalla Completa (F11)">
+                    <i data-lucide="maximize" id="kiosk-fs-icon"></i>
+                </button>
+                <button type="button" id="btn-kiosk-close" class="btn-kiosk-close" title="Salir de Modo Pantalla (ESC)">
+                    <i data-lucide="x"></i>
+                    <span>Cerrar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Contenido Principal Kiosco -->
+        <div class="kiosk-main-content">
+            <!-- Columna Izquierda: Información de Clase, QR Gigante y Aforo -->
+            <aside class="kiosk-left-panel">
+                <div class="kiosk-class-hero">
+                    <div class="kiosk-discipline-pill" id="kiosk-class-discipline">Striking</div>
+                    <h1 class="kiosk-class-name" id="kiosk-class-name">Striking Pro</h1>
+                    <div class="kiosk-class-meta">
+                        <span><i data-lucide="clock"></i> <strong id="kiosk-class-time">19:00 - 20:30</strong></span>
+                        <span><i data-lucide="user"></i> Sensei <strong id="kiosk-class-coach">Amaru</strong></span>
+                    </div>
+                </div>
+
+                <!-- QR Check-in Gigante -->
+                <div class="kiosk-qr-box">
+                    <div class="kiosk-qr-scanner-frame">
+                        <img id="kiosk-qr-image" src="" alt="Código QR de Asistencia" class="kiosk-qr-img">
+                        <div class="kiosk-scan-glow-line"></div>
+                    </div>
+                    <div class="kiosk-qr-instruction">
+                        <i data-lucide="scan-line" style="width: 20px; height: 20px; color: var(--accent-emerald);"></i>
+                        <div>
+                            <strong>Check-in con tu App</strong>
+                            <p>Escanea este código desde la app móvil para registrar tu asistencia (+25 XP 🥋)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Capacidad & Ocupación en Vivo -->
+                <div class="kiosk-capacity-card">
+                    <div class="kiosk-capacity-header">
+                        <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Aforo en Tatami</span>
+                        <strong id="kiosk-capacity-ratio" style="font-size: 1.1rem; color: #fff;">0 / 20 Presentes</strong>
+                    </div>
+                    <div class="kiosk-capacity-track">
+                        <div id="kiosk-capacity-bar" class="kiosk-capacity-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="kiosk-capacity-stats">
+                        <span id="kiosk-stat-attended" style="color: var(--accent-emerald); font-weight: 700;">0 Presentes</span>
+                        <span id="kiosk-stat-reserved" style="color: var(--text-muted);">0 Por llegar</span>
+                        <span id="kiosk-stat-waitlist" style="color: var(--accent-gold); font-weight: 700;">0 En espera</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Columna Derecha: Tablero de Atletas en Vivo -->
+            <section class="kiosk-right-panel">
+                <div class="kiosk-roster-header">
+                    <div class="kiosk-roster-title-group">
+                        <h3>Atletas en Tatami</h3>
+                        <span id="kiosk-roster-total-count" class="kiosk-counter-badge">0 inscritos</span>
+                    </div>
+                    <div class="kiosk-roster-filter-pills">
+                        <button type="button" class="kiosk-filter-pill active" data-filter="all">Todos (<span id="kfilter-count-all">0</span>)</button>
+                        <button type="button" class="kiosk-filter-pill" data-filter="attended">En Tatami (<span id="kfilter-count-attended">0</span>)</button>
+                        <button type="button" class="kiosk-filter-pill" data-filter="pending">Por Llegar (<span id="kfilter-count-pending">0</span>)</button>
+                    </div>
+                </div>
+
+                <!-- Grid de Atletas -->
+                <div id="kiosk-athletes-grid" class="kiosk-athletes-grid">
+                    <!-- Tarjetas de atletas inyectadas dinámicamente -->
+                </div>
+            </section>
         </div>
     </div>
 

@@ -1,5 +1,6 @@
 import { supabase, getCurrentSession, verifyAdminRole } from './supabaseClient.js';
 import { recordMembershipPayment, calculateDiscountedAmount, setupRealtimeSync } from './paymentService.js';
+import { KioskService as SupabaseService } from './kioskService.js';
 
 // ============================================================================
 // ESTADO LOCAL DE LA APLICACIÓN DE ESCRITORIO
@@ -26,6 +27,7 @@ async function bootAdminApp() {
     initCommandPalette();
     initQuickActions();
     initDrawerAndModals();
+    initTatamiKiosk();
 
     // Verificación de Autenticación y Rol
     await checkAdminAuth();
@@ -1674,10 +1676,12 @@ function renderAttendanceRoster() {
             return (a.class_id === cls.id || a.class_name === className) && d === attRosterDate;
         });
 
-        // Reservas para esta clase y fecha
-        const reservedAttendees = cachedReservations.filter(r => {
-            return (r.class_id === cls.id || r.class_name === className) && r.reservation_date === attRosterDate;
+        // Reservas para esta clase y fecha (separando cupos activos de waitlist)
+        const classReservations = cachedReservations.filter(r => {
+            return (r.class_id === cls.id || r.class_name === className || (r.class_name || '').startsWith(className)) && r.reservation_date === attRosterDate;
         });
+        const reservedAttendees = classReservations.filter(r => !(r.class_name || '').includes('[Waitlist]'));
+        const waitlistAttendees = classReservations.filter(r => (r.class_name || '').includes('[Waitlist]'));
 
         // Combinar lista única de alumnos
         const studentMap = new Map();
@@ -1713,13 +1717,26 @@ function renderAttendanceRoster() {
                         <h3 style="font-size: 1.05rem; font-weight: 800; color: #fff; margin-top: 6px;">${className}</h3>
                         <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Sensei: <strong style="color: #fff;">${coach}</strong></div>
                     </div>
-                    <span class="badge-method ${disciplineBadgeClass}">${cls.type || 'Tatami'}</span>
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                        <span class="badge-method ${disciplineBadgeClass}">${cls.type || 'Tatami'}</span>
+                        <button type="button" class="btn-project-qr" data-class-id="${cls.id}" data-class-name="${className}" data-class-time="${timeStr}" style="background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.4); color: #c084fc; padding: 4px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Proyectar código QR para escaneo de alumnos">
+                            <i data-lucide="qr-code" style="width: 12px; height: 12px;"></i>
+                            <span>Proyectar QR</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 3px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; margin-bottom: 3px;">
                         <span style="color: var(--text-muted);">Asistencia Confirmada:</span>
-                        <strong style="color: ${fillPct >= 90 ? 'var(--accent-red)' : 'var(--accent-emerald)'};">${attendedCount} / ${capacity} cupos (${fillPct}%)</strong>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            ${waitlistAttendees.length > 0 ? `
+                                <span style="font-size: 0.65rem; color: #fbbf24; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 1px 6px; border-radius: 10px; font-weight: 700;" title="${waitlistAttendees.length} atleta(s) en cola de espera">
+                                    ⏳ ${waitlistAttendees.length} en espera
+                                </span>
+                            ` : ''}
+                            <strong style="color: ${fillPct >= 90 ? 'var(--accent-red)' : 'var(--accent-emerald)'};">${attendedCount} / ${capacity} cupos (${fillPct}%)</strong>
+                        </div>
                     </div>
                     <div class="roster-capacity-track">
                         <div class="roster-capacity-fill" style="width: ${fillPct}%;"></div>
@@ -1784,7 +1801,58 @@ function renderAttendanceRoster() {
         };
     });
 
+    container.querySelectorAll('.btn-project-qr').forEach(btn => {
+        btn.onclick = () => {
+            const cid = btn.getAttribute('data-class-id');
+            const cname = btn.getAttribute('data-class-name');
+            const ctime = btn.getAttribute('data-class-time');
+            openClassQRProjectorModal(cid, cname, ctime);
+        };
+    });
+
     initLucideIcons();
+}
+
+function openClassQRProjectorModal(classId, className, classTime) {
+    const today = attRosterDate || new Date().toISOString().split('T')[0];
+    const payload = {
+        app: 'amarufighter',
+        version: '1.0',
+        class_id: classId,
+        class_name: className,
+        date: today,
+        time: classTime,
+        generated_at: Date.now()
+    };
+    const qrToken = `AF_QR:${btoa(unescape(encodeURIComponent(JSON.stringify(payload))))}`;
+    const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrToken)}&bgcolor=09090b&color=ffffff&margin=10`;
+
+    if (window.Swal) {
+        window.Swal.fire({
+            title: `<span style="font-size: 1.2rem; color: #fff; font-weight: 900; letter-spacing: 0.5px;">🥋 ASISTENCIA TATAMI EN VIVO</span>`,
+            html: `
+                <div style="text-align: center; padding: 10px 0;">
+                    <div style="font-size: 1.05rem; font-weight: 800; color: #c084fc; margin-bottom: 4px;">${className}</div>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 18px;">
+                        ⏰ ${classTime} hrs • Fecha: <strong>${today}</strong>
+                    </div>
+                    <div style="display: inline-block; padding: 16px; background: #09090b; border: 2px solid rgba(124, 58, 237, 0.5); border-radius: 20px; box-shadow: 0 0 35px rgba(124, 58, 237, 0.3);">
+                        <img src="${qrImgUrl}" alt="QR Asistencia" style="width: 250px; height: 250px; display: block; border-radius: 12px; image-rendering: pixelated;" />
+                    </div>
+                    <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 18px; max-width: 340px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+                        Apunta tu cámara desde la app oficial para convalidar asistencia física y ganar <strong>+25 XP</strong> 🔥
+                    </p>
+                    <div style="margin-top: 12px; font-size: 0.72rem; color: var(--text-muted);">
+                        Clase ID: <code style="background: rgba(255,255,255,0.06); padding: 3px 6px; border-radius: 4px; color: #a1a1aa;">${classId}</code>
+                    </div>
+                </div>
+            `,
+            background: '#09090B',
+            color: '#fff',
+            confirmButtonText: 'Cerrar Pantalla',
+            confirmButtonColor: '#7c3aed'
+        });
+    }
 }
 
 async function confirmStudentAttendance(userId, classId, className) {
@@ -2129,6 +2197,28 @@ function initAttendanceUIHandlers() {
     const btnOpenMC = document.getElementById('btn-open-manual-checkin');
     if (btnOpenMC) {
         btnOpenMC.addEventListener('click', () => openManualCheckinModal());
+    }
+
+    // 3.1 Selector de Límite de Cancelación de Reservas
+    const selCancelLimit = document.getElementById('select-cancel-deadline');
+    if (selCancelLimit) {
+        const storedLimit = Number(localStorage.getItem('amarufighter_cancel_deadline_hours')) || 1;
+        selCancelLimit.value = String(storedLimit);
+        selCancelLimit.addEventListener('change', (e) => {
+            const newHours = Number(e.target.value) || 1;
+            localStorage.setItem('amarufighter_cancel_deadline_hours', String(newHours));
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'success',
+                    title: 'Política de Cancelación Actualizada',
+                    text: `Los atletas podrán cancelar hasta ${newHours} ${newHours === 1 ? 'hora' : 'horas'} antes de que comience la clase.`,
+                    timer: 2200,
+                    showConfirmButton: false,
+                    background: '#09090B',
+                    color: '#fff'
+                });
+            }
+        });
     }
 
     // 4. Roster: Controles de fecha
@@ -6032,6 +6122,80 @@ function initRevenueControlsOnce() {
         });
     }
 
+    const btnConfigBank = document.getElementById('btn-config-bank-details');
+    if (btnConfigBank) {
+        btnConfigBank.addEventListener('click', async () => {
+            const currentBank = (SupabaseService && SupabaseService.getDojoBankDetails) ? SupabaseService.getDojoBankDetails() : {
+                bank: 'Banco Estado',
+                accountType: 'Cuenta Corriente',
+                accountNumber: '123456789',
+                holder: 'Amarufighter Dojo SpA',
+                rut: '76.543.210-K',
+                email: 'pagos@amarufighter.cl'
+            };
+
+            if (!window.Swal) return;
+
+            const { value: formValues } = await window.Swal.fire({
+                title: '<span style="font-size:1.15rem; font-weight:800; color:#fff;">🏦 Datos Bancarios del Dojo</span>',
+                html: `
+                    <div style="display:flex; flex-direction:column; gap:8px; text-align:left; font-size:0.8rem; color:#e4e4e7; margin-top:10px;">
+                        <p style="color:var(--text-muted); font-size:0.75rem; margin:0 0 4px;">Estos datos se incluyen en los enlaces de cobranza de WhatsApp enviados a alumnos.</p>
+                        <label style="font-weight:700;">Banco:
+                            <input id="swal-bank" class="swal2-input" style="margin:2px 0 6px; width:100%; height:36px; font-size:0.8rem;" value="${currentBank.bank || ''}">
+                        </label>
+                        <label style="font-weight:700;">Tipo de Cuenta:
+                            <input id="swal-accountType" class="swal2-input" style="margin:2px 0 6px; width:100%; height:36px; font-size:0.8rem;" value="${currentBank.accountType || ''}">
+                        </label>
+                        <label style="font-weight:700;">N° Cuenta:
+                            <input id="swal-accountNumber" class="swal2-input" style="margin:2px 0 6px; width:100%; height:36px; font-size:0.8rem;" value="${currentBank.accountNumber || ''}">
+                        </label>
+                        <label style="font-weight:700;">Titular:
+                            <input id="swal-holder" class="swal2-input" style="margin:2px 0 6px; width:100%; height:36px; font-size:0.8rem;" value="${currentBank.holder || ''}">
+                        </label>
+                        <label style="font-weight:700;">RUT:
+                            <input id="swal-rut" class="swal2-input" style="margin:2px 0 6px; width:100%; height:36px; font-size:0.8rem;" value="${currentBank.rut || ''}">
+                        </label>
+                        <label style="font-weight:700;">Email de Confirmación:
+                            <input id="swal-email" type="email" class="swal2-input" style="margin:2px 0 6px; width:100%; height:36px; font-size:0.8rem;" value="${currentBank.email || ''}">
+                        </label>
+                    </div>
+                `,
+                background: '#09090B',
+                color: '#fff',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Datos',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#10b981',
+                preConfirm: () => {
+                    return {
+                        bank: document.getElementById('swal-bank')?.value?.trim() || 'Banco Estado',
+                        accountType: document.getElementById('swal-accountType')?.value?.trim() || 'Cuenta Corriente',
+                        accountNumber: document.getElementById('swal-accountNumber')?.value?.trim() || '',
+                        holder: document.getElementById('swal-holder')?.value?.trim() || '',
+                        rut: document.getElementById('swal-rut')?.value?.trim() || '',
+                        email: document.getElementById('swal-email')?.value?.trim() || ''
+                    };
+                }
+            });
+
+            if (formValues && SupabaseService && SupabaseService.setDojoBankDetails) {
+                SupabaseService.setDojoBankDetails(formValues);
+                window.Swal.fire({
+                    icon: 'success',
+                    title: 'Datos Actualizados',
+                    text: 'Los nuevos datos se usarán en las cobranzas por WhatsApp.',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    background: '#09090B',
+                    color: '#fff'
+                });
+            }
+        });
+    }
+
     if (btnExport) {
         btnExport.addEventListener('click', () => {
             exportRevenueToCSV();
@@ -6729,7 +6893,7 @@ export async function exportRevenueToCSV() {
     try {
         const { data: payments, error } = await supabase
             .from('payments')
-            .select('*')
+            .select('*, profiles:profiles(id, full_name, email)')
             .eq('status', 'approved')
             .order('created_at', { ascending: false });
 
@@ -6740,22 +6904,41 @@ export async function exportRevenueToCSV() {
             return;
         }
 
-        const totalRecaudado = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-        const headers = ['ID Pago', 'Alumno / Usuario', 'Concepto', 'Método de Pago', 'Monto ($)', 'Mes Cobertura', 'Fecha Registro'];
-        const rows = payments.map(p => [
-            p.id,
-            p.user_display_name || p.user_id || 'Socio',
-            p.concept || p.plan_name || 'Membresía',
-            p.payment_method || 'transferencia',
-            p.amount ? `$${Number(p.amount).toLocaleString('es-CL')}` : '$0',
-            p.coverage_month || '',
-            p.created_at ? new Date(p.created_at).toLocaleString('es-CL') : ''
-        ]);
+        // Filtrar según el período seleccionado en el Cockpit (mes, año y método)
+        const filteredPayments = payments.filter(p => {
+            if (!p.created_at) return false;
+            const d = new Date(p.created_at);
+            const matchesDate = d.getMonth() === revFilterMonth && d.getFullYear() === revFilterYear;
+            const matchesMethod = revFilterMethod === 'all' || (p.payment_method || 'transferencia') === revFilterMethod;
+            return matchesDate && matchesMethod;
+        });
+
+        // Si existen pagos en el período seleccionado, exportar ese mes; de lo contrario exportar el total
+        const exportSet = filteredPayments.length > 0 ? filteredPayments : payments;
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const periodLabel = filteredPayments.length > 0 ? ` (${monthNames[revFilterMonth]} ${revFilterYear})` : '';
+
+        const totalRecaudado = exportSet.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const headers = ['ID Pago', 'Alumno / Usuario', 'Email', 'Concepto', 'Método de Pago', 'Monto ($)', 'Mes Cobertura', 'Fecha Registro'];
+        const rows = exportSet.map(p => {
+            const studentName = p.profiles?.full_name || p.user_display_name || 'Socio';
+            const studentEmail = p.profiles?.email || p.user_email || '';
+            return [
+                p.id,
+                studentName,
+                studentEmail,
+                p.concept || p.plan_name || 'Membresía',
+                p.payment_method || 'transferencia',
+                p.amount ? `$${Number(p.amount).toLocaleString('es-CL')}` : '$0',
+                p.coverage_month || '',
+                p.created_at ? new Date(p.created_at).toLocaleString('es-CL') : ''
+            ];
+        });
 
         const dateStr = new Date().toISOString().slice(0, 10);
         showExportFormatDialog({
-            title: 'Exportar Reporte Contable de Ingresos',
-            pdfTitle: 'Libro Diario de Recaudación y Pagos Aprobados',
+            title: `Exportar Reporte Contable de Ingresos${periodLabel}`,
+            pdfTitle: `Libro Diario de Recaudación y Pagos Aprobados${periodLabel}`,
             filename: `ingresos_amarufighter_${dateStr}`,
             headers,
             rows,
@@ -6806,6 +6989,368 @@ export async function exportPlansToMultiformat() {
         });
     } catch (err) {
         console.error('[Admin] Error exportando planes:', err);
+    }
+}
+
+// ============================================================================
+// MÓDULO RUTA 2: CONTROLADOR DEL MODO PANTALLA TATAMI / KIOSCO TV EN VIVO
+// ============================================================================
+
+let kioskClockTimer = null;
+let kioskPollingTimer = null;
+let kioskRealtimeSub = null;
+let currentKioskClassId = null;
+let kioskPreviousAttendedUserIds = new Set();
+let kioskCurrentFilter = 'all';
+let cachedKioskStatusData = null;
+
+export const getCurrentKioskClassId = () => currentKioskClassId;
+
+export function initTatamiKiosk() {
+    const btnTopbar = document.getElementById('btn-open-tatami-kiosk');
+    const btnAttendance = document.getElementById('btn-open-tatami-kiosk-attendance');
+    const btnClose = document.getElementById('btn-kiosk-close');
+    const btnFs = document.getElementById('btn-kiosk-fullscreen-toggle');
+    const selectClass = document.getElementById('kiosk-class-select');
+
+    if (btnTopbar) {
+        btnTopbar.addEventListener('click', () => openTatamiKiosk());
+    }
+    if (btnAttendance) {
+        btnAttendance.addEventListener('click', () => openTatamiKiosk());
+    }
+    if (btnClose) {
+        btnClose.addEventListener('click', () => closeTatamiKiosk());
+    }
+    if (btnFs) {
+        btnFs.addEventListener('click', () => toggleKioskFullscreen());
+    }
+
+    if (selectClass) {
+        selectClass.addEventListener('change', (e) => {
+            const newCid = e.target.value;
+            if (newCid) switchKioskClass(newCid);
+        });
+    }
+
+    // Filtros de atletas (Todos, En Tatami, Por Llegar)
+    document.querySelectorAll('.kiosk-filter-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.kiosk-filter-pill').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            kioskCurrentFilter = btn.getAttribute('data-filter') || 'all';
+            if (cachedKioskStatusData) {
+                renderKioskAthletes(cachedKioskStatusData.athletes || []);
+            }
+        });
+    });
+
+    // Tecla Escape para salir de Kiosco
+    window.addEventListener('keydown', (e) => {
+        const overlay = document.getElementById('tatami-kiosk-overlay');
+        if (overlay && overlay.style.display !== 'none' && e.key === 'Escape') {
+            closeTatamiKiosk();
+        }
+    });
+}
+
+export async function openTatamiKiosk(initialClassId = null) {
+    const overlay = document.getElementById('tatami-kiosk-overlay');
+    if (!overlay) return;
+
+    overlay.style.display = 'flex';
+    initLucideIcons();
+
+    // 1. Reloj digital en vivo
+    startKioskClock();
+
+    // 2. Obtener clases del día
+    let classes = (cachedClassesForAtt && cachedClassesForAtt.length > 0)
+        ? cachedClassesForAtt
+        : ((cachedRawClasses && cachedRawClasses.length > 0) ? cachedRawClasses : []);
+
+    if (!classes || classes.length === 0) {
+        try {
+            const { data } = await supabase.from('classes').select('*');
+            classes = data || [];
+        } catch (e) {
+            console.warn('[Kiosk] Error cargando clases:', e);
+        }
+    }
+
+    // 3. Rellenar select de clases
+    const selectEl = document.getElementById('kiosk-class-select');
+    if (selectEl && classes.length > 0) {
+        selectEl.innerHTML = classes.map(c => `
+            <option value="${c.id}">${c.time || '19:00'} • ${c.name} (${c.coach || 'Sensei'})</option>
+        `).join('');
+    }
+
+    // 4. Determinar clase activa
+    let targetClassId = initialClassId;
+    if (!targetClassId) {
+        const activeDetection = SupabaseService.getActiveClassForKiosk(classes, new Date());
+        targetClassId = activeDetection?.classData?.id || classes[0]?.id;
+    }
+
+    if (selectEl && targetClassId) {
+        selectEl.value = targetClassId;
+    }
+
+    // 5. Cargar datos de la clase seleccionada
+    await switchKioskClass(targetClassId);
+
+    // 6. Intentar solicitar Fullscreen
+    try {
+        if (!document.fullscreenElement && overlay.requestFullscreen) {
+            overlay.requestFullscreen().catch(() => {});
+        }
+    } catch {
+        // Fullscreen opcional si el navegador lo restringe
+    }
+}
+
+function startKioskClock() {
+    if (kioskClockTimer) clearInterval(kioskClockTimer);
+
+    const updateClock = () => {
+        const now = new Date();
+        const timeEl = document.getElementById('kiosk-clock-time');
+        const dateEl = document.getElementById('kiosk-clock-date');
+
+        if (timeEl) {
+            timeEl.textContent = now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        if (dateEl) {
+            dateEl.textContent = now.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        }
+    };
+
+    updateClock();
+    kioskClockTimer = setInterval(updateClock, 1000);
+}
+
+async function switchKioskClass(classId) {
+    currentKioskClassId = classId;
+    kioskPreviousAttendedUserIds = new Set();
+
+    // Limpiar suscripción realtime previa
+    if (kioskRealtimeSub && typeof kioskRealtimeSub.unsubscribe === 'function') {
+        kioskRealtimeSub.unsubscribe();
+    }
+    if (kioskPollingTimer) {
+        clearInterval(kioskPollingTimer);
+    }
+
+    // Cargar datos inmediatos
+    await refreshKioskData(classId);
+
+    // Iniciar Realtime
+    const todayStr = attRosterDate || new Date().toISOString().split('T')[0];
+    kioskRealtimeSub = SupabaseService.subscribeToLiveAttendance(classId, todayStr, () => {
+        refreshKioskData(classId, true);
+    });
+
+    // Polling preventivo cada 8s
+    kioskPollingTimer = setInterval(() => {
+        refreshKioskData(classId, false);
+    }, 8000);
+}
+
+async function refreshKioskData(classId, isRealtimeTrigger = false) {
+    if (!classId) return;
+
+    try {
+        const todayStr = attRosterDate || new Date().toISOString().split('T')[0];
+        const status = await SupabaseService.getLiveClassStatus(classId, todayStr);
+        cachedKioskStatusData = status;
+
+        const cls = status.classData || {};
+
+        // Actualizar Cabecera y Metadatos de Clase
+        const nameEl = document.getElementById('kiosk-class-name');
+        const discEl = document.getElementById('kiosk-class-discipline');
+        const timeEl = document.getElementById('kiosk-class-time');
+        const coachEl = document.getElementById('kiosk-class-coach');
+        const badgeEl = document.getElementById('kiosk-status-text');
+        const badgeBox = document.getElementById('kiosk-live-badge');
+
+        if (nameEl) nameEl.textContent = cls.name || 'Entrenamiento Tatami';
+        if (discEl) discEl.textContent = cls.type || 'Tatami';
+        if (timeEl) timeEl.textContent = cls.time || '19:00 - 20:30';
+        if (coachEl) coachEl.textContent = cls.coach || 'Sensei';
+
+        // Evaluar estado LIVE vs UPCOMING
+        const detection = SupabaseService.getActiveClassForKiosk([cls], new Date());
+        if (badgeEl && badgeBox) {
+            if (detection?.status === 'LIVE') {
+                badgeEl.textContent = 'TATAMI EN VIVO 🔴';
+                badgeBox.className = 'kiosk-status-badge live';
+            } else if (detection?.status === 'UPCOMING') {
+                badgeEl.textContent = `COMIENZA EN ${detection.minutesToStart} MIN ⏳`;
+                badgeBox.className = 'kiosk-status-badge';
+            } else {
+                badgeEl.textContent = 'JORNADA CONCLUIDA 🥋';
+                badgeBox.className = 'kiosk-status-badge';
+            }
+        }
+
+        // Actualizar Código QR Gigante
+        const qrImg = document.getElementById('kiosk-qr-image');
+        if (qrImg && status.qrToken) {
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(status.qrToken)}&bgcolor=09090b&color=ffffff&margin=12`;
+            if (qrImg.src !== qrUrl) {
+                qrImg.src = qrUrl;
+            }
+        }
+
+        // Actualizar Aforo y Estadísticas
+        const capRatio = document.getElementById('kiosk-capacity-ratio');
+        const capBar = document.getElementById('kiosk-capacity-bar');
+        const statAtt = document.getElementById('kiosk-stat-attended');
+        const statRes = document.getElementById('kiosk-stat-reserved');
+        const statWait = document.getElementById('kiosk-stat-waitlist');
+
+        if (capRatio) capRatio.textContent = `${status.attendedCount} / ${status.capacity} Presentes (${status.occupancyPct}%)`;
+        if (capBar) capBar.style.width = `${status.occupancyPct}%`;
+        if (statAtt) statAtt.textContent = `✓ ${status.attendedCount} Presentes`;
+        const pendingCount = Math.max(0, status.reservedCount - status.attendedCount);
+        if (statRes) statRes.textContent = `⏳ ${pendingCount} Por llegar`;
+        if (statWait) statWait.textContent = `👥 ${status.waitlistCount} En espera`;
+
+        // Contadores en filtros
+        const cAll = document.getElementById('kfilter-count-all');
+        const cAtt = document.getElementById('kfilter-count-attended');
+        const cPend = document.getElementById('kfilter-count-pending');
+        const cTotal = document.getElementById('kiosk-roster-total-count');
+
+        if (cAll) cAll.textContent = status.athletes.length;
+        if (cAtt) cAtt.textContent = status.attendedCount;
+        if (cPend) cPend.textContent = pendingCount;
+        if (cTotal) cTotal.textContent = `${status.athletes.length} atletas`;
+
+        // Detectar nuevos atletas ingresados para animación especial
+        const currentAttendedIds = new Set(status.athletes.filter(a => a.hasAttended).map(a => a.userId));
+        let newlyArrivedName = null;
+
+        if (kioskPreviousAttendedUserIds.size > 0) {
+            for (const id of currentAttendedIds) {
+                if (!kioskPreviousAttendedUserIds.has(id)) {
+                    const newAthlete = status.athletes.find(a => a.userId === id);
+                    newlyArrivedName = newAthlete?.name || 'Un atleta';
+                    break;
+                }
+            }
+        }
+        kioskPreviousAttendedUserIds = currentAttendedIds;
+
+        if (newlyArrivedName && isRealtimeTrigger && window.Swal) {
+            window.Swal.fire({
+                title: `<span style="font-size:1.3rem; color:#fff; font-weight:900;">🥋 ¡Bienvenido al Tatami!</span>`,
+                html: `<p style="font-size:1.1rem; color:#34d399; font-weight:800; margin-top:6px;">${newlyArrivedName}</p><span style="font-size:0.8rem; color:#a1a1aa;">Check-in verificado • +25 XP</span>`,
+                timer: 3500,
+                showConfirmButton: false,
+                background: '#09090B',
+                color: '#fff',
+                toast: true,
+                position: 'top-end'
+            });
+        }
+
+        // Renderizar Roster
+        renderKioskAthletes(status.athletes);
+
+    } catch (err) {
+        console.error('[Kiosk] Error actualizando datos:', err);
+    }
+}
+
+function renderKioskAthletes(athletes = []) {
+    const grid = document.getElementById('kiosk-athletes-grid');
+    if (!grid) return;
+
+    let filtered = athletes;
+    if (kioskCurrentFilter === 'attended') {
+        filtered = athletes.filter(a => a.hasAttended);
+    } else if (kioskCurrentFilter === 'pending') {
+        filtered = athletes.filter(a => !a.hasAttended);
+    }
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; color: var(--text-muted);">
+                <i data-lucide="users" style="width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px;"></i>
+                <p style="font-size: 1.05rem; font-weight: 700;">No hay atletas en esta categoría todavía.</p>
+                <p style="font-size: 0.8rem; opacity: 0.6; margin-top: 4px;">Los alumnos que reserven o escaneen su QR aparecerán automáticamente.</p>
+            </div>
+        `;
+        initLucideIcons();
+        return;
+    }
+
+    grid.innerHTML = filtered.map(a => {
+        const initials = (a.name || 'A').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        const timeStr = a.attendedAt ? new Date(a.attendedAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '';
+
+        return `
+            <div class="kiosk-athlete-card ${a.hasAttended ? 'attended' : ''}">
+                ${a.avatar ? `
+                    <img src="${a.avatar}" alt="${a.name}" class="kiosk-avatar">
+                ` : `
+                    <div class="kiosk-avatar-placeholder">${initials}</div>
+                `}
+                <div class="kiosk-athlete-info">
+                    <strong class="kiosk-athlete-name">${a.name}</strong>
+                    <span class="kiosk-athlete-sub">LVL ${a.level || 0} • ${a.xp || 0} XP</span>
+                </div>
+                <div>
+                    ${a.hasAttended ? `
+                        <span class="kiosk-badge-status attended">✓ EN TATAMI ${timeStr ? `(${timeStr})` : ''}</span>
+                    ` : `
+                        <span class="kiosk-badge-status pending">⏳ POR LLEGAR</span>
+                    `}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    initLucideIcons();
+}
+
+function toggleKioskFullscreen() {
+    const overlay = document.getElementById('tatami-kiosk-overlay');
+    if (!overlay) return;
+
+    if (!document.fullscreenElement) {
+        overlay.requestFullscreen().catch(err => {
+            console.warn('[Kiosk] Error solicitando pantalla completa:', err);
+        });
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+}
+
+export function closeTatamiKiosk() {
+    const overlay = document.getElementById('tatami-kiosk-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+
+    if (kioskClockTimer) {
+        clearInterval(kioskClockTimer);
+        kioskClockTimer = null;
+    }
+    if (kioskPollingTimer) {
+        clearInterval(kioskPollingTimer);
+        kioskPollingTimer = null;
+    }
+    if (kioskRealtimeSub && typeof kioskRealtimeSub.unsubscribe === 'function') {
+        kioskRealtimeSub.unsubscribe();
+        kioskRealtimeSub = null;
+    }
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
     }
 }
 

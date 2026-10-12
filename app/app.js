@@ -1257,8 +1257,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const classDateTime = new Date(`${appState.selectedDate}T${cls.time}`);
                 const hoursDiff = (classDateTime - now) / (1000 * 60 * 60);
 
-                if (appState.role !== 'admin' && hoursDiff < 1) {
-                    showToast("No puedes cancelar a menos de 1 hr ⏳", "#ef4444");
+                const cancelCheck = SupabaseService.canCancelReservation({ classTime: cls.time, reservationDate: appState.selectedDate, userRole: appState.role });
+                if (!cancelCheck.allowed) {
+                    showToast(cancelCheck.reason, "#ef4444");
                     return;
                 }
 
@@ -1361,6 +1362,62 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast("Error procesando reserva ❌", "#ef4444");
         } finally {
             isProcessingReservation = false;
+        }
+    };
+
+    window.handleJoinWaitlist = async (classId) => {
+        const user = auth.currentUser;
+        if (!user) {
+            showToast("Inicia sesión 🔒", "#ef4444");
+            return;
+        }
+        if (appState.membershipStatus !== 'active' && appState.role !== 'admin') {
+            showToast("Membresía inactiva. ¡Actívala ahora! 🔒", "#f59e0b");
+            switchScreen('membership');
+            return;
+        }
+
+        const cls = appState.classes.find(c => c.id === classId);
+        if (!cls) return;
+
+        window.showLoading("Uniéndote a lista de espera...");
+        try {
+            await SupabaseService.joinWaitlist(user.uid, classId, cls.name, appState.selectedDate);
+            if (appState.allUserReservations) {
+                appState.allUserReservations.push({
+                    user_id: user.uid,
+                    class_id: classId,
+                    class_name: `${cls.name} [Waitlist]`,
+                    reservation_date: appState.selectedDate
+                });
+            }
+            window.hideLoading();
+            showToast("¡Te has unido a la lista de espera! ⏳🥋", "#f59e0b");
+            renderSchedule();
+        } catch (err) {
+            window.hideLoading();
+            console.error("Error joining waitlist:", err);
+            showToast("No pudiste unirte a la lista de espera", "#ef4444");
+        }
+    };
+
+    window.handleLeaveWaitlist = async (classId) => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        window.showLoading("Saliendo de la lista...");
+        try {
+            await SupabaseService.leaveWaitlist(user.uid, classId, appState.selectedDate);
+            if (appState.allUserReservations) {
+                appState.allUserReservations = appState.allUserReservations.filter(r => !(r.class_id === classId && r.reservation_date === appState.selectedDate));
+            }
+            window.hideLoading();
+            showToast("Saliste de la lista de espera 🗓️", "#71717A");
+            renderSchedule();
+        } catch (err) {
+            window.hideLoading();
+            console.error("Error leaving waitlist:", err);
+            showToast("Error al salir de la lista", "#ef4444");
         }
     };
 
@@ -1552,7 +1609,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h2 style="color: white; font-weight: 900; margin: 10px 0 5px; font-size: 1.8rem; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">${displayClass.name}</h2>
                     <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; font-weight: 500;"><i data-lucide="clock" style="width:14px; vertical-align: middle; margin-right: 4px;"></i> ${displayClass.time} • Coach ${displayClass.coach}</p>
                     <div style="display:flex; gap:12px; margin-top:20px;">
-                        ${isBooked ? `<button class="btn-primary" id="btn-checkin-dash" style="background:white; color:black; padding: 12px 24px; font-size:0.8rem; border-radius:100px; border:none; font-weight:900; box-shadow: 0 4px 15px rgba(255,255,255,0.2);">MARCAR ASISTENCIA (+25 XP)</button>` : ''}
+                        ${isBooked ? `<button class="btn-primary" id="btn-checkin-dash" style="background:white; color:black; padding: 12px 24px; font-size:0.8rem; border-radius:100px; border:none; font-weight:900; box-shadow: 0 4px 15px rgba(255,255,255,0.2); display:inline-flex; align-items:center; gap:6px;"><i data-lucide="qr-code" style="width:15px; height:15px;"></i> ESCANEAR QR TATAMI (+25 XP)</button>` : ''}
                         <button class="btn-glass" id="btn-dashboard-go-schedule" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); backdrop-filter: blur(10px); padding: 12px 24px; font-size: 0.8rem; border-radius: 100px;">VER AGENDA</button>
                     </div>
                 </div>
@@ -1561,7 +1618,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isBooked) {
                 const checkInBtn = document.getElementById('btn-checkin-dash');
-                if (checkInBtn) checkInBtn.onclick = () => handleCheckIn(displayClass);
+                if (checkInBtn) checkInBtn.onclick = () => openQRScannerModal(displayClass);
             }
 
             document.getElementById('btn-dashboard-go-schedule').onclick = () => {
@@ -1573,28 +1630,144 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const handleCheckIn = async (cls) => {
+    const openQRScannerModal = (cls) => {
         const user = auth.currentUser;
-        if (!user) return;
-
-        showToast("Registrando asistencia... 🥋");
-        try {
-            await SupabaseService.logAttendance(user.uid, cls.id, cls.name);
-
-            // Bonus XP for attendance (gamification Request #2)
-            const newXP = (appState.xp || 0) + 25;
-            await SupabaseService.updateProfile(user.uid, { xp: newXP });
-            appState.xp = newXP;
-            appState.attendanceHistoryCount++;
-
-            showToast("¡Asistencia confirmada! +25 XP 🔥", "#22c55e");
-            updateRankUI();
-            renderDashboardNextClass();
-            updateAttendanceUI();
-        } catch (err) {
-            console.error("Check-in error:", err);
-            showToast("Ya registraste asistencia hoy o hubo un error 🛡️", "#eab308");
+        if (!user) {
+            showToast("Inicia sesión para validar asistencia 🔒", "#ef4444");
+            return;
         }
+
+        let modalEl = document.getElementById('qr-scanner-modal');
+        if (!modalEl) {
+            modalEl = document.createElement('div');
+            modalEl.id = 'qr-scanner-modal';
+            modalEl.className = 'custom-modal-overlay';
+            modalEl.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 16px;';
+            document.body.appendChild(modalEl);
+        }
+
+        modalEl.innerHTML = `
+            <div style="background: #09090b; border: 1px solid rgba(255,255,255,0.15); border-radius: 24px; width: 100%; max-width: 440px; padding: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.7); position: relative; text-align: center; color: #fff;">
+                <button id="btn-close-qr-scanner" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.08); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">✕</button>
+
+                <div style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; background: rgba(124, 58, 237, 0.2); border: 1px solid rgba(124, 58, 237, 0.4); color: #c084fc; margin-bottom: 12px;">
+                    <i data-lucide="camera" style="width: 22px; height: 22px;"></i>
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 900; margin: 0 0 4px; color: #fff;">ESCANEAR QR TATAMI</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 18px;">Apunta al código proyectado en la clase de <strong>${cls.name}</strong> para validar tu asistencia (+25 XP).</p>
+
+                <div style="position: relative; width: 100%; height: 240px; background: #000; border-radius: 16px; overflow: hidden; border: 2px solid rgba(124, 58, 237, 0.4); margin-bottom: 16px; display: flex; align-items: center; justify-content: center;">
+                    <video id="qr-camera-stream" playsinline autoplay muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                    <div style="position: absolute; width: 170px; height: 170px; border: 2px dashed #a855f7; border-radius: 16px; pointer-events: none; box-shadow: 0 0 20px rgba(168,85,247,0.3);">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #c084fc; box-shadow: 0 0 8px #c084fc; animation: scanline 2s infinite linear;"></div>
+                    </div>
+                    <div id="camera-loading-msg" style="position: absolute; font-size: 0.78rem; color: #a1a1aa; background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 20px;">
+                        Iniciando cámara... 📷
+                    </div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 14px; text-align: left;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px;">¿Sin cámara? Ingresa el código manual:</div>
+                    <div style="display: flex; gap: 8px;">
+                        <input id="input-manual-qr" type="text" placeholder="Ej: AF_QR:... o ID de clase" style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; outline: none;" />
+                        <button id="btn-submit-manual-qr" style="background: var(--amaru-gold, #D4AF37); color: #000; font-weight: 800; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.78rem; cursor: pointer;">Validar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if (window.lucide) window.lucide.createIcons();
+        modalEl.style.display = 'flex';
+
+        let videoStream = null;
+        let scanInterval = null;
+
+        const stopCamera = () => {
+            if (scanInterval) clearInterval(scanInterval);
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+        };
+
+        const closeModal = () => {
+            stopCamera();
+            modalEl.style.display = 'none';
+        };
+
+        document.getElementById('btn-close-qr-scanner').onclick = closeModal;
+
+        const video = document.getElementById('qr-camera-stream');
+        const loadMsg = document.getElementById('camera-loading-msg');
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    videoStream = stream;
+                    video.srcObject = stream;
+                    video.setAttribute('playsinline', 'true');
+                    video.play();
+                    if (loadMsg) loadMsg.style.display = 'none';
+
+                    if ('BarcodeDetector' in window) {
+                        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+                        scanInterval = setInterval(async () => {
+                            try {
+                                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                                    const barcodes = await detector.detect(video);
+                                    if (barcodes && barcodes.length > 0) {
+                                        const rawValue = barcodes[0].rawValue;
+                                        handleScannedCode(rawValue);
+                                    }
+                                }
+                            } catch (e) {
+                                // Scanning pass
+                            }
+                        }, 500);
+                    }
+                })
+                .catch(err => {
+                    console.warn('[QR] Cámara no permitida o no disponible:', err);
+                    if (loadMsg) loadMsg.textContent = 'Cámara no disponible. Usa el código manual.';
+                });
+        } else {
+            if (loadMsg) loadMsg.textContent = 'Cámara no compatible. Usa el código manual.';
+        }
+
+        const handleScannedCode = async (code) => {
+            if (!code) return;
+            stopCamera();
+            showToast("Validando presencia física con el Dojo... 🥋");
+            try {
+                const res = await SupabaseService.validateAndCheckInQR(user.uid, code);
+                if (res.success) {
+                    closeModal();
+                    if (typeof confetti === 'function') {
+                        confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 } });
+                    }
+                    showToast("¡Asistencia confirmada en Tatami! +25 XP 🔥", "#22c55e");
+                    appState.xp = res.newXP;
+                    appState.attendanceHistoryCount = (appState.attendanceHistoryCount || 0) + 1;
+                    updateRankUI();
+                    renderDashboardNextClass();
+                    updateAttendanceUI();
+                } else {
+                    showToast(res.error || "Código QR no válido para hoy", "#ef4444");
+                }
+            } catch (err) {
+                console.error('[QR Check-in Error]:', err);
+                showToast(err.message || "Error registrando asistencia", "#ef4444");
+            }
+        };
+
+        document.getElementById('btn-submit-manual-qr').onclick = () => {
+            const inputVal = document.getElementById('input-manual-qr')?.value?.trim();
+            if (!inputVal) {
+                showToast("Por favor ingresa un código válido", "#ef4444");
+                return;
+            }
+            handleScannedCode(inputVal);
+        };
     };
 
     const renderDashboardNotifications = () => {
