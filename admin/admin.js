@@ -5508,8 +5508,8 @@ export async function loadPlansGrid() {
     try {
         const [plansRes, profilesRes, paymentsRes] = await Promise.all([
             supabase.from('membership_plans').select('*').order('price', { ascending: true }),
-            supabase.from('profiles').select('id, full_name, membership_plan_id, plan_name, membership_status, is_deleted').or('is_deleted.is.null,is_deleted.eq.false'),
-            supabase.from('payments').select('id, amount, concept, plan_name, status').eq('status', 'approved')
+            supabase.from('profiles').select('id, full_name, membership_plan_id, membership_status, is_deleted').or('is_deleted.is.null,is_deleted.eq.false'),
+            supabase.from('payments').select('id, amount, concept, status').eq('status', 'approved')
         ]);
 
         if (plansRes.error) throw plansRes.error;
@@ -5527,14 +5527,13 @@ export async function loadPlansGrid() {
         // Calcular métricas de cada plan
         const planStats = plans.map(plan => {
             const planNameLower = (plan.name || '').toLowerCase();
-            // Socios asignados a este plan
+            // Socios asignados a este plan por membership_plan_id
             const assignedMembers = profiles.filter(p => 
-                p.membership_plan_id === plan.id || 
-                (p.plan_name && p.plan_name.toLowerCase() === planNameLower)
+                p.membership_plan_id === plan.id
             );
-            // Recaudación histórica / acumulada de este plan
+            // Recaudación histórica / acumulada de este plan por concepto
             const planPayments = payments.filter(p => {
-                const concept = (p.concept || p.plan_name || '').toLowerCase();
+                const concept = (p.concept || '').toLowerCase();
                 return concept.includes(planNameLower);
             });
             const totalRevenue = planPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
