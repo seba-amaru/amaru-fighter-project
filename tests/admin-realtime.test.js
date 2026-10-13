@@ -183,4 +183,42 @@ describe('Admin Realtime Service Suite (tests/admin-realtime.test.js)', () => {
 
         expect(syncPayloads.length).toBeGreaterThanOrEqual(0);
     });
+
+    it('debe manejar error de heartbeat timeout sin desencadenar colisiones de reintentos concurrentes', () => {
+        initAdminRealtime(mockClient);
+        expect(getRealtimeDiagnostics().status).toBe(REALTIME_STATUS.ONLINE);
+
+        // Simular evento de heartbeat timeout emitido por el socket
+        statusCallback('CHANNEL_ERROR', new Error('heartbeat timeout'));
+
+        const diagsAfterError = getRealtimeDiagnostics();
+        expect(diagsAfterError.status).toBe(REALTIME_STATUS.ERROR);
+        expect(diagsAfterError.isReconnecting).toBe(true);
+        expect(diagsAfterError.reconnectAttempts).toBe(1);
+
+        // Simular evento subsecuente inmediato de TIMED_OUT
+        statusCallback('TIMED_OUT', undefined);
+
+        const diagsAfterTimeout = getRealtimeDiagnostics();
+        // Los intentos no deben haberse duplicado en carrera
+        expect(diagsAfterTimeout.reconnectAttempts).toBe(1);
+        expect(diagsAfterTimeout.isReconnecting).toBe(true);
+    });
+
+    it('debe recuperarse limpiamente a ONLINE y reiniciar intentos cuando el canal nativo se reconecta', () => {
+        initAdminRealtime(mockClient);
+
+        // Simular fallo
+        statusCallback('CHANNEL_ERROR', new Error('heartbeat timeout'));
+        expect(getRealtimeDiagnostics().status).toBe(REALTIME_STATUS.ERROR);
+        expect(getRealtimeDiagnostics().reconnectAttempts).toBe(1);
+
+        // Simular que el socket nativo de Supabase completa el rejoin exitosamente
+        statusCallback('SUBSCRIBED');
+
+        const diagsRecovered = getRealtimeDiagnostics();
+        expect(diagsRecovered.status).toBe(REALTIME_STATUS.ONLINE);
+        expect(diagsRecovered.reconnectAttempts).toBe(0);
+        expect(diagsRecovered.isReconnecting).toBe(false);
+    });
 });

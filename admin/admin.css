@@ -394,11 +394,19 @@ h1, h2, h3, h4, .brand-title {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: transform var(--transition-fast);
+    transition: transform var(--transition-fast), opacity var(--transition-fast);
 }
 
-.realtime-reconnect-btn:hover {
+.realtime-reconnect-btn:hover:not(:disabled) {
     transform: rotate(180deg);
+}
+
+.realtime-reconnect-btn:disabled,
+.realtime-reconnect-btn.is-reconnecting {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    animation: connectingBlink 1s infinite alternate ease-in-out;
 }
 
 /* ============================================================================

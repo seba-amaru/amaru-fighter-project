@@ -165,23 +165,38 @@ function initRealtimeUI() {
             pill.classList.add('online');
             statusText.textContent = 'En Vivo';
             pill.title = `Sincronización activa • Canal Supabase conectado (${new Date().toLocaleTimeString('es-CL')})`;
-            if (reconnectBtn) reconnectBtn.classList.add('hidden');
+            if (reconnectBtn) {
+                reconnectBtn.classList.add('hidden');
+                reconnectBtn.disabled = false;
+                reconnectBtn.classList.remove('is-reconnecting');
+            }
         } else if (status === 'CONNECTING') {
             pill.classList.add('connecting');
             statusText.textContent = 'Conectando...';
             pill.title = 'Estableciendo conexión en tiempo real con Supabase';
-            if (reconnectBtn) reconnectBtn.classList.add('hidden');
+            if (reconnectBtn) {
+                reconnectBtn.classList.remove('hidden');
+                reconnectBtn.disabled = true;
+                reconnectBtn.classList.add('is-reconnecting');
+                reconnectBtn.title = 'Reconexión en curso...';
+            }
         } else {
             pill.classList.add('offline');
             statusText.textContent = 'Desconectado';
             pill.title = 'Conexión en tiempo real caída. Clic para reconectar.';
-            if (reconnectBtn) reconnectBtn.classList.remove('hidden');
+            if (reconnectBtn) {
+                reconnectBtn.classList.remove('hidden');
+                reconnectBtn.disabled = false;
+                reconnectBtn.classList.remove('is-reconnecting');
+                reconnectBtn.title = 'Forzar reconexión inmediata';
+            }
         }
     });
 
     if (reconnectBtn) {
         reconnectBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (reconnectBtn.disabled) return;
             reconnectRealtime();
         });
     }
@@ -189,7 +204,7 @@ function initRealtimeUI() {
     pill.addEventListener('click', () => {
         const diags = getRealtimeDiagnostics();
         console.info('[Realtime Status Diagnostics]', diags);
-        if (diags.status !== 'ONLINE') {
+        if (diags.status !== 'ONLINE' && !diags.isReconnecting) {
             reconnectRealtime();
         }
     });

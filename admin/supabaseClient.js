@@ -22,6 +22,13 @@ export function getSupabaseClient() {
                 autoRefreshToken: true,
                 persistSession: true,
                 detectSessionInUrl: true
+            },
+            realtime: {
+                params: {
+                    eventsPerSecond: 10
+                },
+                heartbeatIntervalMs: 25000,
+                timeout: 15000
             }
         });
         return globalObj.supabaseClientInstance;

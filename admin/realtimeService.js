@@ -34,6 +34,60 @@ const statusListeners = new Set();
 let reconnectTimeout = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
+let isReconnecting = false;
+let lifecycleAttached = false;
+
+/**
+ * Registra listeners de visibilidad y conectividad de red del navegador
+ */
+function setupLifecycleListeners() {
+    if (lifecycleAttached || typeof window === 'undefined') return;
+    lifecycleAttached = true;
+
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (currentStatus === REALTIME_STATUS.ERROR || currentStatus === REALTIME_STATUS.OFFLINE) {
+                    console.info('[realtimeService] Pestaña reactivada, comprobando y reanudando canal...');
+                    reconnect();
+                }
+            }
+        });
+    }
+
+    if (typeof window.addEventListener === 'function') {
+        window.addEventListener('online', () => {
+            console.info('[realtimeService] Red restaurada en navegador, reconectando Realtime...');
+            if (currentStatus !== REALTIME_STATUS.ONLINE) {
+                reconnect();
+            }
+        });
+        window.addEventListener('offline', () => {
+            console.warn('[realtimeService] Conexión de red perdida en navegador.');
+            setConnectionStatus(REALTIME_STATUS.OFFLINE, { reason: 'browser_offline' });
+        });
+    }
+}
+
+/**
+ * Retira y desuscribe el canal activo de forma segura sin disparar excepciones
+ * @param {Object} [client]
+ */
+function safeRemoveActiveChannel(client = null) {
+    if (!activeChannel) return;
+    const channelToClean = activeChannel;
+    activeChannel = null;
+    try {
+        const supabaseClient = client || activeClient || getSupabaseClient() || defaultSupabaseClient;
+        if (supabaseClient && typeof supabaseClient.removeChannel === 'function') {
+            supabaseClient.removeChannel(channelToClean);
+        } else if (typeof channelToClean.unsubscribe === 'function') {
+            channelToClean.unsubscribe();
+        }
+    } catch (e) {
+        console.warn('[realtimeService] Error al retirar canal previo:', e);
+    }
+}
 
 /**
  * Emite una actualización del estado de conexión a los observadores registrados
@@ -132,6 +186,8 @@ function dispatchEvent(table, eventType, rawPayload) {
  * @returns {Object|null} El canal activo de Supabase o null si falló
  */
 export function initAdminRealtime(client = null, options = {}) {
+    setupLifecycleListeners();
+
     const supabaseClient = client || getSupabaseClient() || defaultSupabaseClient;
 
     if (!supabaseClient || typeof supabaseClient.channel !== 'function') {
@@ -140,21 +196,14 @@ export function initAdminRealtime(client = null, options = {}) {
         return null;
     }
 
-    // Si ya existe un canal conectado, retornar sin duplicar
+    // Si ya existe un canal conectado y activo, retornar sin duplicar
     if (activeChannel && currentStatus === REALTIME_STATUS.ONLINE) {
         return activeChannel;
     }
 
-    // Limpiar canal anterior si estaba en estado sucio
+    // Limpiar canal anterior de forma segura si existía
     if (activeChannel) {
-        try {
-            if (typeof supabaseClient.removeChannel === 'function') {
-                supabaseClient.removeChannel(activeChannel);
-            }
-        } catch (e) {
-            console.warn('[realtimeService] Error al retirar canal previo:', e);
-        }
-        activeChannel = null;
+        safeRemoveActiveChannel(supabaseClient);
     }
 
     setConnectionStatus(REALTIME_STATUS.CONNECTING);
@@ -179,13 +228,20 @@ export function initAdminRealtime(client = null, options = {}) {
         // Manejador del estado de suscripción del socket
         channel.subscribe((status, err) => {
             if (status === 'SUBSCRIBED') {
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+                isReconnecting = false;
                 reconnectAttempts = 0;
                 setConnectionStatus(REALTIME_STATUS.ONLINE, { channelName });
             } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.warn(`[realtimeService] Estado ${status}:`, err);
+                const isHeartbeat = (err && (err.message || String(err)).includes('heartbeat timeout')) || false;
+                console.warn(`[realtimeService] Estado ${status}:`, err || '(sin error)');
                 setConnectionStatus(REALTIME_STATUS.ERROR, { error: err || status });
-                scheduleReconnect(supabaseClient, options);
+                scheduleManagedReconnect(supabaseClient, options, isHeartbeat);
             } else if (status === 'CLOSED') {
+                isReconnecting = false;
                 setConnectionStatus(REALTIME_STATUS.OFFLINE, { reason: 'closed' });
             }
         });
@@ -196,27 +252,54 @@ export function initAdminRealtime(client = null, options = {}) {
     } catch (err) {
         console.error('[realtimeService] Excepción al configurar canal:', err);
         setConnectionStatus(REALTIME_STATUS.ERROR, { error: err.message });
-        scheduleReconnect(supabaseClient, options);
+        scheduleManagedReconnect(supabaseClient, options, false);
         return null;
     }
 }
 
 /**
- * Planifica un intento de reconexión con retroceso exponencial simple
+ * Planifica un intento de reconexión gestionado con protección anti-carreras
+ * y tolerancia al mecanismo de auto-rejoin nativo de Phoenix/Supabase.
+ * @param {Object} supabaseClient
+ * @param {Object} options
+ * @param {boolean} [isHeartbeat=false]
  */
-function scheduleReconnect(supabaseClient, options) {
-    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+function scheduleManagedReconnect(supabaseClient, options, isHeartbeat = false) {
+    // Si ya existe un ciclo de reconexión en curso, evitar colisiones y no duplicar temporizadores
+    if (isReconnecting && reconnectTimeout) {
+        return;
+    }
+
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         console.warn('[realtimeService] Límite de reconexiones automáticas alcanzado.');
+        isReconnecting = false;
         setConnectionStatus(REALTIME_STATUS.OFFLINE, { reason: 'max_attempts_reached' });
         return;
     }
 
+    isReconnecting = true;
     reconnectAttempts += 1;
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 15000);
+
+    // Si es heartbeat timeout transitorio, otorgar margen para que el socket nativo
+    // de Supabase intente su propio rejoin antes de una reconstrucción forzada
+    const delay = isHeartbeat
+        ? Math.max(3000, Math.min(1000 * Math.pow(2, reconnectAttempts), 15000))
+        : Math.min(1000 * Math.pow(2, reconnectAttempts), 15000);
+
     console.log(`[realtimeService] Reintentando conexión en ${delay}ms (Intento ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
 
+    if (reconnectTimeout) clearTimeout(reconnectTimeout);
     reconnectTimeout = setTimeout(() => {
+        reconnectTimeout = null;
+        isReconnecting = false;
+
+        // Si mientras se cumplía el timeout el socket se recuperó a ONLINE, abortar
+        if (currentStatus === REALTIME_STATUS.ONLINE && activeChannel) {
+            console.log('[realtimeService] Canal recuperado exitosamente antes del temporizador forzado.');
+            return;
+        }
+
+        safeRemoveActiveChannel(supabaseClient);
         initAdminRealtime(supabaseClient, options);
     }, delay);
 }
@@ -225,9 +308,13 @@ function scheduleReconnect(supabaseClient, options) {
  * Fuerza una reconexión inmediata manual
  */
 export function reconnect(client = null, options = {}) {
-    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+    }
+    isReconnecting = false;
     reconnectAttempts = 0;
-    disconnect();
+    disconnect(false);
     return initAdminRealtime(client, options);
 }
 
@@ -240,20 +327,10 @@ export function disconnect(clearListeners = false) {
         clearTimeout(reconnectTimeout);
         reconnectTimeout = null;
     }
+    isReconnecting = false;
+    reconnectAttempts = 0;
 
-    if (activeChannel) {
-        try {
-            const client = activeClient || getSupabaseClient() || defaultSupabaseClient;
-            if (client && typeof client.removeChannel === 'function') {
-                client.removeChannel(activeChannel);
-            } else if (typeof activeChannel.unsubscribe === 'function') {
-                activeChannel.unsubscribe();
-            }
-        } catch (err) {
-            console.warn('[realtimeService] Error al desconectar canal:', err);
-        }
-        activeChannel = null;
-    }
+    safeRemoveActiveChannel(activeClient);
     activeClient = null;
 
     setConnectionStatus(REALTIME_STATUS.OFFLINE, { reason: 'manual_disconnect' });
@@ -350,6 +427,7 @@ export function getRealtimeDiagnostics() {
         hasActiveChannel: !!activeChannel,
         channelName: activeChannel?.topic || null,
         reconnectAttempts,
+        isReconnecting,
         lastEventTimestamp,
         totalEventsCached: eventHistory.length,
         monitoredTables: [...MONITORED_TABLES],
