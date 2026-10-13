@@ -161,47 +161,13 @@ export async function reconcileOctoberMissingPayments() {
     }
 }
 
+import { setupRealtimeSync as centralRealtimeSync } from './realtimeService.js';
+
 /**
- * Inicializa la suscripción Realtime en Supabase para profiles y payments
+ * Inicializa la suscripción Realtime en Supabase (delegado a realtimeService centralizado)
  * @param {Function} onSyncCallback 
  * @returns {Object} supabase realtime channel
  */
 export function setupRealtimeSync(onSyncCallback) {
-    if (!supabase || typeof supabase.channel !== 'function') {
-        console.warn('[Realtime] Supabase realtime no está disponible.');
-        return null;
-    }
-
-    try {
-        const channel = supabase
-            .channel('amaru_realtime_sync')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'payments' },
-                (payload) => {
-                    console.log('[Realtime] Cambio detectado en payments:', payload.eventType, payload.new);
-                    if (typeof onSyncCallback === 'function') {
-                        onSyncCallback({ table: 'payments', event: payload.eventType, record: payload.new || payload.old });
-                    }
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'profiles' },
-                (payload) => {
-                    console.log('[Realtime] Cambio detectado en profiles:', payload.eventType, payload.new);
-                    if (typeof onSyncCallback === 'function') {
-                        onSyncCallback({ table: 'profiles', event: payload.eventType, record: payload.new || payload.old });
-                    }
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Realtime] Estado de suscripción:', status);
-            });
-
-        return channel;
-    } catch (err) {
-        console.error('[Realtime] Error configurando canal realtime:', err);
-        return null;
-    }
+    return centralRealtimeSync(onSyncCallback);
 }

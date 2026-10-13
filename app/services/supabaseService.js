@@ -615,6 +615,18 @@ export const SupabaseService = {
             };
         }
 
+        // 1.1 Validar expiración de QR dinámico anti-capturas (ventana de 60s con tolerancia)
+        if (payload.generated_at) {
+            const ageSeconds = Math.floor((Date.now() - Number(payload.generated_at)) / 1000);
+            if (ageSeconds > 60) {
+                return {
+                    success: false,
+                    code: 'QR_EXPIRED',
+                    error: 'Este código QR ha expirado. Por favor escanea el código actualizado en la pantalla del Tatami.'
+                };
+            }
+        }
+
         // 2. Validar reserva activa
         const { data: reservations, error: resErr } = await window.supabase
             .from('reservations')

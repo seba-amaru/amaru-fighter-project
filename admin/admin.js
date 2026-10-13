@@ -1,6 +1,27 @@
 import { supabase, getCurrentSession, verifyAdminRole } from './supabaseClient.js';
-import { recordMembershipPayment, calculateDiscountedAmount, setupRealtimeSync } from './paymentService.js';
+import { recordMembershipPayment, calculateDiscountedAmount } from './paymentService.js';
 import { KioskService as SupabaseService } from './kioskService.js';
+import {
+    initAdminRealtime,
+    onRealtimeEvent,
+    onConnectionStatusChange,
+    reconnect as reconnectRealtime,
+    disconnect as disconnectRealtime,
+    getRealtimeDiagnostics,
+    getRealtimeHistory
+} from './realtimeService.js';
+import {
+    playCheckinSuccessSound,
+    playCheckinErrorSound,
+    unlockAudioOnFirstInteraction
+} from './kioskAudioService.js';
+
+if (typeof window !== 'undefined') {
+    window._kioskAudio = {
+        playSuccess: playCheckinSuccessSound,
+        playError: playCheckinErrorSound
+    };
+}
 
 // ============================================================================
 // ESTADO LOCAL DE LA APLICACIÓN DE ESCRITORIO
@@ -35,19 +56,207 @@ async function bootAdminApp() {
     // Carga de todas las secciones principales
     await loadInitialData();
 
-    // Suscripción reactiva en tiempo real (Supabase Realtime)
-    setupRealtimeSync((payload) => {
-        console.log('[Admin Realtime Sync]', payload.table, payload.event);
-        if (payload.table === 'payments') {
-            loadPaymentsModule();
-            if (typeof loadDashboardKPIs === 'function') loadDashboardKPIs();
-            if (typeof loadRevenueSection === 'function') loadRevenueSection();
-        } else if (payload.table === 'profiles') {
-            loadMembersModule();
-            loadPaymentsModule();
-            if (typeof loadDashboardKPIs === 'function') loadDashboardKPIs();
+    // Exponer API de Realtime en window para Frontend y QA
+    window._adminRealtime = {
+        reconnect: reconnectRealtime,
+        disconnect: disconnectRealtime,
+        getDiagnostics: getRealtimeDiagnostics,
+        getHistory: getRealtimeHistory,
+        onStatusChange: onConnectionStatusChange,
+        onEvent: onRealtimeEvent
+    };
+
+    // Suscripción reactiva centralizada en tiempo real (Supabase Realtime)
+    initAdminRealtime();
+    initRealtimeUI();
+
+    // 1. Pagos
+    onRealtimeEvent('payments', '*', (payload) => {
+        console.log('[Admin Realtime Sync] payments:', payload.eventType, payload.newRecord);
+        if (typeof loadPaymentsModule === 'function') loadPaymentsModule();
+        if (typeof loadDashboardKPIs === 'function') loadDashboardKPIs();
+        if (typeof loadRevenueSection === 'function') loadRevenueSection();
+
+        if (payload.eventType === 'INSERT' && payload.newRecord) {
+            const amt = Number(payload.newRecord.amount || 0).toLocaleString('es-CL');
+            showLiveToast({
+                type: 'payment',
+                title: 'Pago Registrado',
+                subtitle: `${payload.newRecord.concept || 'Membresía'} • $${amt} CLP`,
+                icon: 'credit-card'
+            });
+            highlightTableRow('payments', payload.newRecord.id);
         }
     });
+
+    // 2. Socios (Perfiles)
+    onRealtimeEvent('profiles', '*', (payload) => {
+        console.log('[Admin Realtime Sync] profiles:', payload.eventType, payload.newRecord);
+        if (typeof loadMembersModule === 'function') loadMembersModule();
+        if (typeof loadPaymentsModule === 'function') loadPaymentsModule();
+        if (typeof loadDashboardKPIs === 'function') loadDashboardKPIs();
+
+        if (payload.eventType === 'INSERT' && payload.newRecord) {
+            showLiveToast({
+                type: 'profile',
+                title: 'Nuevo Socio Incorporado',
+                subtitle: `${payload.newRecord.full_name || payload.newRecord.email || 'Atleta'} se unió al Dojo`,
+                icon: 'user-plus'
+            });
+            highlightTableRow('members', payload.newRecord.id);
+        } else if (payload.eventType === 'UPDATE' && payload.newRecord) {
+            highlightTableRow('members', payload.newRecord.id);
+        }
+    });
+
+    // 3. Asistencia
+    onRealtimeEvent('attendance', '*', (payload) => {
+        console.log('[Admin Realtime Sync] attendance:', payload.eventType, payload.newRecord);
+        if (adminState.currentSection === 'attendance' && typeof loadAttendanceModule === 'function') {
+            loadAttendanceModule();
+        }
+        if (typeof refreshKioskData === 'function' && typeof currentKioskClassId !== 'undefined' && currentKioskClassId) {
+            refreshKioskData(currentKioskClassId);
+        }
+
+        if (payload.eventType === 'INSERT' && payload.newRecord) {
+            showLiveToast({
+                type: 'attendance',
+                title: 'Check-in en Tatami 🥋',
+                subtitle: `${payload.newRecord.class_name || 'Clase regular'} confirmada`,
+                icon: 'clipboard-check'
+            });
+        }
+    });
+
+    // 4. Reservas
+    onRealtimeEvent('reservations', '*', (payload) => {
+        console.log('[Admin Realtime Sync] reservations:', payload.eventType, payload.newRecord);
+        if (adminState.currentSection === 'attendance' && typeof loadAttendanceModule === 'function') {
+            loadAttendanceModule();
+        }
+        if (typeof loadDashboardKPIs === 'function') loadDashboardKPIs();
+    });
+
+    // 5. Clases
+    onRealtimeEvent('classes', '*', (payload) => {
+        console.log('[Admin Realtime Sync] classes:', payload.eventType, payload.newRecord);
+        if (adminState.currentSection === 'classes' && typeof loadClassesWeekGrid === 'function') {
+            loadClassesWeekGrid();
+        }
+    });
+}
+
+/**
+ * Inicializa los controladores de la interfaz para el estado de Realtime
+ */
+function initRealtimeUI() {
+    const pill = document.getElementById('realtime-status-pill');
+    const statusText = document.getElementById('realtime-status-text');
+    const reconnectBtn = document.getElementById('realtime-reconnect-btn');
+
+    if (!pill || !statusText) return;
+
+    onConnectionStatusChange((statusInfo) => {
+        const { status } = statusInfo;
+        pill.classList.remove('online', 'connecting', 'offline', 'error');
+
+        if (status === 'ONLINE') {
+            pill.classList.add('online');
+            statusText.textContent = 'En Vivo';
+            pill.title = `Sincronización activa • Canal Supabase conectado (${new Date().toLocaleTimeString('es-CL')})`;
+            if (reconnectBtn) reconnectBtn.classList.add('hidden');
+        } else if (status === 'CONNECTING') {
+            pill.classList.add('connecting');
+            statusText.textContent = 'Conectando...';
+            pill.title = 'Estableciendo conexión en tiempo real con Supabase';
+            if (reconnectBtn) reconnectBtn.classList.add('hidden');
+        } else {
+            pill.classList.add('offline');
+            statusText.textContent = 'Desconectado';
+            pill.title = 'Conexión en tiempo real caída. Clic para reconectar.';
+            if (reconnectBtn) reconnectBtn.classList.remove('hidden');
+        }
+    });
+
+    if (reconnectBtn) {
+        reconnectBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            reconnectRealtime();
+        });
+    }
+
+    pill.addEventListener('click', () => {
+        const diags = getRealtimeDiagnostics();
+        console.info('[Realtime Status Diagnostics]', diags);
+        if (diags.status !== 'ONLINE') {
+            reconnectRealtime();
+        }
+    });
+}
+
+/**
+ * Muestra una notificación flotante (Toast) para eventos en tiempo real
+ * @param {{ title: string, subtitle: string, type: 'payment'|'attendance'|'profile'|'class', icon: string }} options
+ */
+export function showLiveToast({ title, subtitle, type = 'payment', icon = 'bell' }) {
+    const container = document.getElementById('admin-live-toasts');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `admin-live-toast toast-${type}`;
+
+    toast.innerHTML = `
+        <div class="toast-icon-box">
+            <i data-lucide="${icon}" style="width: 18px; height: 18px;"></i>
+        </div>
+        <div class="toast-body">
+            <div class="toast-title">${title}</div>
+            <div class="toast-subtitle">${subtitle}</div>
+        </div>
+        <button type="button" class="toast-close-btn" aria-label="Cerrar notificación">
+            <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons({ root: toast });
+    }
+
+    const removeToast = () => {
+        if (!toast.parentNode) return;
+        toast.classList.add('fade-out');
+        setTimeout(() => {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+    };
+
+    const closeBtn = toast.querySelector('.toast-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', removeToast);
+    }
+
+    // Auto-cierre tras 4.5 segundos
+    setTimeout(removeToast, 4500);
+}
+
+/**
+ * Aplica una breve animación de destello a la fila afectada en la tabla activa
+ * @param {'members'|'payments'} moduleType 
+ * @param {string} recordId 
+ */
+function highlightTableRow(moduleType, recordId) {
+    if (!recordId) return;
+    setTimeout(() => {
+        const row = document.querySelector(`tr[data-id="${recordId}"], tr[data-user-id="${recordId}"]`);
+        if (row) {
+            row.classList.remove('row-live-highlight');
+            void row.offsetWidth; // Forzar reflow para reiniciar animación
+            row.classList.add('row-live-highlight');
+        }
+    }, 150);
 }
 
 if (document.readyState === 'loading') {
@@ -6998,6 +7207,7 @@ export async function exportPlansToMultiformat() {
 
 let kioskClockTimer = null;
 let kioskPollingTimer = null;
+let kioskQRTimer = null;
 let kioskRealtimeSub = null;
 let currentKioskClassId = null;
 let kioskPreviousAttendedUserIds = new Set();
@@ -7060,6 +7270,9 @@ export async function openTatamiKiosk(initialClassId = null) {
 
     overlay.style.display = 'flex';
     initLucideIcons();
+
+    // Habilitar audio context nativo en primera interacción
+    unlockAudioOnFirstInteraction();
 
     // 1. Reloj digital en vivo
     startKioskClock();
@@ -7130,16 +7343,64 @@ function startKioskClock() {
     kioskClockTimer = setInterval(updateClock, 1000);
 }
 
+/**
+ * Controla la rotación dinámica del código QR cada 30 segundos con barra visual regresiva
+ */
+function startKioskQRCountdown(classId, cls, todayStr) {
+    if (kioskQRTimer) {
+        clearInterval(kioskQRTimer);
+        kioskQRTimer = null;
+    }
+
+    const updateCountdown = () => {
+        const now = Date.now();
+        const remainingSeconds = 30 - Math.floor((now % 30000) / 1000);
+        const fillEl = document.getElementById('kiosk-qr-timer-fill');
+        const textEl = document.getElementById('kiosk-qr-seconds-text');
+
+        if (fillEl) {
+            fillEl.style.width = `${(remainingSeconds / 30) * 100}%`;
+        }
+        if (textEl) {
+            textEl.textContent = `${remainingSeconds}s`;
+        }
+
+        // Si inicia un nuevo bloque de 30s o la imagen aún no tiene fuente
+        const qrImg = document.getElementById('kiosk-qr-image');
+        if (qrImg && (remainingSeconds === 30 || !qrImg.src)) {
+            const freshToken = SupabaseService.generateClassQRToken(
+                classId,
+                todayStr,
+                cls?.time || '19:00',
+                cls?.name || 'Clase Dojo',
+                now
+            );
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(freshToken)}&bgcolor=09090b&color=ffffff&margin=12`;
+            if (qrImg.src !== qrUrl) {
+                qrImg.src = qrUrl;
+            }
+        }
+    };
+
+    updateCountdown();
+    kioskQRTimer = setInterval(updateCountdown, 1000);
+}
+
 async function switchKioskClass(classId) {
     currentKioskClassId = classId;
     kioskPreviousAttendedUserIds = new Set();
 
-    // Limpiar suscripción realtime previa
+    // Limpiar suscripciones y timers previos
     if (kioskRealtimeSub && typeof kioskRealtimeSub.unsubscribe === 'function') {
         kioskRealtimeSub.unsubscribe();
     }
     if (kioskPollingTimer) {
         clearInterval(kioskPollingTimer);
+        kioskPollingTimer = null;
+    }
+    if (kioskQRTimer) {
+        clearInterval(kioskQRTimer);
+        kioskQRTimer = null;
     }
 
     // Cargar datos inmediatos
@@ -7195,14 +7456,8 @@ async function refreshKioskData(classId, isRealtimeTrigger = false) {
             }
         }
 
-        // Actualizar Código QR Gigante
-        const qrImg = document.getElementById('kiosk-qr-image');
-        if (qrImg && status.qrToken) {
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(status.qrToken)}&bgcolor=09090b&color=ffffff&margin=12`;
-            if (qrImg.src !== qrUrl) {
-                qrImg.src = qrUrl;
-            }
-        }
+        // Iniciar / sincronizar temporizador regresivo del QR dinámico anti-captura
+        startKioskQRCountdown(classId, cls, todayStr);
 
         // Actualizar Aforo y Estadísticas
         const capRatio = document.getElementById('kiosk-capacity-ratio');
@@ -7229,7 +7484,7 @@ async function refreshKioskData(classId, isRealtimeTrigger = false) {
         if (cPend) cPend.textContent = pendingCount;
         if (cTotal) cTotal.textContent = `${status.athletes.length} atletas`;
 
-        // Detectar nuevos atletas ingresados para animación especial
+        // Detectar nuevos atletas ingresados para animación especial y chime de Dojo
         const currentAttendedIds = new Set(status.athletes.filter(a => a.hasAttended).map(a => a.userId));
         let newlyArrivedName = null;
 
@@ -7244,17 +7499,30 @@ async function refreshKioskData(classId, isRealtimeTrigger = false) {
         }
         kioskPreviousAttendedUserIds = currentAttendedIds;
 
-        if (newlyArrivedName && isRealtimeTrigger && window.Swal) {
-            window.Swal.fire({
-                title: `<span style="font-size:1.3rem; color:#fff; font-weight:900;">🥋 ¡Bienvenido al Tatami!</span>`,
-                html: `<p style="font-size:1.1rem; color:#34d399; font-weight:800; margin-top:6px;">${newlyArrivedName}</p><span style="font-size:0.8rem; color:#a1a1aa;">Check-in verificado • +25 XP</span>`,
-                timer: 3500,
-                showConfirmButton: false,
-                background: '#09090B',
-                color: '#fff',
-                toast: true,
-                position: 'top-end'
-            });
+        if (newlyArrivedName && isRealtimeTrigger) {
+            // 1. Chime armónico de audio nativo Web Audio API
+            playCheckinSuccessSound();
+
+            // 2. Destello visual en el marco del escáner
+            const frame = document.querySelector('.kiosk-qr-scanner-frame');
+            if (frame) {
+                frame.classList.add('flash-success');
+                setTimeout(() => frame.classList.remove('flash-success'), 1800);
+            }
+
+            // 3. Notificación flotante espectacular
+            if (window.Swal) {
+                window.Swal.fire({
+                    title: `<span style="font-size:1.3rem; color:#fff; font-weight:900;">🥋 ¡Bienvenido al Tatami!</span>`,
+                    html: `<p style="font-size:1.15rem; color:#38bdf8; font-weight:800; margin-top:6px;">${newlyArrivedName}</p><span style="font-size:0.85rem; color:#a1a1aa;">Check-in verificado • +25 XP</span>`,
+                    timer: 3500,
+                    showConfirmButton: false,
+                    background: '#09090B',
+                    color: '#fff',
+                    toast: true,
+                    position: 'top-end'
+                });
+            }
         }
 
         // Renderizar Roster
@@ -7343,6 +7611,10 @@ export function closeTatamiKiosk() {
     if (kioskPollingTimer) {
         clearInterval(kioskPollingTimer);
         kioskPollingTimer = null;
+    }
+    if (kioskQRTimer) {
+        clearInterval(kioskQRTimer);
+        kioskQRTimer = null;
     }
     if (kioskRealtimeSub && typeof kioskRealtimeSub.unsubscribe === 'function') {
         kioskRealtimeSub.unsubscribe();

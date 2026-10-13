@@ -318,23 +318,243 @@ h1, h2, h3, h4, .brand-title {
 }
 
 .status-indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     font-size: 0.72rem;
-    color: var(--accent-emerald);
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.2);
+    font-weight: 600;
     padding: 4px 10px;
     border-radius: 999px;
+    transition: all var(--transition-fast);
+}
+
+.status-indicator.online {
+    color: var(--accent-emerald);
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-indicator.connecting {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-indicator.offline,
+.status-indicator.error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .status-dot {
-    width: 6px;
-    height: 6px;
-    background: var(--accent-emerald);
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent-emerald);
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+    flex-shrink: 0;
+}
+
+.status-indicator.online .live-pulse-dot {
+    animation: livePulse 2s infinite ease-in-out;
+}
+
+.status-indicator.connecting .live-pulse-dot {
+    animation: connectingBlink 1s infinite alternate ease-in-out;
+}
+
+@keyframes livePulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+        transform: scale(0.95);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        transform: scale(1.05);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        transform: scale(0.95);
+    }
+}
+
+@keyframes connectingBlink {
+    0% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+.realtime-reconnect-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--transition-fast);
+}
+
+.realtime-reconnect-btn:hover {
+    transform: rotate(180deg);
+}
+
+/* ============================================================================
+   CONTENEDOR DE TOASTS REACTIVOS EN TIEMPO REAL
+   ============================================================================ */
+.admin-live-toast-container {
+    position: fixed;
+    top: 72px;
+    right: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 380px;
+    pointer-events: none;
+}
+
+.admin-live-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: rgba(18, 20, 29, 0.94);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.admin-live-toast.fade-out {
+    animation: toastSlideOut 0.3s ease forwards;
+}
+
+.admin-live-toast.toast-payment {
+    border-left: 4px solid var(--accent-emerald);
+}
+
+.admin-live-toast.toast-attendance {
+    border-left: 4px solid #3b82f6;
+}
+
+.admin-live-toast.toast-profile {
+    border-left: 4px solid #a855f7;
+}
+
+.admin-live-toast.toast-class {
+    border-left: 4px solid #f59e0b;
+}
+
+.toast-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.toast-payment .toast-icon-box {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-emerald);
+}
+
+.toast-attendance .toast-icon-box {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.toast-profile .toast-icon-box {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+}
+
+.toast-class .toast-icon-box {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.toast-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.toast-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.toast-subtitle {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+.toast-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast);
+}
+
+.toast-close-btn:hover {
+    color: #fff;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(40px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes toastSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(40px) scale(0.96);
+    }
+}
+
+/* ============================================================================
+   REALTME ROW HIGHLIGHT EN TABLAS
+   ============================================================================ */
+@keyframes liveRowFlash {
+    0% {
+        background-color: rgba(16, 185, 129, 0.28) !important;
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.row-live-highlight {
+    animation: liveRowFlash 2.8s ease-out forwards;
 }
 
 .topbar-right {
@@ -2188,14 +2408,14 @@ h1, h2, h3, h4, .brand-title {
 .kiosk-logo {
     height: 48px;
     width: auto;
-    filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.4));
+    filter: drop-shadow(0 0 12px rgba(14, 165, 233, 0.45));
 }
 
 .kiosk-title {
     font-size: 1.15rem;
     font-weight: 900;
     letter-spacing: 1.5px;
-    background: linear-gradient(135deg, #fff, #c084fc);
+    background: linear-gradient(135deg, #fff, #38bdf8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     line-height: 1.1;
@@ -2370,7 +2590,7 @@ h1, h2, h3, h4, .brand-title {
     left: 0;
     width: 4px;
     height: 100%;
-    background: linear-gradient(to bottom, #7c3aed, #10b981);
+    background: linear-gradient(to bottom, #0284c7, #38bdf8);
 }
 
 .kiosk-discipline-pill {
@@ -2381,9 +2601,9 @@ h1, h2, h3, h4, .brand-title {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1px;
-    background: rgba(124, 58, 237, 0.2);
-    color: #c084fc;
-    border: 1px solid rgba(124, 58, 237, 0.4);
+    background: rgba(14, 165, 233, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(14, 165, 233, 0.45);
     margin-bottom: 8px;
 }
 
@@ -2420,16 +2640,22 @@ h1, h2, h3, h4, .brand-title {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
 }
 
 .kiosk-qr-scanner-frame {
     position: relative;
     padding: 12px;
     background: #09090b;
-    border: 2px solid rgba(124, 58, 237, 0.5);
+    border: 2px solid rgba(14, 165, 233, 0.6);
     border-radius: 16px;
-    box-shadow: 0 0 35px rgba(124, 58, 237, 0.35);
+    box-shadow: 0 0 35px rgba(14, 165, 233, 0.35);
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.kiosk-qr-scanner-frame.flash-success {
+    border-color: #38bdf8;
+    box-shadow: 0 0 50px rgba(56, 189, 248, 0.85);
 }
 
 .kiosk-qr-img {
@@ -2445,9 +2671,59 @@ h1, h2, h3, h4, .brand-title {
     left: 10px;
     right: 10px;
     height: 3px;
-    background: linear-gradient(90deg, transparent, #34d399, transparent);
-    box-shadow: 0 0 15px #34d399;
+    background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+    box-shadow: 0 0 16px #38bdf8;
     animation: kioskScanMove 3s infinite ease-in-out;
+}
+
+/* Barra de Temporizador del QR Dinámico Anti-Capturas */
+.kiosk-qr-timer-bar-wrap {
+    width: 100%;
+    max-width: 274px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.kiosk-qr-timer-bar-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.kiosk-qr-timer-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #0284c7, #38bdf8);
+    box-shadow: 0 0 8px #38bdf8;
+    border-radius: 999px;
+    transition: width 1s linear;
+}
+
+.kiosk-qr-timer-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.72rem;
+}
+
+.kiosk-security-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.kiosk-qr-seconds {
+    font-family: monospace;
+    font-weight: 800;
+    color: #38bdf8;
+    background: rgba(14, 165, 233, 0.15);
+    padding: 1px 6px;
+    border-radius: 4px;
 }
 
 @keyframes kioskScanMove {
@@ -2571,10 +2847,10 @@ h1, h2, h3, h4, .brand-title {
     transition: all 0.2s;
 }
 .kiosk-filter-pill.active {
-    background: rgba(124, 58, 237, 0.25);
-    border-color: #a855f7;
+    background: rgba(14, 165, 233, 0.25);
+    border-color: #38bdf8;
     color: #fff;
-    box-shadow: 0 0 12px rgba(124, 58, 237, 0.3);
+    box-shadow: 0 0 14px rgba(14, 165, 233, 0.35);
 }
 
 .kiosk-athletes-grid {
@@ -2638,7 +2914,7 @@ h1, h2, h3, h4, .brand-title {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    background: linear-gradient(135deg, #0284c7, #0ea5e9);
     color: #fff;
     display: flex;
     align-items: center;

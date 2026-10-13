@@ -72,19 +72,56 @@ export const KioskService = {
     },
 
     /**
-     * Genera el payload y token QR de la clase con expiración y datos validados.
+     * Genera el payload y token QR dinámico de la clase con expiración anti-capturas (bloques de 30 segundos).
+     * @param {string} classId
+     * @param {string} date
+     * @param {string} time
+     * @param {string} className
+     * @param {number} [nowMs=Date.now()]
      */
-    generateClassQRToken(classId, date, time, className = '') {
+    generateClassQRToken(classId, date, time, className = '', nowMs = Date.now()) {
+        const timeWindow = Math.floor(nowMs / 30000);
+        const windowExpiresIn = Math.max(1, 30 - Math.floor((nowMs % 30000) / 1000));
+
         const payload = {
             app: 'amarufighter',
-            version: '1.0',
+            version: '2.0',
             class_id: classId,
             class_name: className,
             date: date,
             time: time,
-            generated_at: Date.now()
+            time_window: timeWindow,
+            window_expires_in: windowExpiresIn,
+            generated_at: nowMs
         };
         return `AF_QR:${btoa(unescape(encodeURIComponent(JSON.stringify(payload))))}`;
+    },
+
+    /**
+     * Valida que el token QR dinámico esté dentro de la ventana de frescura permitida (máx 60s con ventana de gracia)
+     * @param {Object} payload 
+     * @param {number} [nowMs=Date.now()] 
+     * @param {number} [maxAgeSeconds=60] 
+     * @returns {{ valid: boolean, reason?: string, ageSeconds?: number }}
+     */
+    validateQRTokenFreshness(payload, nowMs = Date.now(), maxAgeSeconds = 60) {
+        if (!payload || typeof payload !== 'object') {
+            return { valid: false, reason: 'MALFORMED' };
+        }
+
+        if (!payload.generated_at) {
+            // Retrocompatibilidad con tokens v1 sin generated_at
+            return { valid: true, isLegacy: true };
+        }
+
+        const ageMs = nowMs - Number(payload.generated_at);
+        const ageSeconds = Math.floor(ageMs / 1000);
+
+        if (ageSeconds > maxAgeSeconds) {
+            return { valid: false, reason: 'EXPIRED', ageSeconds };
+        }
+
+        return { valid: true, ageSeconds };
     },
 
     /**

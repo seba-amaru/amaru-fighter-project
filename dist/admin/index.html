@@ -32,8 +32,8 @@
     <!-- jsPDF & AutoTable para exportación PDF profesional -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script type="module" crossorigin src="/assets/admin-CwYhMJF7.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/admin-Dr_h7X8z.css">
+  <script type="module" crossorigin src="/assets/admin-B4i1ySMG.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/admin-Dy0XgU6H.css">
 </head>
 
 <body>
@@ -123,14 +123,20 @@
                     <i data-lucide="menu"></i>
                 </button>
                 <h1 class="page-title" id="topbar-page-title">Vista General</h1>
-                <div class="status-indicator">
-                    <span class="status-dot"></span>
-                    <span>Supabase Conectado</span>
+                <div class="status-indicator realtime-pill online" id="realtime-status-pill" title="Sincronización en Vivo activa con Supabase">
+                    <span class="status-dot live-pulse-dot" id="realtime-pulse-dot"></span>
+                    <span id="realtime-status-text">En Vivo</span>
+                    <button type="button" class="realtime-reconnect-btn hidden" id="realtime-reconnect-btn" title="Reconectar conexión en tiempo real">
+                        <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
+                    </button>
                 </div>
             </div>
 
+            <!-- Contenedor Flotante de Notificaciones Reactivas en Vivo -->
+            <div class="admin-live-toast-container" id="admin-live-toasts" aria-live="polite"></div>
+
             <div class="topbar-right">
-                <button type="button" class="btn-primary-action" id="btn-open-tatami-kiosk" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border: none; cursor: pointer; box-shadow: 0 0 12px rgba(124, 58, 237, 0.35);" title="Abrir Modo Pantalla Tatami / Kiosco TV Fullscreen">
+                <button type="button" class="btn-primary-action" id="btn-open-tatami-kiosk" style="background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #fff; font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border: none; cursor: pointer; box-shadow: 0 0 14px rgba(14, 165, 233, 0.45);" title="Abrir Modo Pantalla Tatami / Kiosco TV Fullscreen">
                     <i data-lucide="tv" style="width: 14px; height: 14px;"></i>
                     <span>Pantalla Tatami TV</span>
                 </button>
@@ -348,7 +354,7 @@
                                 <option value="12" style="background: #09090b; color: #fff;">12 horas antes</option>
                             </select>
                         </div>
-                        <button type="button" class="btn-primary-action" id="btn-open-tatami-kiosk-attendance" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-weight: 700;">
+                        <button type="button" class="btn-primary-action" id="btn-open-tatami-kiosk-attendance" style="background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #fff; font-weight: 700; box-shadow: 0 0 14px rgba(14, 165, 233, 0.45);">
                             <i data-lucide="tv"></i>
                             <span>Pantalla Tatami TV</span>
                         </button>
@@ -2450,14 +2456,29 @@
                     </div>
                 </div>
 
-                <!-- QR Check-in Gigante -->
+                <!-- QR Check-in Gigante con Token Dinámico Anti-Capturas -->
                 <div class="kiosk-qr-box">
                     <div class="kiosk-qr-scanner-frame">
                         <img id="kiosk-qr-image" src="" alt="Código QR de Asistencia" class="kiosk-qr-img">
                         <div class="kiosk-scan-glow-line"></div>
                     </div>
+
+                    <!-- Barra regresiva del QR dinámico anti-capturas -->
+                    <div class="kiosk-qr-timer-bar-wrap">
+                        <div class="kiosk-qr-timer-bar-track">
+                            <div id="kiosk-qr-timer-fill" class="kiosk-qr-timer-bar-fill" style="width: 100%;"></div>
+                        </div>
+                        <div class="kiosk-qr-timer-meta">
+                            <span class="kiosk-security-tag">
+                                <i data-lucide="shield-check" style="width: 13px; height: 13px; color: #38bdf8;"></i>
+                                <span>Código Dinámico Anti-Captura</span>
+                            </span>
+                            <span id="kiosk-qr-seconds-text" class="kiosk-qr-seconds">30s</span>
+                        </div>
+                    </div>
+
                     <div class="kiosk-qr-instruction">
-                        <i data-lucide="scan-line" style="width: 20px; height: 20px; color: var(--accent-emerald);"></i>
+                        <i data-lucide="scan-line" style="width: 20px; height: 20px; color: #38bdf8;"></i>
                         <div>
                             <strong>Check-in con tu App</strong>
                             <p>Escanea este código desde la app móvil para registrar tu asistencia (+25 XP 🥋)</p>
