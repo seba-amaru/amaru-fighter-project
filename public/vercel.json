@@ -1,0 +1,5 @@
+{
+  "buildCommand": "echo 'Skipping build for gh-pages branch'",
+  "ignoreCommand": "exit 0",
+  "outputDirectory": "."
+}

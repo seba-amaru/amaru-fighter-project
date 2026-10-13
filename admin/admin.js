@@ -659,18 +659,46 @@ async function loadDashboardKPIs() {
             if (previewCount) previewCount.textContent = `${displayCount} clases`;
         }
 
-        // 4. Recaudación total acumulada de pagos aprobados
+        // 4. Recaudación del mes en curso vs histórico acumulado
         const { data: approvedPayments, error: errRev } = await supabase
             .from('payments')
-            .select('amount')
+            .select('amount, created_at, coverage_month')
             .eq('status', 'approved');
 
         if (!errRev && approvedPayments) {
-            const sum = approvedPayments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-            adminState.kpis.monthRevenue = sum;
+            const now = new Date();
+            const curYear = now.getFullYear();
+            const curMonth = now.getMonth();
+            const curMonthName = now.toLocaleDateString('es-CL', { month: 'long' }).toLowerCase();
+
+            // Filtrar estrictamente pagos correspondientes al mes en curso (Octubre)
+            const currentMonthPayments = approvedPayments.filter(p => {
+                if (p.created_at) {
+                    const d = new Date(p.created_at);
+                    if (d.getFullYear() === curYear && d.getMonth() === curMonth) return true;
+                }
+                if (p.coverage_month && p.coverage_month.toLowerCase().includes(curMonthName)) {
+                    return true;
+                }
+                return false;
+            });
+
+            const monthSum = currentMonthPayments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+            const totalHistoricalSum = approvedPayments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+            adminState.kpis.monthRevenue = monthSum;
+            adminState.kpis.totalHistoricalRevenue = totalHistoricalSum;
+
             const el = document.getElementById('kpi-month-revenue');
             if (el) {
-                el.textContent = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(sum);
+                el.textContent = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(monthSum);
+                el.title = `Total histórico acumulado: ${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(totalHistoricalSum)}`;
+            }
+
+            const subEl = document.getElementById('kpi-month-revenue-sub');
+            if (subEl) {
+                const monthCapitalized = curMonthName.charAt(0).toUpperCase() + curMonthName.slice(1);
+                subEl.textContent = `${monthCapitalized} ${curYear} • Confirmados`;
             }
         }
 

@@ -307,4 +307,48 @@ describe('Lógica de Negocio: Tokens QR de Asistencia Tatami', () => {
     });
 });
 
+describe('Métricas Financieras: Recaudación del Mes vs Total Histórico Acumulado', () => {
+    function calculateMonthlyAndHistoricalRevenue(payments, referenceDate = new Date('2026-10-13T12:00:00Z')) {
+        const curYear = referenceDate.getFullYear();
+        const curMonth = referenceDate.getMonth();
+        const curMonthName = referenceDate.toLocaleDateString('es-CL', { month: 'long' }).toLowerCase();
+
+        const approvedPayments = (payments || []).filter(p => p.status === 'approved');
+
+        const currentMonthPayments = approvedPayments.filter(p => {
+            if (p.created_at) {
+                const d = new Date(p.created_at);
+                if (d.getFullYear() === curYear && d.getMonth() === curMonth) return true;
+            }
+            if (p.coverage_month && p.coverage_month.toLowerCase().includes(curMonthName)) {
+                return true;
+            }
+            return false;
+        });
+
+        const monthRevenue = currentMonthPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const totalHistorical = approvedPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+
+        return { monthRevenue, totalHistorical, currentMonthCount: currentMonthPayments.length };
+    }
+
+    it('debe calcular la recaudación de octubre excluyendo pagos de meses anteriores pero sumándolos al histórico', () => {
+        const samplePayments = [
+            { id: '1', amount: 35000, status: 'approved', created_at: '2026-10-02T10:00:00Z', coverage_month: 'Octubre 2026' },
+            { id: '2', amount: 45000, status: 'approved', created_at: '2026-10-10T15:30:00Z', coverage_month: 'Octubre 2026' },
+            { id: '3', amount: 1672001, status: 'approved', created_at: '2026-09-01T12:00:00Z', coverage_month: 'Septiembre 2026' }, // Histórico anterior
+            { id: '4', amount: 30000, status: 'pending', created_at: '2026-10-12T10:00:00Z', coverage_month: 'Octubre 2026' } // Pendiente, no aprobado
+        ];
+
+        const { monthRevenue, totalHistorical, currentMonthCount } = calculateMonthlyAndHistoricalRevenue(samplePayments);
+
+        // Recaudación del mes debe ser solo los 2 pagos aprobados de octubre (35.000 + 45.000 = 80.000)
+        expect(monthRevenue).toBe(80000);
+        expect(currentMonthCount).toBe(2);
+
+        // El total histórico acumulado debe ser la suma de todos los aprobados (35.000 + 45.000 + 1.672.001 = 1.752.001)
+        expect(totalHistorical).toBe(1752001);
+    });
+});
+
 
