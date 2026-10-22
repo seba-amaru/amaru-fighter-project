@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FightTimer - Combat Sports & HIIT</title>
+  <link rel="stylesheet" href="./timer.css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body data-phase="IDLE">
+
+  <div class="timer-container">
+    <!-- Header Superior -->
+    <header class="timer-header">
+      <div class="header-left">
+        <button id="btn-open-presets" class="preset-badge-btn" aria-label="Seleccionar Preset">
+          <i data-lucide="layers" style="width: 18px; height: 18px;"></i>
+          <span id="label-active-preset">BJJ / No-Gi Sparring</span>
+        </button>
+        <button id="btn-open-custom-editor" class="icon-btn edit-preset-btn" title="Personalizar Rondas y Tiempos" aria-label="Personalizar Tiempos">
+          <i data-lucide="sliders-horizontal" style="width: 20px; height: 20px;"></i>
+        </button>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-toggle-sound" class="icon-btn active" title="Alternar Sonido" aria-label="Sonido">
+          <i data-lucide="volume-2" style="width: 22px; height: 22px;"></i>
+        </button>
+        <button id="btn-toggle-voice" class="icon-btn active" title="Locución por Voz" aria-label="Voz">
+          <i data-lucide="mic" style="width: 22px; height: 22px;"></i>
+        </button>
+        <button id="btn-toggle-lock" class="icon-btn" title="Bloquear Pantalla (Anti-Sudor)" aria-label="Bloqueo">
+          <i data-lucide="lock" style="width: 22px; height: 22px;"></i>
+        </button>
+        <a href="/app/index.html" class="icon-btn" title="Volver a la App" aria-label="Volver">
+          <i data-lucide="home" style="width: 22px; height: 22px;"></i>
+        </a>
+      </div>
+    </header>
+
+    <!-- Zona Central: Display Gigante (10m Tatami Visibilidad) -->
+    <main class="timer-centerpiece">
+      <div id="phase-badge" class="phase-indicator">LISTOS</div>
+      <div id="timer-display" class="timer-digits">05:00</div>
+      
+      <div class="round-info">
+        <span class="round-text">ROUND <span id="round-current" class="round-highlight">1</span> / <span id="round-total">5</span></span>
+      </div>
+    </main>
+
+    <!-- Barra de Progreso del Round -->
+    <div class="timer-progress-track">
+      <div id="progress-bar" class="timer-progress-bar"></div>
+    </div>
+
+    <!-- Controles XXL para Guantes de Boxeo -->
+    <footer class="timer-controls">
+      <button id="btn-reset" class="btn-glove btn-secondary" aria-label="Reiniciar Asalto">
+        <i data-lucide="rotate-ccw" style="width: 32px; height: 32px;"></i>
+        <span>RESET</span>
+      </button>
+
+      <button id="btn-toggle-play" class="btn-glove btn-main-action" aria-label="Iniciar o Pausar">
+        <i id="icon-play-state" data-lucide="play" style="width: 40px; height: 40px;"></i>
+        <span id="label-play-state">START</span>
+      </button>
+
+      <button id="btn-skip-round" class="btn-glove btn-secondary" aria-label="Siguiente Asalto">
+        <i data-lucide="skip-forward" style="width: 32px; height: 32px;"></i>
+        <span>SKIP</span>
+      </button>
+    </footer>
+  </div>
+
+  <!-- Modal Selector de Presets -->
+  <div id="modal-presets" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Biblioteca de Presets</h2>
+        <button id="btn-close-modal" class="modal-close-btn" aria-label="Cerrar">
+          <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+        </button>
+      </div>
+      <div class="modal-toolbar">
+        <button type="button" id="btn-create-preset-from-modal" class="btn-primary-create">
+          <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
+          <span>Crear Nuevo Preset</span>
+        </button>
+      </div>
+      <div id="presets-list-container" class="modal-body">
+        <!-- Generado dinámicamente -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editor de Preset Personalizado -->
+  <div id="modal-custom-editor" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-card modal-custom-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <i data-lucide="sliders" style="width: 22px; height: 22px; color: #00d2ff;"></i>
+          <h2 class="modal-title" id="custom-modal-title">Ajustar Temporizador</h2>
+        </div>
+        <button id="btn-close-custom-modal" class="modal-close-btn" aria-label="Cerrar">
+          <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+        </button>
+      </div>
+
+      <div class="modal-body custom-editor-body">
+        <!-- Nombre del Preset -->
+        <div class="editor-section">
+          <div class="editor-section-header">
+            <span class="editor-section-title">NOMBRE DEL PRESET</span>
+          </div>
+          <input
+            type="text"
+            id="input-custom-name"
+            class="editor-name-input"
+            placeholder="Ej: Sparring Boxeo 3x3, Randori Judo..."
+            maxlength="35"
+            value="Personalizado"
+          />
+        </div>
+
+        <!-- Rondas -->
+        <div class="editor-section">
+          <div class="editor-section-header">
+            <span class="editor-section-title">CANTIDAD DE RONDAS</span>
+            <span id="display-custom-rounds" class="editor-value-highlight">5 ROUNDS</span>
+          </div>
+          <div class="stepper-control">
+            <button type="button" class="stepper-btn" id="btn-rounds-dec" aria-label="Menos rondas">−</button>
+            <div class="stepper-display">
+              <input type="number" id="input-custom-rounds" min="1" max="50" value="5" class="stepper-input" />
+              <span class="stepper-unit">ASALTOS</span>
+            </div>
+            <button type="button" class="stepper-btn" id="btn-rounds-inc" aria-label="Más rondas">+</button>
+          </div>
+          <div class="quick-chips-row" id="chips-rounds">
+            <button type="button" class="chip-btn" data-val="3">3 R</button>
+            <button type="button" class="chip-btn active" data-val="5">5 R</button>
+            <button type="button" class="chip-btn" data-val="8">8 R</button>
+            <button type="button" class="chip-btn" data-val="10">10 R</button>
+            <button type="button" class="chip-btn" data-val="12">12 R</button>
+          </div>
+        </div>
+
+        <!-- Tiempo de Trabajo -->
+        <div class="editor-section">
+          <div class="editor-section-header">
+            <span class="editor-section-title">TIEMPO DE TRABAJO (COMBATE)</span>
+            <span id="display-custom-work" class="editor-value-highlight">03:00</span>
+          </div>
+          <div class="time-steppers-grid">
+            <div class="stepper-col">
+              <span class="stepper-sublabel">MINUTOS</span>
+              <div class="stepper-control sm">
+                <button type="button" class="stepper-btn" id="btn-work-min-dec">−</button>
+                <input type="number" id="input-work-min" min="0" max="60" value="3" class="stepper-input" />
+                <button type="button" class="stepper-btn" id="btn-work-min-inc">+</button>
+              </div>
+            </div>
+            <div class="time-stepper-sep">:</div>
+            <div class="stepper-col">
+              <span class="stepper-sublabel">SEGUNDOS</span>
+              <div class="stepper-control sm">
+                <button type="button" class="stepper-btn" id="btn-work-sec-dec">−</button>
+                <input type="number" id="input-work-sec" min="0" max="59" step="5" value="0" class="stepper-input" />
+                <button type="button" class="stepper-btn" id="btn-work-sec-inc">+</button>
+              </div>
+            </div>
+          </div>
+          <div class="quick-chips-row" id="chips-work">
+            <button type="button" class="chip-btn" data-val="60">1:00</button>
+            <button type="button" class="chip-btn" data-val="120">2:00</button>
+            <button type="button" class="chip-btn active" data-val="180">3:00</button>
+            <button type="button" class="chip-btn" data-val="300">5:00</button>
+            <button type="button" class="chip-btn" data-val="360">6:00</button>
+          </div>
+        </div>
+
+        <!-- Tiempo de Descanso -->
+        <div class="editor-section">
+          <div class="editor-section-header">
+            <span class="editor-section-title">TIEMPO DE DESCANSO</span>
+            <span id="display-custom-rest" class="editor-value-highlight">01:00</span>
+          </div>
+          <div class="time-steppers-grid">
+            <div class="stepper-col">
+              <span class="stepper-sublabel">MINUTOS</span>
+              <div class="stepper-control sm">
+                <button type="button" class="stepper-btn" id="btn-rest-min-dec">−</button>
+                <input type="number" id="input-rest-min" min="0" max="15" value="1" class="stepper-input" />
+                <button type="button" class="stepper-btn" id="btn-rest-min-inc">+</button>
+              </div>
+            </div>
+            <div class="time-stepper-sep">:</div>
+            <div class="stepper-col">
+              <span class="stepper-sublabel">SEGUNDOS</span>
+              <div class="stepper-control sm">
+                <button type="button" class="stepper-btn" id="btn-rest-sec-dec">−</button>
+                <input type="number" id="input-rest-sec" min="0" max="59" step="5" value="0" class="stepper-input" />
+                <button type="button" class="stepper-btn" id="btn-rest-sec-inc">+</button>
+              </div>
+            </div>
+          </div>
+          <div class="quick-chips-row" id="chips-rest">
+            <button type="button" class="chip-btn" data-val="0">0s (Sin descanso)</button>
+            <button type="button" class="chip-btn" data-val="15">15s</button>
+            <button type="button" class="chip-btn" data-val="30">30s</button>
+            <button type="button" class="chip-btn active" data-val="60">1:00</button>
+            <button type="button" class="chip-btn" data-val="90">1:30</button>
+          </div>
+        </div>
+
+        <!-- Opciones Extra: Preparación y Aviso -->
+        <div class="editor-section-grid">
+          <div class="editor-section compact">
+            <span class="editor-section-title">PREPARACIÓN</span>
+            <div class="quick-chips-row compact" id="chips-prepare">
+              <button type="button" class="chip-btn mini" data-val="5">5s</button>
+              <button type="button" class="chip-btn mini active" data-val="10">10s</button>
+              <button type="button" class="chip-btn mini" data-val="15">15s</button>
+            </div>
+          </div>
+
+          <div class="editor-section compact">
+            <span class="editor-section-title">AVISO FINAL</span>
+            <div class="quick-chips-row compact" id="chips-warning">
+              <button type="button" class="chip-btn mini" data-val="0">Off</button>
+              <button type="button" class="chip-btn mini active" data-val="10">10s</button>
+              <button type="button" class="chip-btn mini" data-val="30">30s</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voz del Asistente (Femenina / Masculina) -->
+        <div class="editor-section">
+          <div class="editor-section-header">
+            <span class="editor-section-title">VOZ DEL ASISTENTE (LATINOAMÉRICA)</span>
+            <button type="button" id="btn-test-voice" class="btn-test-voice" title="Escuchar muestra de voz">
+              <i data-lucide="volume-2" style="width: 15px; height: 15px;"></i>
+              <span>Probar Voz</span>
+            </button>
+          </div>
+          <div class="voice-gender-selector" id="voice-gender-group">
+            <button type="button" class="voice-gender-btn active" data-gender="female">
+              <span class="gender-icon">👩</span>
+              <span class="gender-text">Voz Femenina</span>
+            </button>
+            <button type="button" class="voice-gender-btn" data-gender="male">
+              <span class="gender-icon">👨</span>
+              <span class="gender-text">Voz Masculina</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer custom-editor-footer">
+        <button type="button" id="btn-cancel-custom-modal" class="btn-modal-cancel">Cancelar</button>
+        <div class="footer-actions-right">
+          <button type="button" id="btn-save-as-new-preset" class="btn-modal-save-new" title="Guardar como preset permanente en la biblioteca">
+            <i data-lucide="bookmark-plus" style="width: 18px; height: 18px;"></i>
+            <span>GUARDAR EN BIBLIOTECA</span>
+          </button>
+          <button type="button" id="btn-save-custom-modal" class="btn-modal-save">
+            <i data-lucide="check" style="width: 20px; height: 20px;"></i>
+            <span id="label-save-action">APLICAR AL TIMER</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modo de Bloqueo Anti-Sudor (Sweat Lock Overlay) -->
+  <div id="overlay-sweat-lock" class="lock-overlay">
+    <i data-lucide="shield-alert" style="width: 64px; height: 64px; color: #ffaa00;"></i>
+    <h3 class="lock-title">PANTALLA BLOQUEADA</h3>
+    <p class="lock-instruction">Mantén presionado para desbloquear</p>
+    <button id="btn-hold-unlock" class="btn-hold-unlock">
+      <i data-lucide="unlock" style="width: 32px; height: 32px;"></i>
+      <span>DESBLOQUEAR</span>
+    </button>
+  </div>
+
+  <!-- Scripts de la Aplicación -->
+  <script type="module" src="./timerUI.js"></script>
+</body>
+</html>

@@ -13,6 +13,7 @@ export default defineConfig({
                 main: resolve(__dirname, 'index.html'),
                 app: resolve(__dirname, 'app/index.html'),
                 admin: resolve(__dirname, 'admin/index.html'),
+                timer: resolve(__dirname, 'timer/index.html'),
             },
         },
     },
