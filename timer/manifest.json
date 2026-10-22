@@ -1,0 +1,20 @@
+{
+    "name": "FightTimer - Combat Sports",
+    "short_name": "FightTimer",
+    "description": "Temporizador de combate para artes marciales y deportes de contacto",
+    "start_url": "/timer/",
+    "scope": "/timer/",
+    "display": "standalone",
+    "background_color": "#0d0d12",
+    "theme_color": "#000000",
+    "orientation": "portrait",
+    "categories": ["sports", "fitness"],
+    "icons": [
+        {
+            "src": "./logo.jpeg",
+            "sizes": "any",
+            "type": "image/jpeg",
+            "purpose": "any maskable"
+        }
+    ]
+}

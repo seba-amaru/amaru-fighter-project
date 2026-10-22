@@ -1,6 +1,12 @@
 /**
  * FightTimer Sound Service
  * Síntesis de sonido procedural vía Web Audio API, avisos por voz (SpeechSynthesis) y vibración háptica.
+ *
+ * BLUETOOTH AUDIO ROUTING:
+ * - AudioContext se inicializa con latencyHint:'playback' para clasificarse como canal multimedia.
+ * - Audio HTML5 silencioso en loop mantiene activa la sesión multimedia (Bluetooth routing para SpeechSynthesis).
+ * - Buffer silencioso en Web Audio API cada 25s evita que el sistema suspenda el AudioContext.
+ * - Ducking de volumen: baja el masterGain antes de la locución y lo restaura al terminar.
  */
 
 export class SoundService {
@@ -12,8 +18,15 @@ export class SoundService {
       volume: 1.0,
       voiceLang: 'es-CL', // Español latinoamericano preferente (Chile / LatAm)
       voiceGender: 'female', // 'female' | 'male'
+      duckingEnabled: true,  // Reducir volumen durante locución
+      duckingLevel: 0.4,     // 40% del volumen durante la voz
       ...options
     };
+
+    this._silentAudio = null;      // Audio HTML5 silencioso para Bluetooth session
+    this._keepAliveTimer = null;   // Timer del buffer silencioso WebAudio
+    this._isDucking = false;
+    this._duckRampMs = 180;
 
     this.audioCtx = null;
     this.masterGain = null;
@@ -22,6 +35,46 @@ export class SoundService {
     this.selectedVoice = null;
 
     this._initVoiceEngine();
+    this._initSilentAudio();
+  }
+
+  // ---------------------------------------------------------------------------
+  // BLUETOOTH AUDIO ROUTING
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Crea un <audio> silencioso en loop.
+   * En Android/iOS el sistema sigue la ÚLTIMA fuente activa para determinar el canal de salida
+   * (Bluetooth, altavoz, auriculares). Al reproducir este audio silencioso desde la primera
+   * interacción, la sesión queda como 'multimedia/music'. SpeechSynthesis hereda esa sesión.
+   */
+  _initSilentAudio() {
+    if (typeof document === 'undefined') return;
+    try {
+      // WAV de 1 segundo 100% silencioso (44100 Hz, 16-bit, mono)
+      const silentWav = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      this._silentAudio = new Audio(silentWav);
+      this._silentAudio.loop = true;
+      this._silentAudio.volume = 0.001; // Prácticamente inaudible
+      // No autoplay — se activa después de la primera interacción del usuario
+    } catch {
+      // Silent fail
+    }
+  }
+
+  /**
+   * Inicia la reproducción del audio silencioso HTML5.
+   * Esto registra una sesión multimedia activa, forzando que SpeechSynthesis
+   * use el mismo canal de salida (Bluetooth / altavoz activo).
+   */
+  _startSilentAudioSession() {
+    if (!this._silentAudio) return;
+    try {
+      const p = this._silentAudio.play();
+      if (p && typeof p.then === 'function') {
+        p.catch(() => { /* autoplay bloqueado — se reintentará */ });
+      }
+    } catch { /* ignore */ }
   }
 
   /**
@@ -193,16 +246,52 @@ export class SoundService {
     if (!this.audioCtx) {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
       if (AudioCtxClass) {
-        this.audioCtx = new AudioCtxClass();
+        /**
+         * latencyHint:'playback' indica al SO que este contexto es canal MULTIMEDIA
+         * (music stream), NO notificación. Esto es clave para routing Bluetooth:
+         * el sistema envía el audio al mismo dispositivo que la música (Spotify, etc.).
+         */
+        this.audioCtx = new AudioCtxClass({ latencyHint: 'playback' });
         this.masterGain = this.audioCtx.createGain();
         this.masterGain.gain.setValueAtTime(this.options.volume, this.audioCtx.currentTime);
         this.masterGain.connect(this.audioCtx.destination);
+
+        // Iniciar sesiones para mantener el canal multimedia activo
+        this._startKeepAlive();
+        this._startSilentAudioSession();
       }
     }
 
     if (this.audioCtx && this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
+      this.audioCtx.resume().then(() => this._startSilentAudioSession());
     }
+  }
+
+  /**
+   * Mantiene vivo el AudioContext con un buffer silencioso cada 25s.
+   * Sin esto, en Chrome Mobile y Safari el contexto es suspendido y
+   * reclasificado como 'background', saliendo por el altavoz interno.
+   */
+  _startKeepAlive() {
+    if (!this.audioCtx) return;
+    try {
+      const bufferSize = Math.min(this.audioCtx.sampleRate, 4096);
+      const keepAliveBuf = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+
+      const schedule = () => {
+        if (!this.audioCtx || this.audioCtx.state === 'closed') return;
+        const src = this.audioCtx.createBufferSource();
+        src.buffer = keepAliveBuf;
+        const sg = this.audioCtx.createGain();
+        sg.gain.value = 0; // Silencio total
+        src.connect(sg);
+        sg.connect(this.audioCtx.destination);
+        src.start();
+        this._keepAliveTimer = setTimeout(schedule, 25000);
+      };
+
+      schedule();
+    } catch { /* Keep-alive no crítico */ }
   }
 
   /**
@@ -213,6 +302,33 @@ export class SoundService {
     if (this.audioCtx && this.audioCtx.state === 'suspended') {
       this.audioCtx.resume();
     }
+    this._startSilentAudioSession();
+  }
+
+  // ---------------------------------------------------------------------------
+  // DUCKING — Reducción suave de volumen durante locución
+  // ---------------------------------------------------------------------------
+
+  /** Baja el masterGain gradualmente antes de la locución */
+  _duckDown() {
+    if (!this.options.duckingEnabled || !this.masterGain || !this.audioCtx) return;
+    this._isDucking = true;
+    const now = this.audioCtx.currentTime;
+    const ramp = this._duckRampMs / 1000;
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+    this.masterGain.gain.linearRampToValueAtTime(this.options.volume * this.options.duckingLevel, now + ramp);
+  }
+
+  /** Restaura el masterGain al volumen normal al terminar la locución */
+  _duckUp() {
+    if (!this.masterGain || !this.audioCtx) return;
+    this._isDucking = false;
+    const now = this.audioCtx.currentTime;
+    const ramp = this._duckRampMs / 1000;
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+    this.masterGain.gain.linearRampToValueAtTime(this.options.volume, now + ramp);
   }
 
   setVolume(vol) {
@@ -335,6 +451,17 @@ export class SoundService {
         this._loadVoices();
       }
 
+      /**
+       * BLUETOOTH TRICK: Reproducir el audio silencioso HTML5 justo antes de hablar.
+       * En Android, SpeechSynthesis sigue el AudioFocus del último elemento de audio activo.
+       * Si el audio silencioso está en el canal multimedia (Bluetooth activo), la voz
+       * también saldrá por el mismo canal (altavoz Bluetooth / auriculares).
+       */
+      this._startSilentAudioSession();
+
+      // Ducking: bajar volumen de los sonidos de ring antes de que la voz hable
+      this._duckDown();
+
       const utterance = new SpeechSynthesisUtterance(text);
 
       if (this.selectedVoice) {
@@ -353,8 +480,18 @@ export class SoundService {
       }
       utterance.volume = this.options.volume;
 
+      // Restaurar volumen al terminar (duck up)
+      utterance.onend = () => this._duckUp();
+      utterance.onerror = () => this._duckUp();
+
       this.synth.speak(utterance);
+
+      // Seguro: si onend no dispara (bug en algunos navegadores), estimar duración
+      const estimatedMs = Math.max(1500, text.length * 70);
+      setTimeout(() => { if (this._isDucking) this._duckUp(); }, estimatedMs + 500);
+
     } catch (err) {
+      this._duckUp();
       console.warn('Error en SpeechSynthesis:', err);
     }
   }
@@ -371,5 +508,25 @@ export class SoundService {
         // Ignore vibration errors
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // CLEANUP
+  // ---------------------------------------------------------------------------
+
+  destroy() {
+    if (this._keepAliveTimer) {
+      clearTimeout(this._keepAliveTimer);
+      this._keepAliveTimer = null;
+    }
+    if (this._silentAudio) {
+      try { this._silentAudio.pause(); this._silentAudio.src = ''; } catch { /* ignore */ }
+      this._silentAudio = null;
+    }
+    if (this.audioCtx && this.audioCtx.state !== 'closed') {
+      try { this.audioCtx.close(); } catch { /* ignore */ }
+    }
+    this.audioCtx = null;
+    this.masterGain = null;
   }
 }
